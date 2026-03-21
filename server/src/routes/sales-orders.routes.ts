@@ -13,6 +13,8 @@ import {
 import { ApiError } from "../utils/api-error";
 import { getPagination } from "../utils/pagination";
 import { toNumber } from "../utils/number";
+import { salesOrderService } from "../services/sales-order.service";
+import { paymentService } from "../services/payment.service";
 
 export const salesOrdersRouter = Router();
 
@@ -72,7 +74,7 @@ salesOrdersRouter.get(
               },
             },
           },
-          invoice: true,
+          taxInvoice: true,
           delivery: true,
         },
         orderBy: {
@@ -93,31 +95,11 @@ salesOrdersRouter.post(
   validate(salesOrderSchema),
   asyncHandler(async (request, response) => {
     const body = request.validated?.body as ReturnType<typeof salesOrderSchema.parse>;
-    const totals = calculateSalesOrderTotals(body.lineItems, body.depositAmount);
-
-    const salesOrder = await prisma.salesOrder.create({
-      data: {
-        customerId: body.customerId,
-        assignedWarehouseId: body.assignedWarehouseId,
-        salespersonId: body.salespersonId ?? request.user?.id,
-        status: body.status,
-        depositAmount: body.depositAmount,
-        balanceDue: totals.balanceDue,
-        deliveryDate: body.deliveryDate,
-        notes: body.notes,
-        lineItems: {
-          create: body.lineItems,
-        },
-      },
-      include: {
-        customer: true,
-        lineItems: true,
-      },
-    });
+    const { order, subtotal } = await salesOrderService.createOrder(body, request.user?.id);
 
     response.status(201).json({
-      ...salesOrder,
-      subtotal: totals.subtotal,
+      ...order,
+      subtotal,
     });
   }),
 );
@@ -147,11 +129,8 @@ salesOrdersRouter.get(
             },
           },
         },
-        invoice: {
-          include: {
-            payments: true,
-          },
-        },
+        taxInvoice: true,
+        payments: true,
         delivery: true,
       },
     });
@@ -180,6 +159,7 @@ salesOrdersRouter.patch(
         assignedWarehouseId: body.assignedWarehouseId,
         salespersonId: body.salespersonId,
         status: body.status,
+        orderAmount: totals?.subtotal,
         depositAmount: body.depositAmount,
         balanceDue: totals?.balanceDue,
         deliveryDate: body.deliveryDate,
@@ -210,53 +190,7 @@ salesOrdersRouter.post(
   asyncHandler(async (request, response) => {
     const params = request.validated?.params as { id: string };
 
-    const order = await prisma.salesOrder.findUnique({
-      where: { id: params.id },
-      include: {
-        lineItems: true,
-      },
-    });
-
-    if (!order) {
-      throw new ApiError(404, "Sales order not found");
-    }
-
-    const confirmedStatus = toNumber(order.depositAmount) > 0 ? "DEPOSIT_PAID" : "CONFIRMED";
-
-    const updated = await prisma.$transaction(async (tx) => {
-      const salesOrder = await tx.salesOrder.update({
-        where: { id: order.id },
-        data: {
-          status: confirmedStatus,
-        },
-      });
-
-      if (order.assignedWarehouseId) {
-        for (const lineItem of order.lineItems) {
-          const variant = await tx.productVariant.findUnique({
-            where: { id: lineItem.productVariantId },
-          });
-
-          if (!variant) {
-            continue;
-          }
-
-          await tx.stockMovement.create({
-            data: {
-              productVariantId: lineItem.productVariantId,
-              warehouseId: order.assignedWarehouseId,
-              userId: request.user?.id,
-              type: "RESERVATION",
-              quantity: -lineItem.quantity,
-              balanceAfter: variant.stockQuantity,
-              source: `SO:${order.id}`,
-            },
-          });
-        }
-      }
-
-      return salesOrder;
-    });
+    const updated = await salesOrderService.confirmOrder(params.id, request.user?.id);
 
     response.json(updated);
   }),
@@ -271,28 +205,24 @@ salesOrdersRouter.post(
     const params = request.validated?.params as { id: string };
     const body = request.validated?.body as ReturnType<typeof recordDepositSchema.parse>;
 
+    await paymentService.recordCustomerPayment({
+      salesOrderId: params.id,
+      amount: body.amount,
+      method: "BANK",
+      paymentDate: new Date(),
+    });
+
     const order = await prisma.salesOrder.findUnique({
       where: { id: params.id },
+      include: {
+        customer: true,
+        assignedWarehouse: true,
+        salesperson: true,
+        lineItems: true,
+      }
     });
 
-    if (!order) {
-      throw new ApiError(404, "Sales order not found");
-    }
-
-    const updated = await prisma.salesOrder.update({
-      where: { id: order.id },
-      data: {
-        depositAmount: {
-          increment: body.amount,
-        },
-        balanceDue: {
-          decrement: body.amount,
-        },
-        status: "DEPOSIT_PAID",
-      },
-    });
-
-    response.json(updated);
+    response.json(order);
   }),
 );
 salesOrdersRouter.post(
@@ -317,44 +247,7 @@ salesOrdersRouter.post(
       throw new ApiError(400, `Cannot cancel order in ${order.status} status`);
     }
 
-    const updated = await prisma.$transaction(async (tx) => {
-      const salesOrder = await tx.salesOrder.update({
-        where: { id: order.id },
-        data: {
-          status: "CANCELLED",
-        },
-      });
-
-      // If the order was confirmed/deposit paid/in warehouse, it likely has reservations
-      if (
-        ["CONFIRMED", "DEPOSIT_PAID", "IN_WAREHOUSE", "PAID"].includes(order.status) &&
-        order.assignedWarehouseId
-      ) {
-        for (const lineItem of order.lineItems) {
-          const variant = await tx.productVariant.findUnique({
-            where: { id: lineItem.productVariantId },
-          });
-
-          if (!variant) {
-            continue;
-          }
-
-          await tx.stockMovement.create({
-            data: {
-              productVariantId: lineItem.productVariantId,
-              warehouseId: order.assignedWarehouseId,
-              userId: request.user?.id,
-              type: "RELEASE",
-              quantity: lineItem.quantity, // Release is positive quantity to reverse the negative reservation
-              balanceAfter: variant.stockQuantity,
-              source: `CANCELLED:SO:${order.id}`,
-            },
-          });
-        }
-      }
-
-      return salesOrder;
-    });
+    const updated = await salesOrderService.cancelOrder(params.id, request.user?.id);
 
     response.json(updated);
   }),

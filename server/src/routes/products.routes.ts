@@ -158,11 +158,11 @@ productsRouter.patch(
   validate(productUpdateSchema),
   asyncHandler(async (request, response) => {
     const params = request.validated?.params as { id: string };
-    const body = request.validated?.body as ReturnType<typeof productUpdateSchema.parse>;
-
+    const body = request.validated?.body as any;
+    const { variants, ...productData } = body;
     const updated = await prisma.product.update({
       where: { id: params.id },
-      data: body,
+      data: productData,
       include: {
         variants: true,
         taxRate: true,

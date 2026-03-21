@@ -1,16 +1,18 @@
 import React from "react";
 import { Document, Page, Text, View, StyleSheet, renderToStream, Font } from "@react-pdf/renderer";
+import path from "path";
+
+Font.register({ family: "Inter", src: path.resolve(process.cwd(), "src/assets/fonts/Inter-Regular.ttf") });
 
 const formatDate = (date: Date) => {
   return date.toISOString().split("T")[0];
 };
 
-// Register fonts if needed, but standard ones are usually enough for simple reports
 const styles = StyleSheet.create({
   page: {
     padding: 30,
     fontSize: 10,
-    fontFamily: "Helvetica",
+    fontFamily: "Inter",
     color: "#333",
   },
   header: {

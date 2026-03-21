@@ -11,7 +11,7 @@ import type {
   InventoryMovementRow,
   InventoryRecordRow,
   InventoryValuationRow,
-  InvoiceRow,
+  TaxInvoiceRow,
   LowStockRow,
   ProductDetailPayload,
   ProductRow,
@@ -172,6 +172,7 @@ type RawSalesOrder = {
   status: string;
   orderDate: string;
   deliveryDate?: string | null;
+  orderAmount: number | string;
   balanceDue: number | string;
   customer: {
     name: string;
@@ -180,11 +181,14 @@ type RawSalesOrder = {
 
 type RawInvoice = {
   id: string;
+  soId: string;
   invoiceNumber: string;
   status: string;
   dueDate?: string | null;
-  total: number | string;
+  invoiceAmount: number | string;
+  taxAmount: number | string;
   amountPaid: number | string;
+  invoiceType: string;
   salesOrder: {
     customer: {
       name: string;
@@ -610,23 +614,27 @@ function mapSalesOrder(order: RawSalesOrder): SalesOrderRow {
     id: order.id,
     customer: order.customer.name,
     status: formatEnumLabel(order.status),
+    rawStatus: order.status,
     deliveryDate: order.deliveryDate ?? order.orderDate,
+    total: toNumber(order.orderAmount),
     balanceDue: toNumber(order.balanceDue),
   };
 }
 
-function mapInvoice(invoice: RawInvoice): InvoiceRow {
-  const amount = toNumber(invoice.total);
+function mapInvoice(invoice: RawInvoice): TaxInvoiceRow {
+  const amount = toNumber(invoice.invoiceAmount);
   const paid = toNumber(invoice.amountPaid);
 
   return {
     id: invoice.id,
+    soId: invoice.soId,
     invoiceNumber: invoice.invoiceNumber,
     customer: invoice.salesOrder.customer.name,
     status: formatEnumLabel(invoice.status),
     dueDate: invoice.dueDate ?? null,
     amount,
     balance: Math.max(amount - paid, 0),
+    invoiceType: invoice.invoiceType,
   };
 }
 
@@ -1078,6 +1086,9 @@ export type CustomerCreatePayload = {
   type: string;
   creditLimit: number;
   address: string;
+  panNo?: string;
+  vatNo?: string;
+  invoicePref: string;
 };
 
 export type RawCustomer = {
@@ -1088,6 +1099,9 @@ export type RawCustomer = {
   type: string;
   creditLimit: number | string;
   address: string;
+  panNo: string | null;
+  vatNo: string | null;
+  invoicePref: string;
 };
 
 export function useCreateCustomerMutation() {
@@ -1223,6 +1237,23 @@ export function useRecordSalesOrderDepositMutation() {
   });
 }
 
+export function useUpdateSalesOrderStatusMutation() {
+  const { token } = useAuth();
+  return useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+      return apiRequest<any>(`/sales-orders/${id}`, {
+        method: "PATCH",
+        token: token!,
+        body: { status },
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["sales-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+  });
+}
+
 
 export type InvoiceCreatePayload = {
   soId: string;
@@ -1230,9 +1261,9 @@ export type InvoiceCreatePayload = {
   issueDate?: string;
   dueDate?: string;
   status: string;
-  total: number;
+  invoiceAmount: number;
   taxAmount: number;
-  amountPaid: number;
+  invoiceType?: string;
   notes?: string;
 };
 
@@ -1240,20 +1271,20 @@ export function useCreateInvoiceMutation() {
   const { token } = useAuth();
   return useMutation({
     mutationFn: async (payload: InvoiceCreatePayload) => {
-      return apiRequest<any>("/invoices", {
+      return apiRequest<any>("/tax-invoices", {
         method: "POST",
         token: token!,
         body: payload,
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["invoices"] });
+      queryClient.invalidateQueries({ queryKey: ["tax-invoices"] });
     },
   });
 }
 
 export type PaymentCreatePayload = {
-  invoiceId?: string;
+  salesOrderId?: string;
   purchaseOrderId?: string;
   supplierInvoiceId?: string;
   amount: number;
@@ -1281,14 +1312,14 @@ export function useRecordPaymentMutation() {
   });
 }
 
-export function useInvoicesQuery() {
+export function useTaxInvoicesQuery() {
   const { token } = useAuth();
 
   return useQuery({
-    queryKey: ["invoices", token],
+    queryKey: ["tax-invoices", token],
     enabled: Boolean(token),
     queryFn: async () => {
-      const response = await apiRequest<PaginatedResponse<RawInvoice>>("/invoices", {
+      const response = await apiRequest<PaginatedResponse<RawInvoice>>("/tax-invoices", {
         token: token!,
         query: { pageSize: 100 },
       });

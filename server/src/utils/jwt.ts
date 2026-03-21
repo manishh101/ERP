@@ -4,14 +4,15 @@ import { env } from "../config/env";
 
 export type JwtPayload = {
   sub: string;
-  role: UserRole;
-  email: string;
-  name: string;
+  role?: UserRole;
+  email?: string;
+  name?: string;
+  purpose?: string;
 };
 
-export function signToken(payload: JwtPayload) {
+export function signToken(payload: JwtPayload, expiresIn?: string | number) {
   return jwt.sign(payload, env.JWT_SECRET, {
-    expiresIn: env.JWT_EXPIRES_IN,
+    expiresIn: (expiresIn || env.JWT_EXPIRES_IN) as any,
   });
 }
 

@@ -6,6 +6,9 @@ import { validate } from "../middleware/validate";
 import { customerSchema, idParamSchema, listQuerySchema } from "../schemas/domain";
 import { getPagination } from "../utils/pagination";
 import { toNumber } from "../utils/number";
+import { arLedgerService } from "../services/ar-ledger.service";
+
+import { signToken, verifyToken } from "../utils/jwt";
 
 export const customersRouter = Router();
 
@@ -52,11 +55,7 @@ customersRouter.get(
       prisma.customer.findMany({
         where,
         include: {
-          salesOrders: {
-            include: {
-              invoice: true,
-            },
-          },
+          salesOrders: true,
         },
         orderBy: {
           name: "asc",
@@ -67,12 +66,7 @@ customersRouter.get(
     ]);
 
     response.json({
-      items: items.map((customer) => ({
-        ...customer,
-        outstandingBalance: customer.salesOrders.reduce((sum, order) => {
-          return sum + (order.invoice ? toNumber(order.invoice.total) - toNumber(order.invoice.amountPaid) : 0);
-        }, 0),
-      })),
+      items,
       total,
     });
   }),
@@ -108,11 +102,8 @@ customersRouter.get(
                 },
               },
             },
-            invoice: {
-              include: {
-                payments: true,
-              },
-            },
+            taxInvoice: true,
+            payments: true,
           },
           orderBy: {
             orderDate: "desc",
@@ -142,66 +133,4 @@ customersRouter.patch(
   }),
 );
 
-customersRouter.get(
-  "/:id/statement",
-  validate(idParamSchema, "params"),
-  asyncHandler(async (request, response) => {
-    const params = request.validated?.params as { id: string };
-
-    const customer = await prisma.customer.findUnique({
-      where: { id: params.id },
-      include: {
-        salesOrders: {
-          include: {
-            invoice: {
-              include: {
-                payments: true,
-              },
-            },
-          },
-        },
-      },
-    });
-
-    if (!customer) {
-      response.status(404).json({ message: "Customer not found" });
-      return;
-    }
-
-    const statementLines = customer.salesOrders.flatMap((order) => {
-      if (!order.invoice) {
-        return [];
-      }
-
-      const invoice = order.invoice;
-      return [
-        {
-          type: "invoice",
-          date: invoice.issueDate,
-          reference: invoice.invoiceNumber,
-          debit: toNumber(invoice.total),
-          credit: 0,
-        },
-        ...invoice.payments.map((payment) => ({
-          type: "payment",
-          date: payment.paymentDate,
-          reference: payment.reference ?? payment.id,
-          debit: 0,
-          credit: toNumber(payment.amount),
-        })),
-      ];
-    });
-
-    response.json({
-      customer: {
-        id: customer.id,
-        name: customer.name,
-        email: customer.email,
-        phone: customer.phone,
-      },
-      statementLines,
-      balance: statementLines.reduce((sum, line) => sum + line.debit - line.credit, 0),
-      pdfUrl: `/api/customers/${customer.id}/statement.pdf`,
-    });
-  }),
-);
+export default customersRouter;

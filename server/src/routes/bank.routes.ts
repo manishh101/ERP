@@ -169,8 +169,8 @@ bankRouter.post(
   "/imports/:importId/lines/:lineId/match",
   requireRole(["ADMIN", "ACCOUNTANT"]),
   asyncHandler(async (request, response) => {
-    const importId = request.params.importId;
-    const lineId = request.params.lineId;
+    const importId = String(request.params.importId);
+    const lineId = String(request.params.lineId);
     const { paymentId } = request.body as { paymentId?: string };
 
     if (!paymentId) {
@@ -204,8 +204,8 @@ bankRouter.post(
   "/imports/:importId/lines/:lineId/unmatch",
   requireRole(["ADMIN", "ACCOUNTANT"]),
   asyncHandler(async (request, response) => {
-    const importId = request.params.importId;
-    const lineId = request.params.lineId;
+    const importId = String(request.params.importId);
+    const lineId = String(request.params.lineId);
 
     const [bankImport, line] = await Promise.all([
       prisma.bankStatementImport.findUnique({ where: { id: importId } }),

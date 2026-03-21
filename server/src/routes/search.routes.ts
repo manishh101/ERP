@@ -55,7 +55,7 @@ searchRouter.get(
         },
         take: 5,
       }),
-      prisma.invoice.findMany({
+      prisma.taxInvoice.findMany({
         where: {
           invoiceNumber: {
             contains: search,

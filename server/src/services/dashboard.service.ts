@@ -21,7 +21,7 @@ export async function getDashboardSummary() {
 
   const [invoices, inventoryItems, deliveries, lowStockItems, recentSalesOrders, salesOrders] =
     await Promise.all([
-      prisma.invoice.findMany({
+      prisma.taxInvoice.findMany({
         where: {
           issueDate: {
             gte: monthStart,
@@ -80,17 +80,11 @@ export async function getDashboardSummary() {
       }),
     ]);
 
-  const totalRevenueMtd = invoices.reduce((sum, invoice) => sum + toNumber(invoice.total), 0);
+  const totalRevenueMtd = invoices.reduce((sum, invoice) => sum + toNumber(invoice.invoiceAmount), 0);
   const outstandingAr = (
-    await prisma.invoice.aggregate({
+    await prisma.customer.aggregate({
       _sum: {
-        total: true,
-        amountPaid: true,
-      },
-      where: {
-        status: {
-          in: ["SENT", "PARTIALLY_PAID", "OVERDUE"],
-        },
+        outstandingBalance: true,
       },
     })
   );
@@ -103,7 +97,7 @@ export async function getDashboardSummary() {
 
   const invoicePayments = await prisma.payment.findMany({
     where: {
-      invoiceId: {
+      salesOrderId: {
         not: null,
       },
       paymentDate: {
@@ -213,8 +207,7 @@ export async function getDashboardSummary() {
     .slice(0, 10);
 
   const profitAndLoss = await getProfitAndLoss(monthStart, new Date());
-  const outstandingArValue =
-    toNumber(outstandingAr._sum.total ?? 0) - toNumber(outstandingAr._sum.amountPaid ?? 0);
+  const outstandingArValue = toNumber(outstandingAr._sum.outstandingBalance ?? 0);
   const totalRevenueMtdValue = totalRevenueMtd;
   const netProfitValue = profitAndLoss.netProfit;
 

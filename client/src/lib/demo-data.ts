@@ -1,7 +1,7 @@
 import type {
   DashboardPayload,
   DeliveryRow,
-  InvoiceRow,
+  TaxInvoiceRow,
   ProductRow,
   ReportCard,
   SalesOrderRow,
@@ -80,7 +80,7 @@ export const salesOrders: SalesOrderRow[] = [
   { id: "SO-2026-0035", customer: "Cedar Lane Hotels", status: "Delivered", deliveryDate: "2026-03-19", balanceDue: 0 },
 ];
 
-export const invoices: InvoiceRow[] = [
+export const invoices: TaxInvoiceRow[] = [
   { id: "inv1", invoiceNumber: "INV-2026-0007", customer: "Evergreen Homes", status: "Sent", dueDate: "2026-03-28", amount: 8600, balance: 4200 },
   { id: "inv2", invoiceNumber: "INV-2026-0006", customer: "Mia Thompson", status: "Partially Paid", dueDate: "2026-03-29", amount: 3200, balance: 2100 },
   { id: "inv3", invoiceNumber: "INV-2026-0005", customer: "Cedar Lane Hotels", status: "Paid", dueDate: "2026-03-17", amount: 21450, balance: 0 },

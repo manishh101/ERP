@@ -4,17 +4,42 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useInvoicesQuery } from "@/hooks/use-queries";
+import { useTaxInvoicesQuery } from "@/hooks/use-queries";
 import { getErrorMessage } from "@/lib/api";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { useState } from "react";
 import { CreateInvoiceForm } from "@/components/invoicing/create-invoice-form";
 import { RecordPaymentForm } from "@/components/invoicing/record-payment-form";
+import { useAuth } from "@/components/auth/auth-provider";
+import { API_BASE_URL } from "@/lib/api";
+import { Download } from "lucide-react";
 
 export function InvoicingPage() {
-  const { data, error, isLoading } = useInvoicesQuery();
+  const { data, error, isLoading } = useTaxInvoicesQuery();
+  const { token } = useAuth();
   const [createInvoiceOpen, setCreateInvoiceOpen] = useState(false);
   const [recordPaymentOpen, setRecordPaymentOpen] = useState(false);
+
+  const handleDownloadPdf = async (invoiceId: string) => {
+    try {
+      const baseUrl = API_BASE_URL.replace(/\/$/, "");
+      const response = await fetch(`${baseUrl}/auth/download-token`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!response.ok) throw new Error('Failed to get download token');
+      const { token: downloadToken } = await response.json();
+
+      const url = `${baseUrl}/tax-invoices/${invoiceId}/pdf?token=${downloadToken}`;
+      window.open(url, "_blank");
+    } catch (error) {
+      console.error('Download error:', error);
+      alert('Failed to generate secure download link');
+    }
+  };
 
   if (isLoading) {
     return <Skeleton className="h-[420px]" />;
@@ -83,6 +108,23 @@ export function InvoicingPage() {
                 { key: "dueDate", header: "Due Date", render: (row) => formatDate(row.dueDate) },
                 { key: "amount", header: "Total", className: "text-right", render: (row) => formatCurrency(row.amount) },
                 { key: "balance", header: "Balance", className: "text-right", render: (row) => formatCurrency(row.balance) },
+                { 
+                  key: "actions", 
+                  header: "", 
+                  className: "text-right",
+                  render: (row) => (
+                    <Button 
+                      variant="ghost" 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDownloadPdf(row.id);
+                      }}
+                      className="h-8 w-8 p-0"
+                    >
+                      <Download className="h-4 w-4" />
+                    </Button>
+                  )
+                },
               ]}
             />
           </CardContent>

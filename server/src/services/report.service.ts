@@ -20,33 +20,27 @@ function bucketAging(daysOverdue: number) {
 }
 
 export async function getAraAgingReport() {
-  const invoices = await prisma.invoice.findMany({
+  const orders = await prisma.salesOrder.findMany({
     where: {
-      status: {
-        in: ["SENT", "PARTIALLY_PAID", "OVERDUE"],
-      },
+      balanceDue: { gt: 0 },
     },
     include: {
-      salesOrder: {
-        include: {
-          customer: true,
-        },
-      },
+      customer: true,
     },
   });
 
-  return invoices.map((invoice) => {
-    const balance = toNumber(invoice.total) - toNumber(invoice.amountPaid);
-    const dueDate = invoice.dueDate ?? invoice.issueDate;
+  return orders.map((order) => {
+    const balance = toNumber(order.balanceDue);
+    const dueDate = order.deliveryDate ?? order.orderDate;
     const daysOverdue = Math.max(
       0,
       Math.floor((Date.now() - dueDate.getTime()) / (1000 * 60 * 60 * 24)),
     );
 
     return {
-      invoiceId: invoice.id,
-      invoiceNumber: invoice.invoiceNumber,
-      customer: invoice.salesOrder.customer.name,
+      orderId: order.id,
+      invoiceNumber: `SO-${order.id.slice(0, 8)}`, // Fallback for UI
+      customer: order.customer.name,
       dueDate,
       balance,
       bucket: bucketAging(daysOverdue),
@@ -181,7 +175,7 @@ export async function getCashFlow(startDate?: Date, endDate?: Date) {
   ]);
 
   const operatingInflows = payments
-    .filter((payment) => payment.invoiceId)
+    .filter((payment) => payment.salesOrderId)
     .reduce((sum, payment) => sum + toNumber(payment.amount), 0);
   const operatingOutflows = expenses.reduce((sum, expense) => sum + toNumber(expense.amount), 0);
   const financingOutflows = payments
@@ -198,7 +192,7 @@ export async function getCashFlow(startDate?: Date, endDate?: Date) {
 
 export async function getTaxSummary(startDate?: Date, endDate?: Date) {
   const [salesInvoices, supplierInvoices] = await Promise.all([
-    prisma.invoice.findMany({
+    prisma.taxInvoice.findMany({
       where: {
         issueDate: buildDateRange(startDate, endDate),
       },
@@ -223,62 +217,24 @@ export async function getTaxSummary(startDate?: Date, endDate?: Date) {
   };
 }
 export async function getCustomerLedger(customerId: string, startDate?: Date, endDate?: Date) {
-  const [invoices, payments] = await Promise.all([
-    prisma.invoice.findMany({
-      where: {
-        salesOrder: {
-          customerId: customerId,
-        },
-        issueDate: buildDateRange(startDate, endDate),
-      },
-      orderBy: {
-        issueDate: "asc",
-      },
-    }),
-    prisma.payment.findMany({
-      where: {
-        invoice: {
-          salesOrder: {
-            customerId: customerId,
-          },
-        },
-        paymentDate: buildDateRange(startDate, endDate),
-      },
-      orderBy: {
-        paymentDate: "asc",
-      },
-      include: {
-        invoice: true,
-      },
-    }),
-  ]);
+  const where: any = { customerId };
+  if (startDate || endDate) {
+    where.entryDate = buildDateRange(startDate, endDate);
+  }
 
-  const transactions = [
-    ...invoices.map((inv) => ({
-      date: inv.issueDate,
-      type: "INVOICE",
-      reference: inv.invoiceNumber,
-      amount: toNumber(inv.total),
-      debit: toNumber(inv.total),
-      credit: 0,
-    })),
-    ...payments.map((pmt) => ({
-      date: pmt.paymentDate,
-      type: "PAYMENT",
-      reference: `PMT-${pmt.reference || pmt.id.slice(0, 8)}`,
-      amount: toNumber(pmt.amount),
-      debit: 0,
-      credit: toNumber(pmt.amount),
-    })),
-  ].sort((a, b) => a.date.getTime() - b.date.getTime());
-
-  let balance = 0;
-  return transactions.map((tx) => {
-    balance += tx.debit - tx.credit;
-    return {
-      ...tx,
-      balance,
-    };
+  const entries = await prisma.arLedger.findMany({
+    where,
+    orderBy: { entryDate: "asc" },
   });
+
+  return entries.map((tx) => ({
+    date: tx.entryDate,
+    type: tx.entryType,
+    reference: tx.narration || "",
+    amount: toNumber(tx.amount),
+    debit: tx.entryType === "DEBIT" ? toNumber(tx.amount) : 0,
+    credit: tx.entryType === "CREDIT" ? toNumber(tx.amount) : 0,
+    balance: toNumber(tx.runningBalance),
+  }));
 }
 

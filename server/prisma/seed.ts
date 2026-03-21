@@ -19,7 +19,10 @@ async function resetDatabase() {
   await prisma.stockMovement.deleteMany();
   await prisma.delivery.deleteMany();
   await prisma.payment.deleteMany();
-  await prisma.invoice.deleteMany();
+  await prisma.invoiceCounter.deleteMany();
+  await prisma.vatRegister.deleteMany();
+  await prisma.arLedger.deleteMany();
+  await prisma.taxInvoice.deleteMany();
   await prisma.salesOrderLineItem.deleteMany();
   await prisma.salesOrder.deleteMany();
   await prisma.goodsReceiptLine.deleteMany();
@@ -323,17 +326,17 @@ async function main() {
     }),
   ]);
 
-  const customersInput: Array<{ name: string; email: string; phone: string; type: CustomerType; creditLimit: number; address: string }> = [
-    { name: "Mia Thompson", email: "mia@example.com", phone: "+1-202-555-0101", type: "RETAIL", creditLimit: 0, address: "Durbarmarg, Kathmandu" },
-    { name: "Evergreen Homes", email: "procurement@evergreen.local", phone: "+977-9800001101", type: "TRADE", creditLimit: 25000, address: "Pulchowk, Lalitpur" },
-    { name: "Urban Nest Studio", email: "orders@urbannest.local", phone: "+977-9800001102", type: "CONTRACTOR", creditLimit: 40000, address: "Thamel, Kathmandu" },
-    { name: "Cedar Lane Hotels", email: "finance@cedarlane.local", phone: "+977-9800001103", type: "TRADE", creditLimit: 50000, address: "Lakeside, Pokhara" },
-    { name: "Aria Interiors", email: "hello@aria.local", phone: "+977-9800001104", type: "CONTRACTOR", creditLimit: 35000, address: "Boudha, Kathmandu" },
-    { name: "Nexa Offices", email: "ap@nexa.local", phone: "+977-9800001105", type: "TRADE", creditLimit: 45000, address: "New Baneshwor, Kathmandu" },
-    { name: "Suman Shrestha", email: "suman@example.com", phone: "+977-9800001106", type: "RETAIL", creditLimit: 0, address: "Bhaktapur Durbar Square" },
-    { name: "Blue Horizon Villas", email: "sourcing@bluehorizon.local", phone: "+977-9800001107", type: "TRADE", creditLimit: 30000, address: "Dhulikhel, Kavre" },
-    { name: "Craftspace Studio", email: "studio@craftspace.local", phone: "+977-9800001108", type: "CONTRACTOR", creditLimit: 28000, address: "Kupondole, Lalitpur" },
-    { name: "Priya Karki", email: "priya@example.com", phone: "+977-9800001109", type: "RETAIL", creditLimit: 0, address: "Pokhara, Kaski" },
+  const customersInput: any[] = [
+    { name: "Mia Thompson", email: "mia@example.com", phone: "+1-202-555-0101", type: "RETAIL", creditLimit: 0, address: "Durbarmarg, Kathmandu", panNo: "100123456", invoicePref: "PAN" },
+    { name: "Evergreen Homes", email: "procurement@evergreen.local", phone: "+977-9800001101", type: "TRADE", creditLimit: 25000, address: "Pulchowk, Lalitpur", vatNo: "300123456", invoicePref: "VAT" },
+    { name: "Urban Nest Studio", email: "orders@urbannest.local", phone: "+977-9800001102", type: "CONTRACTOR", creditLimit: 40000, address: "Thamel, Kathmandu", vatNo: "300234567", invoicePref: "VAT" },
+    { name: "Cedar Lane Hotels", email: "finance@cedarlane.local", phone: "+977-9800001103", type: "TRADE", creditLimit: 50000, address: "Lakeside, Pokhara", vatNo: "300345678", invoicePref: "VAT" },
+    { name: "Aria Interiors", email: "hello@aria.local", phone: "+977-9800001104", type: "CONTRACTOR", creditLimit: 35000, address: "Boudha, Kathmandu", vatNo: "300456789", invoicePref: "VAT" },
+    { name: "Nexa Offices", email: "ap@nexa.local", phone: "+977-9800001105", type: "TRADE", creditLimit: 45000, address: "New Baneshwor, Kathmandu", vatNo: "300567890", invoicePref: "VAT" },
+    { name: "Suman Shrestha", email: "suman@example.com", phone: "+977-9800001106", type: "RETAIL", creditLimit: 0, address: "Bhaktapur Durbar Square", invoicePref: "NONE" },
+    { name: "Blue Horizon Villas", email: "sourcing@bluehorizon.local", phone: "+977-9800001107", type: "TRADE", creditLimit: 30000, address: "Dhulikhel, Kavre", vatNo: "300678901", invoicePref: "VAT" },
+    { name: "Craftspace Studio", email: "studio@craftspace.local", phone: "+977-9800001108", type: "CONTRACTOR", creditLimit: 28000, address: "Kupondole, Lalitpur", vatNo: "300789012", invoicePref: "VAT" },
+    { name: "Priya Karki", email: "priya@example.com", phone: "+977-9800001109", type: "RETAIL", creditLimit: 0, address: "Pokhara, Kaski", invoicePref: "NONE" },
   ];
 
   const customers = await Promise.all(customersInput.map((customer) => prisma.customer.create({ data: customer })));
@@ -592,7 +595,6 @@ async function main() {
         subtotal: 4290,
         taxAmount: 560,
         totalAmount: 4850,
-        amountPaid: 2000,
       },
     }),
     prisma.supplierInvoice.create({
@@ -606,7 +608,6 @@ async function main() {
         subtotal: 4940,
         taxAmount: 640,
         totalAmount: 5580,
-        amountPaid: 0,
       },
     }),
   ]);
@@ -618,10 +619,13 @@ async function main() {
         assignedWarehouseId: warehouses.storage.id,
         salespersonId: users.sales.id,
         status: "OUT_FOR_DELIVERY",
+        orderAmount: 8600,
         depositAmount: 4400,
         balanceDue: 4200,
         orderDate: daysAgo(4),
         deliveryDate: daysFromNow(2),
+        fiscalYear: "2081/82",
+        bsDate: "2081-09-01",
         notes: "Site delivery for model apartment",
         lineItems: {
           create: [
@@ -638,10 +642,13 @@ async function main() {
         assignedWarehouseId: warehouses.showroom.id,
         salespersonId: users.sales.id,
         status: "DEPOSIT_PAID",
+        orderAmount: 3200,
         depositAmount: 1100,
         balanceDue: 2100,
         orderDate: daysAgo(3),
         deliveryDate: daysFromNow(4),
+        fiscalYear: "2081/82",
+        bsDate: "2081-09-01",
         notes: "Customer requested afternoon delivery window",
         lineItems: {
           create: [
@@ -658,10 +665,13 @@ async function main() {
         assignedWarehouseId: warehouses.storage.id,
         salespersonId: users.sales.id,
         status: "DELIVERED",
+        orderAmount: 21450,
         depositAmount: 6000,
         balanceDue: 0,
         orderDate: daysAgo(9),
         deliveryDate: daysAgo(1),
+        fiscalYear: "2081/82",
+        bsDate: "2081-09-01",
         notes: "Hotel lobby refit package",
         lineItems: {
           create: [
@@ -678,10 +688,13 @@ async function main() {
         assignedWarehouseId: warehouses.storage.id,
         salespersonId: users.sales.id,
         status: "CONFIRMED",
+        orderAmount: 12940,
         depositAmount: 0,
         balanceDue: 12940,
         orderDate: daysAgo(2),
         deliveryDate: daysFromNow(6),
+        fiscalYear: "2081/82",
+        bsDate: "2081-09-01",
         notes: "Staging furniture for office reception",
         lineItems: {
           create: [
@@ -695,52 +708,60 @@ async function main() {
   ]);
 
   const invoices = await Promise.all([
-    prisma.invoice.create({
+    prisma.taxInvoice.create({
       data: {
         soId: salesOrders[0].id,
         invoiceNumber: "INV-2026-0007",
         issueDate: daysAgo(3),
         dueDate: daysFromNow(8),
         status: "PARTIALLY_PAID",
-        total: 8600,
+        invoiceAmount: 8600,
+        invoiceType: "VAT",
+        fiscalYear: "2081/82",
+        bsDate: "2081-09-01",
         taxAmount: 988,
-        amountPaid: 4400,
       },
     }),
-    prisma.invoice.create({
+    prisma.taxInvoice.create({
       data: {
         soId: salesOrders[1].id,
         invoiceNumber: "INV-2026-0006",
         issueDate: daysAgo(2),
         dueDate: daysFromNow(9),
         status: "PARTIALLY_PAID",
-        total: 3200,
+        invoiceAmount: 3200,
+        invoiceType: "VAT",
+        fiscalYear: "2081/82",
+        bsDate: "2081-09-01",
         taxAmount: 368,
-        amountPaid: 1100,
       },
     }),
-    prisma.invoice.create({
+    prisma.taxInvoice.create({
       data: {
         soId: salesOrders[2].id,
         invoiceNumber: "INV-2026-0005",
         issueDate: daysAgo(8),
         dueDate: daysAgo(1),
         status: "PAID",
-        total: 21450,
+        invoiceAmount: 21450,
+        invoiceType: "VAT",
+        fiscalYear: "2081/82",
+        bsDate: "2081-09-01",
         taxAmount: 2467,
-        amountPaid: 21450,
       },
     }),
-    prisma.invoice.create({
+    prisma.taxInvoice.create({
       data: {
         soId: salesOrders[3].id,
         invoiceNumber: "INV-2026-0008",
         issueDate: daysAgo(1),
         dueDate: daysFromNow(13),
         status: "SENT",
-        total: 12940,
+        invoiceAmount: 12940,
+        invoiceType: "VAT",
+        fiscalYear: "2081/82",
+        bsDate: "2081-09-01",
         taxAmount: 1488,
-        amountPaid: 0,
       },
     }),
   ]);
@@ -748,28 +769,31 @@ async function main() {
   const payments = await Promise.all([
     prisma.payment.create({
       data: {
-        invoiceId: invoices[0].id,
+        salesOrderId: salesOrders[0].id,
         amount: 4400,
         method: "BANK",
         paymentDate: daysAgo(2),
+        bsDate: "2081-09-02",
         reference: "TXN-884101",
       },
     }),
     prisma.payment.create({
       data: {
-        invoiceId: invoices[1].id,
+        salesOrderId: salesOrders[1].id,
         amount: 1100,
         method: "CARD",
         paymentDate: daysAgo(1),
+        bsDate: "2081-09-02",
         reference: "CARD-22094",
       },
     }),
     prisma.payment.create({
       data: {
-        invoiceId: invoices[2].id,
+        salesOrderId: salesOrders[2].id,
         amount: 21450,
         method: "BANK",
         paymentDate: daysAgo(1),
+        bsDate: "2081-09-02",
         reference: "TXN-884205",
       },
     }),
@@ -858,7 +882,7 @@ async function main() {
   });
 
   for (const invoice of invoices) {
-    const revenue = Number(invoice.total) - Number(invoice.taxAmount);
+    const revenue = Number(invoice.invoiceAmount) - Number(invoice.taxAmount);
     await createBalancedEntry({
       date: invoice.issueDate,
       description: "Sales invoice posted",
@@ -867,7 +891,7 @@ async function main() {
       sourceId: invoice.id,
       createdById: users.accountant.id,
       lines: [
-        { accountId: accountMap.get("1100")!.id, debit: Number(invoice.total), credit: 0, type: accountMap.get("1100")!.type },
+        { accountId: accountMap.get("1100")!.id, debit: Number(invoice.invoiceAmount), credit: 0, type: accountMap.get("1100")!.type },
         { accountId: accountMap.get("4000")!.id, debit: 0, credit: revenue, type: accountMap.get("4000")!.type },
         { accountId: accountMap.get("2100")!.id, debit: 0, credit: Number(invoice.taxAmount), type: accountMap.get("2100")!.type },
       ],
@@ -927,6 +951,70 @@ async function main() {
       data: { outstandingBalance: 12940 },
     }),
   ]);
+
+  
+
+  for (const so of salesOrders) {
+    await prisma.arLedger.create({
+      data: {
+        customerId: so.customerId,
+        salesOrderId: so.id,
+        entryType: "DEBIT",
+        amount: so.orderAmount,
+        runningBalance: so.orderAmount,
+        fiscalYear: "2081/82",
+        bsDate: "2081-09-01",
+        entryDate: so.createdAt,
+        narration: `Sales Order ${so.id.slice(-6)}`,
+      }
+    });
+  }
+
+  for (const payment of payments.slice(0, 3)) {
+    const so = salesOrders.find(s => s.id === payment.salesOrderId);
+    if (so) {
+      await prisma.arLedger.create({
+        data: {
+          customerId: so.customerId,
+          salesOrderId: so.id,
+          paymentId: payment.id,
+          entryType: "CREDIT",
+          amount: payment.amount,
+          runningBalance: Number(so.orderAmount) - Number(payment.amount),
+          fiscalYear: "2081/82",
+          bsDate: "2081-09-02",
+          entryDate: payment.paymentDate,
+          narration: `Payment Received ${payment.reference}`,
+        }
+      });
+    }
+  }
+
+  for (const inv of invoices) {
+    const so = salesOrders.find(s => s.id === inv.soId);
+    if (so) {
+      await prisma.vatRegister.create({
+        data: {
+          taxInvoiceId: inv.id,
+          customerId: so.customerId,
+          taxableAmount: Number(inv.invoiceAmount) - Number(inv.taxAmount),
+          outputVat: inv.taxAmount,
+          totalWithVat: inv.invoiceAmount,
+          fiscalYear: "2081/82",
+          bsDate: "2081-09-01",
+          entryDate: inv.issueDate,
+        }
+      });
+    }
+  }
+
+  await prisma.invoiceCounter.create({
+    data: {
+      fiscalYear: "2081/82",
+      lastSeq: 8,
+    }
+  });
+
 
   console.log("Seed complete");
   console.log(`Default password for all seeded users: ${DEFAULT_PASSWORD}`);

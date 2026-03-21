@@ -12,6 +12,7 @@ import { ApiError } from "../utils/api-error";
 import { renderReceiptPdfBuffer } from "../lib/pdf/receipt";
 import { getPagination } from "../utils/pagination";
 import { toNumber } from "../utils/number";
+import { paymentService } from "../services/payment.service";
 
 export const paymentsRouter = Router();
 
@@ -36,7 +37,7 @@ paymentsRouter.get(
       prisma.payment.findMany({
         where,
         include: {
-          invoice: true,
+          salesOrder: true,
           purchaseOrder: true,
           supplierInvoice: true,
         },
@@ -59,55 +60,48 @@ paymentsRouter.post(
   asyncHandler(async (request, response) => {
     const body = request.validated?.body as ReturnType<typeof paymentSchema.parse>;
 
-    const payment = await prisma.$transaction(async (tx: import("@prisma/client").Prisma.TransactionClient) => {
-      const created = await tx.payment.create({
-        data: body,
+    let payment;
+
+    if (body.salesOrderId) {
+      payment = await paymentService.recordCustomerPayment({
+        salesOrderId: body.salesOrderId,
+        amount: body.amount,
+        method: body.method,
+        reference: body.reference,
+        note: body.note,
+        paymentDate: body.paymentDate,
       });
+    } else {
+      payment = await prisma.$transaction(async (tx: import("@prisma/client").Prisma.TransactionClient) => {
+        const created = await tx.payment.create({
+          data: body,
+        });
 
-      if (body.invoiceId) {
-        const invoice = await tx.invoice.update({
-          where: { id: body.invoiceId },
-          data: {
-            amountPaid: {
-              increment: body.amount,
+        if (body.supplierInvoiceId) {
+          const supplierInvoice = await tx.supplierInvoice.update({
+            where: { id: body.supplierInvoiceId },
+            data: {
+              amountPaid: {
+                increment: body.amount,
+              },
             },
-          },
-        });
+          });
 
-        const invoiceBalance = toNumber(invoice.total) - toNumber(invoice.amountPaid);
+          const invoiceBalance = toNumber(supplierInvoice.totalAmount) - toNumber(supplierInvoice.amountPaid);
 
-        await tx.invoice.update({
-          where: { id: body.invoiceId },
-          data: {
-            status: invoiceBalance <= 0 ? "PAID" : "PARTIALLY_PAID",
-          },
-        });
-      }
-
-      if (body.supplierInvoiceId) {
-        const supplierInvoice = await tx.supplierInvoice.update({
-          where: { id: body.supplierInvoiceId },
-          data: {
-            amountPaid: {
-              increment: body.amount,
+          await tx.supplierInvoice.update({
+            where: { id: body.supplierInvoiceId },
+            data: {
+              status: invoiceBalance <= 0 ? "PAID" : "PARTIALLY_PAID",
             },
-          },
-        });
+          });
+        }
 
-        const invoiceBalance = toNumber(supplierInvoice.totalAmount) - toNumber(supplierInvoice.amountPaid);
+        return created;
+      });
+    }
 
-        await tx.supplierInvoice.update({
-          where: { id: body.supplierInvoiceId },
-          data: {
-            status: invoiceBalance <= 0 ? "PAID" : "PARTIALLY_PAID",
-          },
-        });
-      }
-
-      return created;
-    });
-
-    if (body.invoiceId) {
+    if (body.salesOrderId) {
       await postCustomerPaymentJournalEntry({
         paymentId: payment.id,
         amount: body.amount,
@@ -127,23 +121,36 @@ paymentsRouter.post(
   }),
 );
 
-paymentsRouter.get(
-  "/:id/receipt",
-  validate(idParamSchema, "params"),
-  asyncHandler(async (request, response) => {
-    const params = request.validated?.params as { id: string };
+paymentsRouter.get("/:id/receipt", asyncHandler(async (request, response) => {
+  // Check if authenticated or has a valid download token
+  let userId = request.user?.id;
+  const token = request.query.token as string;
+  
+  if (!userId && token) {
+    try {
+      const decoded = verifyToken(token);
+      if (decoded.purpose === "download") {
+        userId = decoded.sub;
+      }
+    } catch (err) {
+      throw new ApiError(401, "Invalid or expired download token");
+    }
+  }
+
+  if (!userId) {
+    throw new ApiError(401, "Unauthorized");
+  }
+
+  try {
+    const { id } = idParamSchema.parse(request.params);
     const [payment, companyProfile] = await Promise.all([
       prisma.payment.findUnique({
-        where: { id: params.id },
+        where: { id },
         include: {
-          invoice: {
+          salesOrder: {
             include: {
-              salesOrder: {
-                include: {
-                  customer: true,
-                },
-              },
-            },
+              customer: true
+            }
           },
           supplierInvoice: {
             include: {
@@ -163,5 +170,8 @@ paymentsRouter.get(
     response.setHeader("Content-Type", "application/pdf");
     response.setHeader("Content-Disposition", `inline; filename=receipt-${payment.id}.pdf`);
     response.send(buffer);
-  }),
-);
+  } catch (error) {
+    console.error("PDF Generation Error:", error);
+    response.status(500).json({ error: "Failed to generate PDF" });
+  }
+}));

@@ -74,3 +74,19 @@ authRouter.get(
   }),
 );
 
+authRouter.post(
+  "/download-token",
+  requireAuth,
+  asyncHandler(async (request, response) => {
+    const token = signToken(
+      {
+        sub: request.user!.id,
+        purpose: "download",
+      },
+      "1m",
+    );
+
+    response.json({ token });
+  }),
+);
+

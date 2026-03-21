@@ -13,7 +13,10 @@ import {
   getCustomerLedger,
 } from "../services/report.service";
 import { toNumber } from "../utils/number";
-import { idParamSchema, listQuerySchema } from "../schemas/domain";
+import { verifyToken } from "../utils/jwt";
+import { ApiError } from "../utils/api-error";
+
+import { vatRegisterService } from "../services/vat-register.service";
 
 export const reportsRouter = Router();
 
@@ -259,7 +262,8 @@ reportsRouter.get(
       include: {
         salesOrders: {
           include: {
-            invoice: true,
+            taxInvoice: true,
+            lineItems: true, // Also need lineItems for revenue calculation
           },
         },
       },
@@ -273,7 +277,7 @@ reportsRouter.get(
         .map((customer) => ({
           customer: customer.name,
           revenue: customer.salesOrders.reduce((sum, order) => {
-            return sum + (order.invoice ? toNumber(order.invoice.total) : 0);
+            return sum + toNumber(order.orderAmount);
           }, 0),
         }))
         .sort((left, right) => right.revenue - left.revenue)
@@ -308,6 +312,15 @@ reportsRouter.get(
   }),
 );
 
+reportsRouter.get(
+  "/vat-summary",
+  asyncHandler(async (request, response) => {
+    const fiscalYear = (request.query.fiscalYear as string) || "2081/82"; // Default for current Nepal FY
+    const summary = await vatRegisterService.getMonthlySummary(fiscalYear);
+    response.json(summary);
+  }),
+);
+
 reportsRouter.post(
   "/custom-builder",
   validate(customReportSchema),
@@ -320,7 +333,7 @@ reportsRouter.post(
         include: {
           customer: true,
           salesperson: true,
-          invoice: true,
+          taxInvoice: true,
           lineItems: true,
         },
         orderBy: {
@@ -344,7 +357,8 @@ reportsRouter.post(
         include: {
           salesOrders: {
             include: {
-              invoice: true,
+              taxInvoice: true,
+              lineItems: true,
             },
           },
         },
@@ -376,7 +390,7 @@ reportsRouter.post(
           const lineTotal = lineItem.quantity * toNumber(lineItem.unitPrice);
           return sum + (lineTotal - lineTotal * (toNumber(lineItem.discountPct) / 100));
         }, 0);
-        const total = order.invoice ? toNumber(order.invoice.total) : subtotal;
+        const total = toNumber(order.orderAmount);
 
         return {
           orderId: order.id,
@@ -389,7 +403,7 @@ reportsRouter.post(
           depositAmount: toNumber(order.depositAmount),
           orderDate: order.orderDate,
           deliveryDate: order.deliveryDate,
-          invoiceStatus: order.invoice?.status ?? null,
+          invoiceStatus: null, // Optional tracking
           lineItems: order.lineItems.length,
         };
       }),
@@ -412,7 +426,7 @@ reportsRouter.post(
         creditLimit: toNumber(customer.creditLimit),
         outstandingBalance: toNumber(customer.outstandingBalance),
         lifetimeRevenue: customer.salesOrders.reduce((sum, order) => {
-          return sum + (order.invoice ? toNumber(order.invoice.total) : 0);
+          return sum + toNumber(order.orderAmount);
         }, 0),
         orderCount: customer.salesOrders.length,
         address: customer.address,
@@ -471,9 +485,28 @@ reportsRouter.get("/customer-ledger/:id", async (req, res) => {
   }
 });
 
-reportsRouter.get("/customer-ledger/:id/pdf", async (req, res) => {
+reportsRouter.get("/customer-ledger/:id/pdf", asyncHandler(async (request, response) => {
+  // Check if authenticated or has a valid download token
+  let userId = request.user?.id;
+  const token = request.query.token as string;
+  
+  if (!userId && token) {
+    try {
+      const decoded = verifyToken(token);
+      if (decoded.purpose === "download") {
+        userId = decoded.sub;
+      }
+    } catch (err) {
+      throw new ApiError(401, "Invalid or expired download token");
+    }
+  }
+
+  if (!userId) {
+    throw new ApiError(401, "Unauthorized");
+  }
+
   try {
-    const { id } = idParamSchema.parse(req.params);
+    const { id } = idParamSchema.parse(request.params);
     const { startDate, endDate } = listQuerySchema.parse(req.query);
 
     const [customer, ledger, company] = await Promise.all([
@@ -483,10 +516,10 @@ reportsRouter.get("/customer-ledger/:id/pdf", async (req, res) => {
     ]);
 
     if (!customer) {
-      return res.status(410).json({ error: "Customer not found" });
+      return response.status(404).json({ error: "Customer not found" });
     }
 
-    const { renderLedgerPdf } = await import("../lib/pdf/ledger");
+    const { renderLedgerPdf } = await import("../lib/pdf/ar-statement.pdf");
     const pdfStream = await renderLedgerPdf({
       customer,
       ledger,
@@ -502,11 +535,13 @@ reportsRouter.get("/customer-ledger/:id/pdf", async (req, res) => {
       },
     });
 
-    res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", `attachment; filename=ledger_${customer.name.replace(/\s+/g, "_")}.pdf`);
-    pdfStream.pipe(res);
+    response.setHeader("Content-Type", "application/pdf");
+    response.setHeader("Content-Disposition", `attachment; filename=ledger_${customer.name.replace(/\s+/g, "_")}.pdf`);
+    pdfStream.pipe(response);
   } catch (error) {
     console.error("PDF Generation Error:", error);
-    res.status(500).json({ error: "Failed to generate PDF" });
+    response.status(500).json({ error: "Failed to generate PDF" });
   }
-});
+}));
+
+export default reportsRouter;

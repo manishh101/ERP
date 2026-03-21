@@ -21,14 +21,14 @@ export function CreateInvoiceForm({ onClose }: CreateInvoiceFormProps) {
     issueDate: new Date().toISOString().split("T")[0],
     dueDate: "",
     status: "DRAFT",
-    total: "0",
+    invoiceAmount: "0",
     taxAmount: "0",
-    amountPaid: "0",
+    invoiceType: "VAT",
     notes: "",
   });
 
   const handleSubmit = async () => {
-    if (!formData.soId || !formData.total) {
+    if (!formData.soId || !formData.invoiceAmount) {
       push("Validation failed", "Please select a sales order and enter a total amount.");
       return;
     }
@@ -39,9 +39,9 @@ export function CreateInvoiceForm({ onClose }: CreateInvoiceFormProps) {
         issueDate: formData.issueDate ? new Date(formData.issueDate).toISOString() : undefined,
         dueDate: formData.dueDate ? new Date(formData.dueDate).toISOString() : undefined,
         status: formData.status,
-        total: Number(formData.total),
+        invoiceAmount: Number(formData.invoiceAmount),
         taxAmount: Number(formData.taxAmount),
-        amountPaid: Number(formData.amountPaid),
+        invoiceType: formData.invoiceType,
         notes: formData.notes || undefined,
       });
       
@@ -106,12 +106,12 @@ export function CreateInvoiceForm({ onClose }: CreateInvoiceFormProps) {
             />
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium">Total Amount *</label>
+            <label className="text-sm font-medium">Invoice Amount *</label>
             <Input 
               type="number"
               step="0.01"
-              value={formData.total} 
-              onChange={(e) => setFormData({ ...formData, total: e.target.value })} 
+              value={formData.invoiceAmount} 
+              onChange={(e) => setFormData({ ...formData, invoiceAmount: e.target.value })} 
             />
           </div>
           <div className="space-y-2">
@@ -124,13 +124,16 @@ export function CreateInvoiceForm({ onClose }: CreateInvoiceFormProps) {
             />
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium">Amount Already Paid</label>
-            <Input 
-              type="number"
-              step="0.01"
-              value={formData.amountPaid} 
-              onChange={(e) => setFormData({ ...formData, amountPaid: e.target.value })} 
-            />
+            <label className="text-sm font-medium">Invoice Type</label>
+            <select 
+              className="flex h-11 w-full rounded-2xl border border-border bg-white/90 px-4 text-sm"
+              value={formData.invoiceType}
+              onChange={(e) => setFormData({ ...formData, invoiceType: e.target.value })}
+            >
+              <option value="NONE">No Tax</option>
+              <option value="VAT">VAT</option>
+              <option value="PAN">PAN</option>
+            </select>
           </div>
           <Input 
             className="md:col-span-2 lg:col-span-3 mt-4"

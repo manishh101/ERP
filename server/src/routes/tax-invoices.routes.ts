@@ -6,34 +6,21 @@ import { validate } from "../middleware/validate";
 import {
   bulkInvoiceSendSchema,
   idParamSchema,
-  invoiceUpdateSchema,
+  taxInvoiceSchema,
+  taxInvoiceUpdateSchema,
   listQuerySchema,
 } from "../schemas/domain";
-import { postSalesInvoiceJournalEntry } from "../services/accounting.service";
-import { renderInvoicePdfBuffer } from "../lib/pdf/invoice";
+import { taxInvoiceService } from "../services/tax-invoice.service";
+import { renderInvoicePdfBuffer } from "../lib/pdf/vat-invoice.pdf";
 import { ApiError } from "../utils/api-error";
 import { getPagination } from "../utils/pagination";
-import { toNumber } from "../utils/number";
+import { verifyToken } from "../utils/jwt";
 
-export const invoicesRouter = Router();
+export const taxInvoicesRouter = Router();
 
-invoicesRouter.use(requireAuth);
+taxInvoicesRouter.use(requireAuth);
 
-async function generateInvoiceNumber() {
-  const year = new Date().getFullYear();
-  const count = await prisma.invoice.count({
-    where: {
-      issueDate: {
-        gte: new Date(year, 0, 1),
-        lt: new Date(year + 1, 0, 1),
-      },
-    },
-  });
-
-  return `INV-${year}-${String(count + 1).padStart(4, "0")}`;
-}
-
-invoicesRouter.get(
+taxInvoicesRouter.get(
   "/",
   validate(listQuerySchema, "query"),
   asyncHandler(async (request, response) => {
@@ -69,7 +56,7 @@ invoicesRouter.get(
     };
 
     const [items, total] = await Promise.all([
-      prisma.invoice.findMany({
+      prisma.taxInvoice.findMany({
         where,
         include: {
           salesOrder: {
@@ -77,94 +64,43 @@ invoicesRouter.get(
               customer: true,
             },
           },
-          payments: true,
         },
         orderBy: {
           issueDate: "desc",
         },
         ...getPagination(query.page, query.pageSize),
       }),
-      prisma.invoice.count({ where }),
+      prisma.taxInvoice.count({ where }),
     ]);
 
     response.json({ items, total });
   }),
 );
 
-invoicesRouter.post(
-  "/from-sales-order/:id",
+taxInvoicesRouter.post(
+  "/",
   requireRole(["ADMIN", "SALES", "ACCOUNTANT"]),
-  validate(idParamSchema, "params"),
+  validate(taxInvoiceSchema),
   asyncHandler(async (request, response) => {
-    const params = request.validated?.params as { id: string };
+    const body = request.validated?.body as ReturnType<typeof taxInvoiceSchema.parse>;
 
-    const salesOrder = await prisma.salesOrder.findUnique({
-      where: { id: params.id },
-      include: {
-        lineItems: {
-          include: {
-            productVariant: {
-              include: {
-                product: true,
-              },
-            },
-          },
-        },
-        invoice: true,
-      },
-    });
-
-    if (!salesOrder) {
-      throw new ApiError(404, "Sales order not found");
-    }
-
-    if (salesOrder.invoice) {
-      throw new ApiError(400, "Invoice already exists for this sales order");
-    }
-
-    const subtotal = salesOrder.lineItems.reduce((sum, item) => {
-      const lineTotal = item.quantity * toNumber(item.unitPrice);
-      return sum + lineTotal - lineTotal * (toNumber(item.discountPct) / 100);
-    }, 0);
-    const taxAmount = subtotal * 0.13;
-    const total = subtotal + taxAmount;
-
-    const invoice = await prisma.invoice.create({
-      data: {
-        soId: salesOrder.id,
-        invoiceNumber: await generateInvoiceNumber(),
-        issueDate: new Date(),
-        dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
-        status: "SENT",
-        total,
-        taxAmount,
-      },
-      include: {
-        salesOrder: {
-          include: {
-            customer: true,
-          },
-        },
-      },
-    });
-
-    await postSalesInvoiceJournalEntry({
-      invoiceId: invoice.id,
-      total,
-      taxAmount,
-      createdById: request.user?.id,
+    const invoice = await taxInvoiceService.createInvoice({
+      soId: body.soId,
+      invoiceAmount: body.invoiceAmount,
+      taxAmount: body.taxAmount,
+      invoiceType: body.invoiceType as "VAT" | "PAN" | "NONE",
     });
 
     response.status(201).json(invoice);
   }),
 );
 
-invoicesRouter.get(
+taxInvoicesRouter.get(
   "/:id",
   validate(idParamSchema, "params"),
   asyncHandler(async (request, response) => {
     const params = request.validated?.params as { id: string };
-    const invoice = await prisma.invoice.findUnique({
+    const invoice = await prisma.taxInvoice.findUnique({
       where: { id: params.id },
       include: {
         salesOrder: {
@@ -181,7 +117,6 @@ invoicesRouter.get(
             },
           },
         },
-        payments: true,
       },
     });
 
@@ -189,15 +124,15 @@ invoicesRouter.get(
   }),
 );
 
-invoicesRouter.patch(
+taxInvoicesRouter.patch(
   "/:id",
   requireRole(["ADMIN", "ACCOUNTANT", "SALES"]),
   validate(idParamSchema, "params"),
-  validate(invoiceUpdateSchema),
+  validate(taxInvoiceUpdateSchema),
   asyncHandler(async (request, response) => {
     const params = request.validated?.params as { id: string };
-    const body = request.validated?.body as ReturnType<typeof invoiceUpdateSchema.parse>;
-    const invoice = await prisma.invoice.update({
+    const body = request.validated?.body as ReturnType<typeof taxInvoiceUpdateSchema.parse>;
+    const invoice = await prisma.taxInvoice.update({
       where: { id: params.id },
       data: body,
     });
@@ -206,13 +141,13 @@ invoicesRouter.patch(
   }),
 );
 
-invoicesRouter.post(
+taxInvoicesRouter.post(
   "/:id/send",
   requireRole(["ADMIN", "ACCOUNTANT", "SALES"]),
   validate(idParamSchema, "params"),
   asyncHandler(async (request, response) => {
     const params = request.validated?.params as { id: string };
-    const invoice = await prisma.invoice.update({
+    const invoice = await prisma.taxInvoice.update({
       where: { id: params.id },
       data: {
         status: "SENT",
@@ -226,14 +161,14 @@ invoicesRouter.post(
   }),
 );
 
-invoicesRouter.post(
+taxInvoicesRouter.post(
   "/bulk-send",
   requireRole(["ADMIN", "ACCOUNTANT"]),
   validate(bulkInvoiceSendSchema),
   asyncHandler(async (request, response) => {
     const body = request.validated?.body as ReturnType<typeof bulkInvoiceSendSchema.parse>;
 
-    const updated = await prisma.invoice.updateMany({
+    const updated = await prisma.taxInvoice.updateMany({
       where: {
         id: {
           in: body.invoiceIds,
@@ -251,14 +186,32 @@ invoicesRouter.post(
   }),
 );
 
-invoicesRouter.get(
+taxInvoicesRouter.get(
   "/:id/pdf",
-  validate(idParamSchema, "params"),
   asyncHandler(async (request, response) => {
-    const params = request.validated?.params as { id: string };
+    // Check if authenticated or has a valid download token
+    let userId = request.user?.id;
+    const token = request.query.token as string;
+
+    if (!userId && token) {
+      try {
+        const decoded = verifyToken(token);
+        if (decoded.purpose === "download") {
+          userId = decoded.sub;
+        }
+      } catch (err) {
+        throw new ApiError(401, "Invalid or expired download token");
+      }
+    }
+
+    if (!userId) {
+      throw new ApiError(401, "Unauthorized");
+    }
+
+    const { id } = request.params;
     const [invoice, companyProfile, template] = await Promise.all([
-      prisma.invoice.findUnique({
-        where: { id: params.id },
+      prisma.taxInvoice.findUnique({
+        where: { id: id },
         include: {
           salesOrder: {
             include: {
@@ -281,13 +234,13 @@ invoicesRouter.get(
     ]);
 
     if (!invoice) {
-      throw new ApiError(404, "Invoice not found");
+      throw new ApiError(404, "Tax invoice not found");
     }
 
-    const buffer = await renderInvoicePdfBuffer({ invoice, companyProfile, template });
+    const buffer = await renderInvoicePdfBuffer({ invoice, companyProfile, template } as any);
 
     response.setHeader("Content-Type", "application/pdf");
-    response.setHeader("Content-Disposition", `inline; filename=invoice-${invoice.invoiceNumber}.pdf`);
+    response.setHeader("Content-Disposition", `inline; filename=tax-invoice-${invoice.invoiceNumber}.pdf`);
     response.send(buffer);
   }),
 );

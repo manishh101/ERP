@@ -6,7 +6,7 @@ import { dashboardRouter } from "./dashboard.routes";
 import { customersRouter } from "./customers.routes";
 import { deliveriesRouter } from "./deliveries.routes";
 import { inventoryRouter } from "./inventory.routes";
-import { invoicesRouter } from "./invoices.routes";
+import { taxInvoicesRouter } from "./tax-invoices.routes";
 import { paymentsRouter } from "./payments.routes";
 import { productsRouter } from "./products.routes";
 import { purchaseOrdersRouter } from "./purchase-orders.routes";
@@ -29,7 +29,7 @@ export function registerRoutes(app: Express) {
   router.use("/purchase-orders", purchaseOrdersRouter);
   router.use("/customers", customersRouter);
   router.use("/sales-orders", salesOrdersRouter);
-  router.use("/invoices", invoicesRouter);
+  router.use("/tax-invoices", taxInvoicesRouter);
   router.use("/payments", paymentsRouter);
   router.use("/accounting", accountingRouter);
   router.use("/deliveries", deliveriesRouter);

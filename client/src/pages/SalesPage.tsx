@@ -7,7 +7,7 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useSalesOrdersQuery, useCustomersQuery, useCancelSalesOrderMutation, useConfirmSalesOrderMutation, useRecordSalesOrderDepositMutation } from "@/hooks/use-queries";
+import { useSalesOrdersQuery, useCustomersQuery, useCancelSalesOrderMutation, useConfirmSalesOrderMutation, useRecordSalesOrderDepositMutation, useUpdateSalesOrderStatusMutation } from "@/hooks/use-queries";
 import { getErrorMessage } from "@/lib/api";
 import { formatCurrency, formatDate, toNumber } from "@/lib/utils";
 import { CreateCustomerForm } from "@/components/sales/create-customer-form";
@@ -29,6 +29,7 @@ export function SalesPage() {
   const [selectedOrderId, setSelectedOrderId] = useState<string | undefined>(undefined);
 
   const { mutate: confirmOrder, isPending: isConfirming } = useConfirmSalesOrderMutation();
+  const { mutate: updateStatus, isPending: isUpdating } = useUpdateSalesOrderStatusMutation();
   const selectedOrder = data?.items.find((o) => o.id === selectedOrderId);
 
   if (isLoading || customersLoading) {
@@ -87,7 +88,7 @@ export function SalesPage() {
             </div>
             {selectedOrderId && (
               <div className="flex gap-2">
-                {selectedOrder?.status === "QUOTE" && (
+                {selectedOrder?.rawStatus === "QUOTE" && (
                   <Button 
                     variant="default" 
                     onClick={() => {
@@ -101,12 +102,26 @@ export function SalesPage() {
                     {isConfirming ? "Confirming..." : "Confirm Order"}
                   </Button>
                 )}
-                {selectedOrder?.status === "CONFIRMED" && (
+                {selectedOrder?.rawStatus === "CONFIRMED" && (
                   <Button 
                     variant="default" 
                     onClick={() => setDepositModalOpen(true)}
                   >
                     Record Deposit
+                  </Button>
+                )}
+                {selectedOrder?.rawStatus === "DEPOSIT_PAID" && (
+                  <Button 
+                    variant="default" 
+                    onClick={() => {
+                      updateStatus({ id: selectedOrderId, status: "IN_WAREHOUSE" }, {
+                        onSuccess: () => push("Order updated", "The order has been moved to the warehouse status."),
+                        onError: (error) => push("Update failed", getErrorMessage(error))
+                      });
+                    }}
+                    disabled={isUpdating}
+                  >
+                    {isUpdating ? "Updating..." : "Move to Warehouse"}
                   </Button>
                 )}
                 <Button 
@@ -153,6 +168,8 @@ export function SalesPage() {
                       <p className="font-semibold">{customer.name}</p>
                       <p className="mt-1 text-xs text-muted-foreground">
                         {customer.type} · Credit Limit: {formatCurrency(toNumber(customer.creditLimit))}
+                        {customer.panNo && ` · PAN: ${customer.panNo}`}
+                        {customer.vatNo && ` · VAT: ${customer.vatNo}`}
                       </p>
                     </div>
                     <Button 

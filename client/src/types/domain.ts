@@ -152,18 +152,45 @@ export type SalesOrderRow = {
   id: string;
   customer: string;
   status: string;
+  rawStatus: string;
   deliveryDate: string;
+  total: number;
   balanceDue: number;
 };
 
-export type InvoiceRow = {
+export type TaxInvoiceRow = {
   id: string;
+  soId: string;
   invoiceNumber: string;
   customer: string;
   status: string;
   dueDate: string | null;
-  amount: number;
+  amount: number; // Will map to invoiceAmount
   balance: number;
+  invoiceType: string;
+  printed?: boolean;
+};
+
+export type ArLedgerEntry = {
+  id: string;
+  date: string;
+  type: string;
+  reference: string;
+  debit: number;
+  credit: number;
+  balance: number;
+};
+
+export type VatRegisterEntry = {
+  id: string;
+  date: string;
+  bsDate: string;
+  invoiceNumber: string;
+  customerName: string;
+  panNo?: string;
+  taxableAmount: number;
+  outputVat: number;
+  totalWithVat: number;
 };
 
 export type DeliveryRow = {

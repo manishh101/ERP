@@ -1,7 +1,8 @@
 import React from "react";
 import { Document, Page, View, Text, StyleSheet, Font, pdf } from "@react-pdf/renderer";
+import path from "path";
 
-Font.register({ family: "Inter", src: "https://fonts.gstatic.com/s/inter/v12/UcCO3FwrK3i9gJ8REA.ttf" });
+Font.register({ family: "Inter", src: path.resolve(process.cwd(), "src/assets/fonts/Inter-Regular.ttf") });
 
 const styles = StyleSheet.create({
   page: { fontFamily: "Inter", fontSize: 10, padding: 24, color: "#222" },
@@ -26,10 +27,10 @@ export async function renderInvoicePdfBuffer({ invoice, companyProfile, template
           <Text style={styles.company}>{companyProfile?.name ?? "Company"}</Text>
           <Text>{companyProfile?.address ?? ""}</Text>
           {companyProfile?.taxNumber ? <Text>Tax: {companyProfile.taxNumber}</Text> : null}
-          <Text style={styles.invoiceTitle}>Invoice {invoice?.invoiceNumber}</Text>
+          <Text style={styles.invoiceTitle}>{invoice?.invoiceType === "TAX" ? "Tax Invoice" : "Invoice"} {invoice?.invoiceNumber}</Text>
           <View style={styles.row}>
-            <Text>Issue: {invoice?.issueDate ? new Date(invoice.issueDate).toLocaleDateString() : ""}</Text>
-            <Text>Due: {invoice?.dueDate ? new Date(invoice.dueDate).toLocaleDateString() : ""}</Text>
+            <Text>Issue Date: {invoice?.issueDate ? new Date(invoice.issueDate).toLocaleDateString() : ""} (AD) / {invoice?.bsDate || ""}</Text>
+            <Text>Payment Method: {invoice?.paymentMethod || "Cash"}</Text>
           </View>
         </View>
 
@@ -37,6 +38,7 @@ export async function renderInvoicePdfBuffer({ invoice, companyProfile, template
           <Text style={{ fontWeight: 700, marginBottom: 6 }}>Bill To</Text>
           <Text>{invoice?.salesOrder?.customer?.name}</Text>
           <Text>{invoice?.salesOrder?.customer?.address}</Text>
+          {invoice?.salesOrder?.customer?.panNo ? <Text>PAN/VAT No: {invoice?.salesOrder?.customer?.panNo}</Text> : null}
         </View>
 
         <View style={styles.tableHeader}>

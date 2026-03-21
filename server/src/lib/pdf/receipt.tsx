@@ -23,7 +23,7 @@ export async function renderReceiptPdfBuffer({ payment, companyProfile }: { paym
 
         <View style={{ marginBottom: 8 }}>
           <Text style={{ fontWeight: 700 }}>Paid By</Text>
-          <Text>{payment?.invoice?.salesOrder?.customer?.name ?? payment?.supplierInvoice?.supplier?.name}</Text>
+          <Text>{payment?.salesOrder?.customer?.name ?? payment?.supplierInvoice?.supplier?.name}</Text>
         </View>
 
         <View style={{ marginBottom: 8 }}>

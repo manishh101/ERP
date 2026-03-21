@@ -20,6 +20,9 @@ export function CreateCustomerForm({ onClose }: CreateCustomerFormProps) {
     type: "RETAIL",
     creditLimit: "0",
     address: "",
+    panNo: "",
+    vatNo: "",
+    invoicePref: "NONE",
   });
 
   const handleSubmit = async () => {
@@ -36,6 +39,9 @@ export function CreateCustomerForm({ onClose }: CreateCustomerFormProps) {
         type: formData.type,
         creditLimit: Number(formData.creditLimit),
         address: formData.address,
+        panNo: formData.panNo || undefined,
+        vatNo: formData.vatNo || undefined,
+        invoicePref: formData.invoicePref,
       });
       
       push("Customer created", `${formData.name} has been added to the system.`);
@@ -95,6 +101,27 @@ export function CreateCustomerForm({ onClose }: CreateCustomerFormProps) {
             value={formData.address} 
             onChange={(e) => setFormData({ ...formData, address: e.target.value })} 
           />
+          <Input 
+            placeholder="PAN Number" 
+            value={formData.panNo} 
+            onChange={(e) => setFormData({ ...formData, panNo: e.target.value })} 
+          />
+          <Input 
+            placeholder="VAT Number" 
+            value={formData.vatNo} 
+            onChange={(e) => setFormData({ ...formData, vatNo: e.target.value })} 
+          />
+          <div className="space-y-2">
+            <select 
+              className="flex h-11 w-full rounded-2xl border border-border bg-white/90 px-4 text-sm"
+              value={formData.invoicePref}
+              onChange={(e) => setFormData({ ...formData, invoicePref: e.target.value })}
+            >
+              <option value="NONE">No Default Tax Type</option>
+              <option value="VAT">Default to VAT</option>
+              <option value="PAN">Default to PAN</option>
+            </select>
+          </div>
         </div>
 
         <div className="flex gap-3 justify-end mt-4">

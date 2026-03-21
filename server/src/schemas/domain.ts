@@ -157,6 +157,9 @@ export const customerSchema = z.object({
   type: z.nativeEnum(CustomerType),
   creditLimit: decimalNumber.default(0),
   address: z.string().min(4),
+  panNo: z.string().optional(),
+  vatNo: z.string().optional(),
+  invoicePref: z.enum(["VAT", "PAN", "NONE"]).default("NONE"),
 });
 
 export const salesOrderLineItemSchema = z.object({
@@ -183,19 +186,33 @@ export const recordDepositSchema = z.object({
   amount: decimalNumber,
 });
 
-export const invoiceSchema = z.object({
+export const taxInvoiceSchema = z.object({
   soId: z.string().min(1),
   invoiceNumber: z.string().min(2).optional(),
   issueDate: z.coerce.date().default(new Date()),
   dueDate: optionalDate,
   status: z.nativeEnum(InvoiceStatus).default(InvoiceStatus.DRAFT),
-  total: decimalNumber,
+  invoiceAmount: decimalNumber,
   taxAmount: decimalNumber.default(0),
-  amountPaid: decimalNumber.default(0),
+  invoiceType: z.enum(["VAT", "PAN", "NONE"]).default("NONE"),
+  fiscalYear: z.string().optional(),
+  bsDate: z.string().optional(),
+  printed: z.boolean().default(false),
   notes: z.string().optional(),
 });
 
-export const invoiceUpdateSchema = invoiceSchema.partial().omit({ soId: true });
+export const taxInvoiceUpdateSchema = taxInvoiceSchema.partial().omit({ soId: true });
+
+export const arLedgerQuerySchema = z.object({
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+});
+
+export const vatRegisterQuerySchema = z.object({
+  fiscalYear: z.string().min(7),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+});
 
 export const bulkInvoiceSendSchema = z.object({
   invoiceIds: z.array(z.string().min(1)).min(1),
@@ -203,7 +220,7 @@ export const bulkInvoiceSendSchema = z.object({
 
 export const paymentSchema = z
   .object({
-    invoiceId: z.string().optional(),
+    salesOrderId: z.string().optional(),
     purchaseOrderId: z.string().optional(),
     supplierInvoiceId: z.string().optional(),
     amount: decimalNumber,
@@ -213,8 +230,8 @@ export const paymentSchema = z
     note: z.string().optional(),
   })
   .refine(
-    (value) => Boolean(value.invoiceId || value.purchaseOrderId || value.supplierInvoiceId),
-    "A payment must be linked to an invoice, purchase order, or supplier invoice",
+    (value) => Boolean(value.salesOrderId || value.purchaseOrderId || value.supplierInvoiceId),
+    "A payment must be linked to a sales order, purchase order, or supplier invoice",
   );
 
 export const expenseSchema = z.object({

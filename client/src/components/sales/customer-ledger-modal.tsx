@@ -18,12 +18,25 @@ export function CustomerLedgerModal({ customerId, customerName, onClose }: Custo
   const { token } = useAuth();
   const { data: ledger, isLoading } = useCustomerLedgerQuery(customerId);
 
-  const handleDownloadPdf = () => {
-    if (!token) return;
-    // Use absolute URL with token in query for window.open
-    const baseUrl = API_BASE_URL.replace(/\/$/, "");
-    const url = `${baseUrl}/reports/customer-ledger/${customerId}/pdf?token=${token}`;
-    window.open(url, "_blank");
+  const handleDownloadPdf = async () => {
+    try {
+      const baseUrl = API_BASE_URL.replace(/\/$/, "");
+      const response = await fetch(`${baseUrl}/auth/download-token`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!response.ok) throw new Error('Failed to get download token');
+      const { token: downloadToken } = await response.json();
+
+      const url = `${baseUrl}/reports/customer-ledger/${customerId}/pdf?token=${downloadToken}`;
+      window.open(url, "_blank");
+    } catch (error) {
+      console.error('Download error:', error);
+      alert('Failed to generate secure download link');
+    }
   };
 
   return (
