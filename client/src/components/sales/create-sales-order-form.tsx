@@ -6,6 +6,7 @@ import { useToast } from "@/components/layout/toast-provider";
 import { useCreateSalesOrderMutation, useCustomersQuery, useProductsQuery } from "@/hooks/use-queries";
 import { getErrorMessage } from "@/lib/api";
 import { NepaliDatePickerInput } from "@/components/ui/nepali-date-picker-input";
+import { formatCurrency, toNumber } from "@/lib/utils";
 
 type CreateSalesOrderFormProps = {
   onClose: () => void;
@@ -25,7 +26,7 @@ export function CreateSalesOrderForm({ onClose }: CreateSalesOrderFormProps) {
     notes: "",
   });
 
-  const [lineItems, setLineItems] = useState([{ productVariantId: "", quantity: "1", unitPrice: "0", discountPct: "0" }]);
+  const [lineItems, setLineItems] = useState([{ productVariantId: "", quantity: "", unitPrice: "", discountPct: "" }]);
 
   const handleSubmit = async () => {
     if (!formData.customerId) {
@@ -124,80 +125,113 @@ export function CreateSalesOrderForm({ onClose }: CreateSalesOrderFormProps) {
             <h4 className="font-semibold">Line Items</h4>
             <Button 
               variant="outline" 
-              onClick={() => setLineItems([...lineItems, { productVariantId: "", quantity: "1", unitPrice: "0", discountPct: "0" }])}
+              onClick={() => setLineItems([...lineItems, { productVariantId: "", quantity: "", unitPrice: "", discountPct: "" }])}
             >
               Add Item
             </Button>
           </div>
-          {lineItems.map((item, index) => (
-            <div key={index} className="grid gap-3 md:grid-cols-5 items-center bg-white p-3 rounded-xl border border-border">
-              <div className="md:col-span-2">
-                <select 
-                  className="flex h-11 w-full rounded-2xl border border-border bg-white/90 px-4 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  value={item.productVariantId}
-                  onChange={(e) => {
-                    const newItems = [...lineItems];
-                    newItems[index].productVariantId = e.target.value;
-                    
-                    // Unit price should be entered manually here as ProductRow does not expose it
-                    // if needed, we'd fetch RawProduct directly.
-                    
-                    setLineItems(newItems);
-                  }}
-                >
-                  <option value="">Select a Product</option>
-                  {products.data?.items.map(p => (
-                    <option key={p.id} value={p.id}>{p.name} ({p.sku})</option>
-                  ))}
-                </select>
+          {lineItems.map((item, index) => {
+            const rowTotal = toNumber(item.quantity) * toNumber(item.unitPrice) * (1 - (toNumber(item.discountPct) / 100));
+            
+            return (
+              <div key={index} className="grid gap-3 md:grid-cols-12 items-center bg-white p-3 rounded-xl border border-border">
+                <div className="md:col-span-4">
+                  <select 
+                    className="flex h-11 w-full rounded-2xl border border-border bg-white/90 px-4 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    value={products.data?.items.find(p => p.defaultVariantId === item.productVariantId)?.id || ""}
+                    onChange={(e) => {
+                      const productId = e.target.value;
+                      const newItems = [...lineItems];
+                      const selectedProduct = products.data?.items.find(p => p.id === productId);
+                      
+                      if (selectedProduct) {
+                        newItems[index].productVariantId = selectedProduct.defaultVariantId;
+                        newItems[index].unitPrice = String(selectedProduct.sellingPrice);
+                        if (!newItems[index].quantity) newItems[index].quantity = "1";
+                        if (!newItems[index].discountPct) newItems[index].discountPct = "0";
+                      } else {
+                        newItems[index].productVariantId = "";
+                      }
+                      setLineItems(newItems);
+                    }}
+                  >
+                    <option value="">Select a Product</option>
+                    {products.data?.items.map(p => (
+                      <option key={p.id} value={p.id}>{p.name} ({p.sku})</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="md:col-span-1">
+                  <Input 
+                    placeholder="Qty" 
+                    type="number"
+                    value={item.quantity} 
+                    onChange={(e) => {
+                      const newItems = [...lineItems];
+                      newItems[index].quantity = e.target.value;
+                      setLineItems(newItems);
+                    }} 
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <Input 
+                    placeholder="Unit Price" 
+                    type="number"
+                    step="0.01"
+                    value={item.unitPrice} 
+                    onChange={(e) => {
+                      const newItems = [...lineItems];
+                      newItems[index].unitPrice = e.target.value;
+                      setLineItems(newItems);
+                    }} 
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <Input 
+                    placeholder="Discount %" 
+                    type="number"
+                    step="0.1"
+                    value={item.discountPct} 
+                    onChange={(e) => {
+                      const newItems = [...lineItems];
+                      newItems[index].discountPct = e.target.value;
+                      setLineItems(newItems);
+                    }} 
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <div className="h-11 flex items-center px-4 bg-muted/30 rounded-2xl text-sm font-medium">
+                    {formatCurrency(rowTotal)}
+                  </div>
+                </div>
+                <div className="md:col-span-1 flex justify-end">
+                  <Button 
+                    variant="ghost" 
+                    className="text-red-500 hover:text-red-600 hover:bg-red-50 rounded-full w-9 h-9 p-0"
+                    onClick={() => {
+                      const newItems = [...lineItems];
+                      newItems.splice(index, 1);
+                      setLineItems(newItems);
+                    }}
+                  >
+                    X
+                  </Button>
+                </div>
               </div>
-              <Input 
-                placeholder="Qty" 
-                type="number"
-                value={item.quantity} 
-                onChange={(e) => {
-                  const newItems = [...lineItems];
-                  newItems[index].quantity = e.target.value;
-                  setLineItems(newItems);
-                }} 
-              />
-              <Input 
-                placeholder="Unit Price" 
-                type="number"
-                step="0.01"
-                value={item.unitPrice} 
-                onChange={(e) => {
-                  const newItems = [...lineItems];
-                  newItems[index].unitPrice = e.target.value;
-                  setLineItems(newItems);
-                }} 
-              />
-              <div className="flex gap-2">
-                <Input 
-                  placeholder="Discount %" 
-                  type="number"
-                  step="0.1"
-                  value={item.discountPct} 
-                  onChange={(e) => {
-                    const newItems = [...lineItems];
-                    newItems[index].discountPct = e.target.value;
-                    setLineItems(newItems);
-                  }} 
-                />
-                <Button 
-                  variant="outline" 
-                  className="text-red-500 hover:text-red-600"
-                  onClick={() => {
-                    const newItems = [...lineItems];
-                    newItems.splice(index, 1);
-                    setLineItems(newItems);
-                  }}
-                >
-                  X
-                </Button>
+            );
+          })}
+
+          {lineItems.length > 0 && (
+            <div className="flex justify-end pt-2 px-3">
+              <div className="text-right">
+                <span className="text-sm text-muted-foreground mr-4">Total Order Value:</span>
+                <span className="text-xl font-bold text-primary">
+                  {formatCurrency(lineItems.reduce((sum, item) => 
+                    sum + (toNumber(item.quantity) * toNumber(item.unitPrice) * (1 - (toNumber(item.discountPct) / 100))), 0))}
+                </span>
               </div>
             </div>
-          ))}
+          )}
         </div>
 
         <div className="flex gap-3 justify-end mt-4">

@@ -64,6 +64,7 @@ type RawProduct = {
   costPrice: number | string;
   sellingPrice: number | string;
   variants: Array<{
+    id: string;
     stockQuantity: number | string;
   }>;
 };
@@ -513,6 +514,8 @@ function mapProduct(product: RawProduct): ProductRow {
     stock,
     margin,
     valuation: stock * costPrice,
+    sellingPrice,
+    defaultVariantId: product.variants[0]?.id || "",
   };
 }
 
@@ -1169,6 +1172,58 @@ export function useSalesOrdersQuery() {
   });
 }
 
+export function useCancelSalesOrderMutation() {
+  const { token } = useAuth();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest<any>(`/sales-orders/${id}/cancel`, {
+        method: "POST",
+        token: token!,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["sales-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["inventory"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+  });
+}
+
+export function useConfirmSalesOrderMutation() {
+  const { token } = useAuth();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest<any>(`/sales-orders/${id}/confirm`, {
+        method: "POST",
+        token: token!,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["sales-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["inventory"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+  });
+}
+
+export function useRecordSalesOrderDepositMutation() {
+  const { token } = useAuth();
+  return useMutation({
+    mutationFn: async ({ id, amount }: { id: string; amount: number }) => {
+      return apiRequest<any>(`/sales-orders/${id}/deposit`, {
+        method: "POST",
+        token: token!,
+        body: { amount },
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["sales-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+  });
+}
+
+
 export type InvoiceCreatePayload = {
   soId: string;
   invoiceNumber?: string;
@@ -1293,6 +1348,23 @@ export function useUpdateDeliveryMutation() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["deliveries"] });
+    },
+  });
+}
+
+export function useCancelDeliveryMutation() {
+  const { token } = useAuth();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest<any>(`/deliveries/${id}/cancel`, {
+        method: "POST",
+        token: token!,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["deliveries"] });
+      queryClient.invalidateQueries({ queryKey: ["sales-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     },
   });
 }

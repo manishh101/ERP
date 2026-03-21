@@ -7,21 +7,29 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useSalesOrdersQuery, useCustomersQuery } from "@/hooks/use-queries";
+import { useSalesOrdersQuery, useCustomersQuery, useCancelSalesOrderMutation, useConfirmSalesOrderMutation, useRecordSalesOrderDepositMutation } from "@/hooks/use-queries";
 import { getErrorMessage } from "@/lib/api";
-import { formatCurrency, toNumber } from "@/lib/utils";
+import { formatCurrency, formatDate, toNumber } from "@/lib/utils";
 import { CreateCustomerForm } from "@/components/sales/create-customer-form";
 import { CreateSalesOrderForm } from "@/components/sales/create-sales-order-form";
 import { CustomerLedgerModal } from "@/components/sales/customer-ledger-modal";
+import { RecordDepositModal } from "@/components/sales/record-deposit-modal";
 
 export function SalesPage() {
   const { data, error, isLoading } = useSalesOrdersQuery();
   const { data: customersData, isLoading: customersLoading } = useCustomersQuery();
+  const { mutate: cancelOrder, isPending: isCancelling } = useCancelSalesOrderMutation();
   const { push } = useToast();
+  
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [depositModalOpen, setDepositModalOpen] = useState(false);
   const [createCustomerOpen, setCreateCustomerOpen] = useState(false);
   const [createSalesOrderOpen, setCreateSalesOrderOpen] = useState(false);
   const [ledgerCustomer, setLedgerCustomer] = useState<{ id: string; name: string } | null>(null);
+  const [selectedOrderId, setSelectedOrderId] = useState<string | undefined>(undefined);
+
+  const { mutate: confirmOrder, isPending: isConfirming } = useConfirmSalesOrderMutation();
+  const selectedOrder = data?.items.find((o) => o.id === selectedOrderId);
 
   if (isLoading || customersLoading) {
     return <Skeleton className="h-[420px]" />;
@@ -72,21 +80,57 @@ export function SalesPage() {
 
       <div className="grid gap-6 xl:grid-cols-[1.2fr_1fr]">
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between space-y-0">
             <div>
               <CardTitle>Order Pipeline</CardTitle>
               <CardDescription>Quote → Confirmed → Deposit Paid → In Warehouse → Out for Delivery → Delivered.</CardDescription>
             </div>
+            {selectedOrderId && (
+              <div className="flex gap-2">
+                {selectedOrder?.status === "QUOTE" && (
+                  <Button 
+                    variant="default" 
+                    onClick={() => {
+                      confirmOrder(selectedOrderId, {
+                        onSuccess: () => push("Order confirmed", "The quote has been successfully converted to a confirmed order."),
+                        onError: (error) => push("Confirmation failed", getErrorMessage(error))
+                      });
+                    }}
+                    disabled={isConfirming}
+                  >
+                    {isConfirming ? "Confirming..." : "Confirm Order"}
+                  </Button>
+                )}
+                {selectedOrder?.status === "CONFIRMED" && (
+                  <Button 
+                    variant="default" 
+                    onClick={() => setDepositModalOpen(true)}
+                  >
+                    Record Deposit
+                  </Button>
+                )}
+                <Button 
+                  variant="outline" 
+                  className="text-destructive hover:bg-destructive hover:text-white border-destructive/30"
+                  onClick={() => setConfirmOpen(true)}
+                  disabled={isCancelling}
+                >
+                  {isCancelling ? "Cancelling..." : "Cancel Order"}
+                </Button>
+              </div>
+            )}
           </CardHeader>
           <CardContent>
             <DataTable
               rows={data.items}
               detailHref={() => "/sales"}
+              selectedId={selectedOrderId}
+              onSelectRow={setSelectedOrderId}
               columns={[
                 { key: "id", header: "Order" },
                 { key: "customer", header: "Customer" },
                 { key: "status", header: "Status", render: (row) => <StatusBadge value={row.status} /> },
-                { key: "deliveryDate", header: "Delivery" },
+                { key: "deliveryDate", header: "Delivery", render: (row) => formatDate(row.deliveryDate) },
                 { key: "balanceDue", header: "Balance Due", className: "text-right", render: (row) => formatCurrency(row.balanceDue) },
               ]}
             />
@@ -121,11 +165,6 @@ export function SalesPage() {
                 </div>
               ))}
             </div>
-            <div className="flex gap-3">
-              <Button variant="destructive" className="w-full" onClick={() => setConfirmOpen(true)}>
-                Cancel Selected Order
-              </Button>
-            </div>
           </CardContent>
         </Card>
       </div>
@@ -133,12 +172,22 @@ export function SalesPage() {
       <ConfirmDialog
         open={confirmOpen}
         title="Cancel Sales Order"
-        description="This keeps the confirmation modal pattern in place before destructive actions like order cancellation."
+        description="Are you sure you want to cancel this order? This action will reverse any stock reservations if the order was already confirmed."
         confirmLabel="Cancel Order"
         onCancel={() => setConfirmOpen(false)}
         onConfirm={() => {
-          setConfirmOpen(false);
-          push("Order cancelled", "A cancellation endpoint can now be wired to this confirmation flow.");
+          if (selectedOrderId) {
+            cancelOrder(selectedOrderId, {
+              onSuccess: () => {
+                setConfirmOpen(false);
+                setSelectedOrderId(undefined);
+                push("Order cancelled", "The sales order has been successfully cancelled and stock released.");
+              },
+              onError: (error) => {
+                push("Cancellation failed", getErrorMessage(error));
+              }
+            });
+          }
         }}
       />
 
@@ -147,6 +196,14 @@ export function SalesPage() {
           customerId={ledgerCustomer.id}
           customerName={ledgerCustomer.name}
           onClose={() => setLedgerCustomer(null)}
+        />
+      )}
+
+      {depositModalOpen && selectedOrder && (
+        <RecordDepositModal
+          orderId={selectedOrder.id}
+          orderNumber={selectedOrder.id}
+          onClose={() => setDepositModalOpen(false)}
         />
       )}
     </div>

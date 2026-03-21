@@ -11,12 +11,16 @@ export function DataTable<T extends { id: string }>({
   detailHref,
   searchPlaceholder = "Search records",
   pageSize = 8,
+  selectedId,
+  onSelectRow,
 }: {
   columns: Array<TableColumn<T>>;
   rows: T[];
   detailHref?: (row: T) => string;
   searchPlaceholder?: string;
   pageSize?: number;
+  selectedId?: string;
+  onSelectRow?: (id: string | undefined) => void;
 }) {
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState(String(columns[0]?.key ?? "id"));
@@ -100,6 +104,7 @@ export function DataTable<T extends { id: string }>({
       <Table>
         <TableHeader>
           <TableRow>
+            {onSelectRow && <TableHead className="w-10 px-4"></TableHead>}
             {columns.map((column) => (
               <TableHead key={String(column.key)} className={column.className}>
                 {column.header}
@@ -109,7 +114,29 @@ export function DataTable<T extends { id: string }>({
         </TableHeader>
         <TableBody>
           {paginatedRows.map((row) => (
-            <TableRow key={row.id}>
+            <TableRow 
+              key={row.id} 
+              className={selectedId === row.id ? "bg-primary/5 active:bg-primary/10 transition-colors" : "cursor-pointer hover:bg-muted/50"}
+              onClick={() => {
+                if (onSelectRow) {
+                  onSelectRow(selectedId === row.id ? undefined : row.id);
+                }
+              }}
+            >
+              {onSelectRow && (
+                <TableCell className="w-10 px-4">
+                  <input
+                    type="radio"
+                    checked={selectedId === row.id}
+                    onChange={() => {}} // Controlled by row onClick
+                    className="h-4 w-4 accent-primary cursor-pointer"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSelectRow(selectedId === row.id ? undefined : row.id);
+                    }}
+                  />
+                </TableCell>
+              )}
               {columns.map((column, index) => {
                 const content = column.render ? column.render(row) : String(row[column.key as keyof T] ?? "");
 
@@ -129,6 +156,7 @@ export function DataTable<T extends { id: string }>({
           ))}
         </TableBody>
       </Table>
+
       <div className="flex items-center justify-between border-t border-border/70 px-4 py-3 text-sm text-muted-foreground">
         <span>
           Page {currentPage} of {totalPages} · {sortedRows.length} records

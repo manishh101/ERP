@@ -245,3 +245,45 @@ deliveriesRouter.post(
     response.json(updated);
   }),
 );
+
+deliveriesRouter.post(
+  "/:id/cancel",
+  requireRole(["ADMIN", "WAREHOUSE"]),
+  validate(idParamSchema, "params"),
+  asyncHandler(async (request, response) => {
+    const params = request.validated?.params as { id: string };
+
+    const delivery = await prisma.$transaction(async (tx) => {
+      const existing = await tx.delivery.findUnique({
+        where: { id: params.id },
+      });
+
+      if (!existing) {
+        throw new ApiError(404, "Delivery not found");
+      }
+
+      if (existing.status === "DELIVERED" || existing.status === "CANCELLED") {
+        throw new ApiError(400, `Cannot cancel delivery in ${existing.status} status`);
+      }
+
+      const updated = await tx.delivery.update({
+        where: { id: params.id },
+        data: {
+          status: "CANCELLED",
+        },
+      });
+
+      // Reset SO status to IN_WAREHOUSE so it can be re-scheduled
+      await tx.salesOrder.update({
+        where: { id: existing.soId },
+        data: {
+          status: "IN_WAREHOUSE",
+        },
+      });
+
+      return updated;
+    });
+
+    response.json(delivery);
+  }),
+);

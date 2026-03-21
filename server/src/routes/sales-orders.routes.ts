@@ -295,3 +295,67 @@ salesOrdersRouter.post(
     response.json(updated);
   }),
 );
+salesOrdersRouter.post(
+  "/:id/cancel",
+  requireRole(["ADMIN", "SALES"]),
+  validate(idParamSchema, "params"),
+  asyncHandler(async (request, response) => {
+    const params = request.validated?.params as { id: string };
+
+    const order = await prisma.salesOrder.findUnique({
+      where: { id: params.id },
+      include: {
+        lineItems: true,
+      },
+    });
+
+    if (!order) {
+      throw new ApiError(404, "Sales order not found");
+    }
+
+    if (order.status === "DELIVERED" || order.status === "CANCELLED") {
+      throw new ApiError(400, `Cannot cancel order in ${order.status} status`);
+    }
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const salesOrder = await tx.salesOrder.update({
+        where: { id: order.id },
+        data: {
+          status: "CANCELLED",
+        },
+      });
+
+      // If the order was confirmed/deposit paid/in warehouse, it likely has reservations
+      if (
+        ["CONFIRMED", "DEPOSIT_PAID", "IN_WAREHOUSE", "PAID"].includes(order.status) &&
+        order.assignedWarehouseId
+      ) {
+        for (const lineItem of order.lineItems) {
+          const variant = await tx.productVariant.findUnique({
+            where: { id: lineItem.productVariantId },
+          });
+
+          if (!variant) {
+            continue;
+          }
+
+          await tx.stockMovement.create({
+            data: {
+              productVariantId: lineItem.productVariantId,
+              warehouseId: order.assignedWarehouseId,
+              userId: request.user?.id,
+              type: "RELEASE",
+              quantity: lineItem.quantity, // Release is positive quantity to reverse the negative reservation
+              balanceAfter: variant.stockQuantity,
+              source: `CANCELLED:SO:${order.id}`,
+            },
+          });
+        }
+      }
+
+      return salesOrder;
+    });
+
+    response.json(updated);
+  }),
+);

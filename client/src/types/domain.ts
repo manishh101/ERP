@@ -67,6 +67,8 @@ export type ProductRow = {
   stock: number;
   margin: number;
   valuation: number;
+  sellingPrice: number;
+  defaultVariantId: string;
 };
 
 export type PurchaseOrderLineRow = {
