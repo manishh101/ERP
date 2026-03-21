@@ -19,6 +19,9 @@ const emptyCompanyProfile = {
   address: "",
   taxNumber: "",
   bankDetails: "",
+  email: "",
+  phone: "",
+  website: "",
 };
 
 const emptyCurrencySettings = {
@@ -67,7 +70,15 @@ export function SettingsPage() {
 
   useEffect(() => {
     if (data) {
-      setCompanyProfile(data.companyProfile);
+      setCompanyProfile({
+        name: data.companyProfile.name,
+        address: data.companyProfile.address,
+        taxNumber: data.companyProfile.taxNumber,
+        bankDetails: data.companyProfile.bankDetails,
+        email: data.companyProfile.email ?? "",
+        phone: data.companyProfile.phone ?? "",
+        website: data.companyProfile.website ?? "",
+      });
       setCurrencySettings({
         baseCurrency: data.currency.baseCurrency,
         supportedCurrencies: formatCsv(data.currency.supportedCurrencies),
@@ -122,11 +133,19 @@ export function SettingsPage() {
 
     setProfileSaving(true);
 
+    let website = companyProfile.website;
+    if (website && !website.startsWith("http://") && !website.startsWith("https://")) {
+      website = `https://${website}`;
+    }
+
     try {
       await apiRequest("/settings/company-profile", {
         method: "PATCH",
         token,
-        body: companyProfile,
+        body: {
+          ...companyProfile,
+          website,
+        },
       });
 
       await queryClient.invalidateQueries({ queryKey: ["settings"] });
@@ -241,6 +260,24 @@ export function SettingsPage() {
               }
               placeholder="Bank details"
             />
+            <div className="grid gap-3 md:grid-cols-3">
+              <Input
+                value={companyProfile.email}
+                onChange={(event) => setCompanyProfile((current) => ({ ...current, email: event.target.value }))}
+                placeholder="Company email"
+                type="email"
+              />
+              <Input
+                value={companyProfile.phone}
+                onChange={(event) => setCompanyProfile((current) => ({ ...current, phone: event.target.value }))}
+                placeholder="Company phone"
+              />
+              <Input
+                value={companyProfile.website}
+                onChange={(event) => setCompanyProfile((current) => ({ ...current, website: event.target.value }))}
+                placeholder="Company website (https://...)"
+              />
+            </div>
             <Button onClick={handleSaveCompanyProfile} disabled={profileSaving}>
               {profileSaving ? "Saving..." : "Save Company Profile"}
             </Button>
@@ -378,6 +415,39 @@ export function SettingsPage() {
                 }
                 placeholder="Footer text"
               />
+            </div>
+
+            <div className="space-y-3 rounded-2xl border border-border bg-white p-4">
+              <div className="flex items-center justify-between">
+                <p className="font-semibold">Warehouses</p>
+                <Button 
+                  variant="outline" 
+                  className="h-8 px-3 text-xs" 
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setCreateWarehouseOpen(c => !c);
+                  }}
+                >
+                  {createWarehouseOpen ? "Close" : "Add Warehouse"}
+                </Button>
+              </div>
+
+              {createWarehouseOpen && <CreateWarehouseForm onClose={() => setCreateWarehouseOpen(false)} />}
+
+              {data.warehouses.length > 0 ? (
+                <div className="grid gap-2">
+                  {data.warehouses.map((warehouse) => (
+                    <div key={warehouse.id} className="rounded-2xl bg-secondary/60 p-3">
+                      <p className="font-medium text-sm">{warehouse.name}</p>
+                      <p className="text-[10px] text-muted-foreground uppercase">
+                        {warehouse.location} · {warehouse.type} · {warehouse.isActive ? "Active" : "Inactive"}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">No warehouses configured yet.</p>
+              )}
             </div>
 
             <div className="space-y-3 rounded-2xl border border-border bg-white p-4">

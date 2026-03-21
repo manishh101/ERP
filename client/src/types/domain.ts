@@ -143,6 +143,7 @@ export type TaxRateRow = {
   rate: number;
   category: string;
   isCompound: boolean;
+  isDefault: boolean;
 };
 
 export type SalesOrderRow = {
@@ -280,6 +281,9 @@ export type SettingsPayload = {
     address: string;
     taxNumber: string;
     bankDetails: string;
+    email?: string;
+    phone?: string;
+    website?: string;
   };
   currency: {
     baseCurrency: string;

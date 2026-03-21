@@ -282,8 +282,9 @@ export const companyProfileSchema = z.object({
   address: z.string().min(4),
   taxNumber: z.string().min(2),
   bankDetails: z.string().min(4),
-  email: z.string().email().optional(),
+  email: z.string().email().or(z.literal("")).optional(),
   phone: z.string().optional(),
+  website: z.string().url().or(z.literal("")).optional(),
 });
 
 export const taxRateSchema = z.object({

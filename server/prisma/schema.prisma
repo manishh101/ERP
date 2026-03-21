@@ -530,6 +530,7 @@ model CompanyProfile {
   bankDetails String   @map("bank_details")
   email       String?
   phone       String?
+  website     String?
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 

@@ -312,6 +312,9 @@ type RawSettingsPayload = {
     address: string;
     taxNumber: string;
     bankDetails: string;
+    email?: string;
+    phone?: string;
+    website?: string;
   } | null;
   currencySetting?: {
     baseCurrency: string;
@@ -342,6 +345,7 @@ type RawSettingsPayload = {
     rate: number;
     category: string;
     isCompound: boolean;
+    isDefault: boolean;
   }>;
   users: Array<{
     id: string;
@@ -685,6 +689,9 @@ function mapSettings(payload: RawSettingsPayload): SettingsPayload {
       address: payload.companyProfile?.address ?? "",
       taxNumber: payload.companyProfile?.taxNumber ?? "",
       bankDetails: payload.companyProfile?.bankDetails ?? "",
+      email: payload.companyProfile?.email ?? "",
+      phone: payload.companyProfile?.phone ?? "",
+      website: payload.companyProfile?.website ?? "",
     },
     currency: {
       baseCurrency: payload.currencySetting?.baseCurrency ?? "USD",
