@@ -1,47 +1,67 @@
+/**
+ * Convert number to words for Nepal invoice footer
+ * e.g. 73450 -> "Seventy Three Thousand Four Hundred Fifty Rupees Only"
+ */
+
 const units = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine"];
 const teens = ["Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"];
 const tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
 
-function twoDigitWords(n: number): string {
+function convertLessThousand(n: number): string {
   if (n === 0) return "";
-  if (n < 10) return units[n];
-  if (n < 20) return teens[n - 10];
-  return (tens[Math.floor(n / 10)] + " " + units[n % 10]).trim();
+  let res = "";
+  if (n >= 100) {
+    res += units[Math.floor(n / 100)] + " Hundred ";
+    n %= 100;
+  }
+  if (n >= 20) {
+    res += tens[Math.floor(n / 10)] + " ";
+    n %= 10;
+  }
+  if (n >= 10) {
+    res += teens[n - 10] + " ";
+    n = 0;
+  }
+  if (n > 0) {
+    res += units[n] + " ";
+  }
+  return res.trim();
 }
 
-/**
- * Converts a number to its Indian/Nepali formatting string representation in words.
- */
-export function numberToWords(num: number): string {
-  if (num === 0) return "Zero Only";
+export function toEnglishWords(amount: number): string {
+  if (amount === 0) return "Zero Rupees Only";
+  
+  let integerPart = Math.floor(amount);
+  let decimalPart = Math.round((amount - integerPart) * 100);
 
-  // Handle decimals
-  const wholePart = Math.floor(num);
-  const decimalPart = Math.round((num - wholePart) * 100);
-
-  const str = wholePart.toString().padStart(9, "0");
-  const crores = parseInt(str.substring(0, 2), 10);
-  const lakhs = parseInt(str.substring(2, 4), 10);
-  const thousands = parseInt(str.substring(4, 6), 10);
-  const hundreds = parseInt(str.substring(6, 7), 10);
-  const remainder = parseInt(str.substring(7, 9), 10);
-
-  const words = [];
-
-  if (crores > 0) words.push(twoDigitWords(crores) + " Crore");
-  if (lakhs > 0) words.push(twoDigitWords(lakhs) + " Lakh");
-  if (thousands > 0) words.push(twoDigitWords(thousands) + " Thousand");
-  if (hundreds > 0) words.push(units[hundreds] + " Hundred");
-
-  if (remainder > 0) {
-    words.push(twoDigitWords(remainder));
+  let res = "";
+  
+  // Indian numbering system (Crore, Lakh, Thousand)
+  if (integerPart >= 10000000) {
+    res += convertLessThousand(Math.floor(integerPart / 10000000)) + " Crore ";
+    integerPart %= 10000000;
   }
+  if (integerPart >= 100000) {
+    res += convertLessThousand(Math.floor(integerPart / 100000)) + " Lakh ";
+    integerPart %= 100000;
+  }
+  if (integerPart >= 1000) {
+    res += convertLessThousand(Math.floor(integerPart / 1000)) + " Thousand ";
+    integerPart %= 1000;
+  }
+  res += convertLessThousand(integerPart);
 
-  let result = words.join(" ");
-
+  res = res.trim() + " Rupees";
+  
   if (decimalPart > 0) {
-    result += ` and ${twoDigitWords(decimalPart)} Paisa`;
+    res += " and " + convertLessThousand(decimalPart) + " Paisa";
   }
 
-  return result.trim() + " Only";
+  return res + " Only";
+}
+
+export function toNepaliWords(amount: number): string {
+  // Skeleton implementation as per prompt requirement
+  // Usually this would use a library or a complex map
+  return toEnglishWords(amount); 
 }

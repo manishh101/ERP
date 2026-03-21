@@ -184,6 +184,8 @@ export const salesOrderUpdateSchema = salesOrderSchema.partial();
 
 export const recordDepositSchema = z.object({
   amount: decimalNumber,
+  method: z.nativeEnum(PaymentMethod).default(PaymentMethod.CASH),
+  reference: z.string().optional(),
 });
 
 export const taxInvoiceSchema = z.object({

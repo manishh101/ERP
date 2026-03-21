@@ -24,9 +24,24 @@ export function CreateProductForm({ onClose }: CreateProductFormProps) {
     color: "",
     status: "ACTIVE",
     lowStockThreshold: "10",
+    hsCode: "",
+    woodType: "",
+    finishType: "",
+    assemblyRequired: false,
+    warrantyMonths: "",
+    leadTimeDays: "",
+    isCustomizable: false,
   });
   
-  const [variants, setVariants] = useState([{ variantName: "Default", sku: "", barcode: "" }]);
+  const [variants, setVariants] = useState([{ 
+    variantName: "Default", 
+    sku: "", 
+    barcode: "",
+    fabricColor: "",
+    woodFinish: "",
+    sizeLabel: "",
+    hsCode: ""
+  }]);
 
   const handleSubmit = async () => {
     if (!formData.name || !formData.sku || !formData.category || !formData.costPrice || !formData.sellingPrice) {
@@ -51,6 +66,13 @@ export function CreateProductForm({ onClose }: CreateProductFormProps) {
         color: formData.color || undefined,
         status: formData.status,
         lowStockThreshold: Number(formData.lowStockThreshold),
+        hsCode: formData.hsCode || undefined,
+        woodType: formData.woodType || undefined,
+        finishType: formData.finishType || undefined,
+        assemblyRequired: formData.assemblyRequired,
+        warrantyMonths: formData.warrantyMonths ? Number(formData.warrantyMonths) : undefined,
+        leadTimeDays: formData.leadTimeDays ? Number(formData.leadTimeDays) : undefined,
+        isCustomizable: formData.isCustomizable,
         variants: variants,
       });
       
@@ -111,6 +133,51 @@ export function CreateProductForm({ onClose }: CreateProductFormProps) {
             onChange={(e) => setFormData({ ...formData, color: e.target.value })} 
           />
           <Input 
+            placeholder="HS Code" 
+            value={formData.hsCode} 
+            onChange={(e) => setFormData({ ...formData, hsCode: e.target.value })} 
+          />
+          <Input 
+            placeholder="Wood Type" 
+            value={formData.woodType} 
+            onChange={(e) => setFormData({ ...formData, woodType: e.target.value })} 
+          />
+          <Input 
+            placeholder="Finish Type" 
+            value={formData.finishType} 
+            onChange={(e) => setFormData({ ...formData, finishType: e.target.value })} 
+          />
+          <Input 
+            placeholder="Warranty (Months)" 
+            type="number"
+            value={formData.warrantyMonths} 
+            onChange={(e) => setFormData({ ...formData, warrantyMonths: e.target.value })} 
+          />
+          <Input 
+            placeholder="Lead Time (Days)" 
+            type="number"
+            value={formData.leadTimeDays} 
+            onChange={(e) => setFormData({ ...formData, leadTimeDays: e.target.value })} 
+          />
+          <div className="flex items-center gap-2 px-4 h-11 border border-border bg-white/90 rounded-2xl">
+            <input 
+              type="checkbox" 
+              id="assemblyRequired"
+              checked={formData.assemblyRequired} 
+              onChange={(e) => setFormData({ ...formData, assemblyRequired: e.target.checked })} 
+            />
+            <label htmlFor="assemblyRequired" className="text-sm">Assembly Required</label>
+          </div>
+          <div className="flex items-center gap-2 px-4 h-11 border border-border bg-white/90 rounded-2xl">
+            <input 
+              type="checkbox" 
+              id="isCustomizable"
+              checked={formData.isCustomizable} 
+              onChange={(e) => setFormData({ ...formData, isCustomizable: e.target.checked })} 
+            />
+            <label htmlFor="isCustomizable" className="text-sm">Is Customizable</label>
+          </div>
+          <Input 
             placeholder="Low Stock Threshold" 
             type="number" 
             value={formData.lowStockThreshold} 
@@ -132,7 +199,15 @@ export function CreateProductForm({ onClose }: CreateProductFormProps) {
             <h4 className="font-semibold">Variants</h4>
             <Button 
               variant="outline" 
-              onClick={() => setVariants([...variants, { variantName: "", sku: "", barcode: "" }])}
+              onClick={() => setVariants([...variants, { 
+                variantName: "", 
+                sku: "", 
+                barcode: "",
+                fabricColor: "",
+                woodFinish: "",
+                sizeLabel: "",
+                hsCode: ""
+              }])}
             >
               Add Variant
             </Button>
@@ -180,6 +255,44 @@ export function CreateProductForm({ onClose }: CreateProductFormProps) {
                     X
                   </Button>
                 )}
+              </div>
+              <div className="grid gap-2 grid-cols-2 md:grid-cols-4 col-span-3">
+                <Input 
+                  placeholder="Fabric Color" 
+                  value={variant.fabricColor} 
+                  onChange={(e) => {
+                    const newVariants = [...variants];
+                    newVariants[index].fabricColor = e.target.value;
+                    setVariants(newVariants);
+                  }} 
+                />
+                <Input 
+                  placeholder="Wood Finish" 
+                  value={variant.woodFinish} 
+                  onChange={(e) => {
+                    const newVariants = [...variants];
+                    newVariants[index].woodFinish = e.target.value;
+                    setVariants(newVariants);
+                  }} 
+                />
+                <Input 
+                  placeholder="Size Label" 
+                  value={variant.sizeLabel} 
+                  onChange={(e) => {
+                    const newVariants = [...variants];
+                    newVariants[index].sizeLabel = e.target.value;
+                    setVariants(newVariants);
+                  }} 
+                />
+                <Input 
+                  placeholder="Variant HS Code" 
+                  value={variant.hsCode} 
+                  onChange={(e) => {
+                    const newVariants = [...variants];
+                    newVariants[index].hsCode = e.target.value;
+                    setVariants(newVariants);
+                  }} 
+                />
               </div>
             </div>
           ))}

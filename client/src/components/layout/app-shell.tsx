@@ -17,6 +17,8 @@ const navItems: NavItem[] = [
   { section: "Commerce", label: "Sales & CRM", href: "/sales", icon: "ShoppingCart" },
   { section: "Commerce", label: "Invoicing", href: "/invoicing", icon: "ReceiptText" },
   { section: "Finance", label: "Accounting", href: "/accounting", icon: "BookMarked", roles: ["ADMIN", "ACCOUNTANT"] },
+  { section: "Finance", label: "AR Ledger", href: "/accounting/ledger", icon: "BookOpen", roles: ["ADMIN", "ACCOUNTANT"] },
+  { section: "Finance", label: "VAT Register", href: "/accounting/vat", icon: "Receipt", roles: ["ADMIN", "ACCOUNTANT"] },
   { section: "Finance", label: "Delivery", href: "/delivery", icon: "Truck" },
   { section: "Finance", label: "Reporting", href: "/reporting", icon: "BarChart3", roles: ["ADMIN", "ACCOUNTANT", "SALES"] },
   { section: "Admin", label: "Settings", href: "/settings", icon: "SlidersHorizontal", roles: ["ADMIN"] },
@@ -34,6 +36,8 @@ const iconMap = {
   BarChart3: Package2,
   SlidersHorizontal: Settings,
   Users: Package2,
+  BookOpen: Package2,
+  Receipt: WalletCards,
 };
 
 export function AppShell() {

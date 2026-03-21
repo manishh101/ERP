@@ -39,6 +39,15 @@ usersRouter.get(
     const [items, total] = await Promise.all([
       prisma.user.findMany({
         where,
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          isActive: true,
+          createdAt: true,
+          updatedAt: true,
+        },
         orderBy: {
           createdAt: "desc",
         },
@@ -66,7 +75,8 @@ usersRouter.post(
       },
     });
 
-    response.status(201).json(user);
+    const { passwordHash: _, ...userWithoutPassword } = user;
+    response.status(201).json(userWithoutPassword);
   }),
 );
 
@@ -82,6 +92,7 @@ usersRouter.patch(
       data: body,
     });
 
-    response.json(user);
+    const { passwordHash: _, ...userWithoutPassword } = user;
+    response.json(userWithoutPassword);
   }),
 );

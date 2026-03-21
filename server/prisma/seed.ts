@@ -142,16 +142,17 @@ async function main() {
     }),
   } satisfies Record<string, { id: string; email: string; role: UserRole }>;
 
-  await prisma.companyProfile.create({
-    data: {
-      name: "Manish Steel",
-      address: "Baluwatar, Kathmandu, Nepal",
-      taxNumber: "VAT-NEP-0148",
-      bankDetails: "Bank of Kathmandu · A/C 0100012345 · SWIFT BOKLNPKA",
-      email: "accounts@atlasfurniture.local",
-      phone: "+977-1-5551234",
-    },
-  });
+     prisma.companyProfile.create({
+       data: {
+         name: "Manish Steel",
+         address: "Baluwatar, Kathmandu, Nepal",
+         panNo: "300012345",
+         vatNo: "300012345",
+         bankDetails: "Bank of Kathmandu · A/C 0100012345 · SWIFT BOKLNPKA",
+         email: "accounts@atlasfurniture.local",
+         phone: "+977-1-5551234",
+       },
+     });
 
   await prisma.currencySetting.create({
     data: {
@@ -327,16 +328,16 @@ async function main() {
   ]);
 
   const customersInput: any[] = [
-    { name: "Mia Thompson", email: "mia@example.com", phone: "+1-202-555-0101", type: "RETAIL", creditLimit: 0, address: "Durbarmarg, Kathmandu", panNo: "100123456", invoicePref: "PAN" },
-    { name: "Evergreen Homes", email: "procurement@evergreen.local", phone: "+977-9800001101", type: "TRADE", creditLimit: 25000, address: "Pulchowk, Lalitpur", vatNo: "300123456", invoicePref: "VAT" },
-    { name: "Urban Nest Studio", email: "orders@urbannest.local", phone: "+977-9800001102", type: "CONTRACTOR", creditLimit: 40000, address: "Thamel, Kathmandu", vatNo: "300234567", invoicePref: "VAT" },
-    { name: "Cedar Lane Hotels", email: "finance@cedarlane.local", phone: "+977-9800001103", type: "TRADE", creditLimit: 50000, address: "Lakeside, Pokhara", vatNo: "300345678", invoicePref: "VAT" },
-    { name: "Aria Interiors", email: "hello@aria.local", phone: "+977-9800001104", type: "CONTRACTOR", creditLimit: 35000, address: "Boudha, Kathmandu", vatNo: "300456789", invoicePref: "VAT" },
-    { name: "Nexa Offices", email: "ap@nexa.local", phone: "+977-9800001105", type: "TRADE", creditLimit: 45000, address: "New Baneshwor, Kathmandu", vatNo: "300567890", invoicePref: "VAT" },
-    { name: "Suman Shrestha", email: "suman@example.com", phone: "+977-9800001106", type: "RETAIL", creditLimit: 0, address: "Bhaktapur Durbar Square", invoicePref: "NONE" },
-    { name: "Blue Horizon Villas", email: "sourcing@bluehorizon.local", phone: "+977-9800001107", type: "TRADE", creditLimit: 30000, address: "Dhulikhel, Kavre", vatNo: "300678901", invoicePref: "VAT" },
-    { name: "Craftspace Studio", email: "studio@craftspace.local", phone: "+977-9800001108", type: "CONTRACTOR", creditLimit: 28000, address: "Kupondole, Lalitpur", vatNo: "300789012", invoicePref: "VAT" },
-    { name: "Priya Karki", email: "priya@example.com", phone: "+977-9800001109", type: "RETAIL", creditLimit: 0, address: "Pokhara, Kaski", invoicePref: "NONE" },
+    { name: "Mia Thompson", email: "mia@example.com", phone: "+1-202-555-0101", type: "RETAIL", creditLimit: 0, address: "Durbarmarg, Kathmandu", panNo: "100123456", invoicePref: "PAN", district: "Kathmandu", ward: "1" },
+    { name: "Evergreen Homes", email: "procurement@evergreen.local", phone: "+977-9800001101", type: "TRADE", creditLimit: 25000, address: "Pulchowk, Lalitpur", vatNo: "300123456", invoicePref: "VAT", district: "Lalitpur", ward: "3" },
+    { name: "Urban Nest Studio", email: "orders@urbannest.local", phone: "+977-9800001102", type: "CONTRACTOR", creditLimit: 40000, address: "Thamel, Kathmandu", vatNo: "300234567", invoicePref: "VAT", district: "Kathmandu", ward: "26" },
+    { name: "Cedar Lane Hotels", email: "finance@cedarlane.local", phone: "+977-9800001103", type: "TRADE", creditLimit: 50000, address: "Lakeside, Pokhara", vatNo: "300345678", invoicePref: "VAT", district: "Kaski", ward: "6" },
+    { name: "Aria Interiors", email: "hello@aria.local", phone: "+977-9800001104", type: "CONTRACTOR", creditLimit: 35000, address: "Boudha, Kathmandu", vatNo: "300456789", invoicePref: "VAT", district: "Kathmandu", ward: "6" },
+    { name: "Nexa Offices", email: "ap@nexa.local", phone: "+977-9800001105", type: "TRADE", creditLimit: 45000, address: "New Baneshwor, Kathmandu", vatNo: "300567890", invoicePref: "VAT", district: "Kathmandu", ward: "10" },
+    { name: "Suman Shrestha", email: "suman@example.com", phone: "+977-9800001106", type: "RETAIL", creditLimit: 0, address: "Bhaktapur Durbar Square", invoicePref: "NONE", district: "Bhaktapur", ward: "2" },
+    { name: "Blue Horizon Villas", email: "sourcing@bluehorizon.local", phone: "+977-9800001107", type: "TRADE", creditLimit: 30000, address: "Dhulikhel, Kavre", vatNo: "300678901", invoicePref: "VAT", district: "Kavre", ward: "4" },
+    { name: "Craftspace Studio", email: "studio@craftspace.local", phone: "+977-9800001108", type: "CONTRACTOR", creditLimit: 28000, address: "Kupondole, Lalitpur", vatNo: "300789012", invoicePref: "VAT", district: "Lalitpur", ward: "10" },
+    { name: "Priya Karki", email: "priya@example.com", phone: "+977-9800001109", type: "RETAIL", creditLimit: 0, address: "Pokhara, Kaski", invoicePref: "NONE", district: "Kaski", ward: "17" },
   ];
 
   const customers = await Promise.all(customersInput.map((customer) => prisma.customer.create({ data: customer })));
@@ -410,6 +411,12 @@ async function main() {
         status: index === 16 ? "DISCONTINUED" : "ACTIVE",
         lowStockThreshold: category === "Bedroom" ? 4 : 5,
         taxRateId: category === "Outdoor" ? taxRates.outdoor.id : taxRates.standard.id,
+        hsCode: "9403.60.00",
+        woodType: material === "Oak" || material === "Walnut" || material === "Ash" ? material : "Teak",
+        finishType: "Matte Lacquer",
+        assemblyRequired: index % 3 === 0,
+        warrantyMonths: 12,
+        leadTimeDays: 14,
         variants: {
           create: variantDefinitions,
         },

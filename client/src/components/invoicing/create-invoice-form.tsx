@@ -25,6 +25,8 @@ export function CreateInvoiceForm({ onClose }: CreateInvoiceFormProps) {
     taxAmount: "0",
     invoiceType: "VAT",
     notes: "",
+    bsDate: "",
+    fiscalYear: "",
   });
 
   const handleSubmit = async () => {
@@ -43,6 +45,8 @@ export function CreateInvoiceForm({ onClose }: CreateInvoiceFormProps) {
         taxAmount: Number(formData.taxAmount),
         invoiceType: formData.invoiceType,
         notes: formData.notes || undefined,
+        bsDate: formData.bsDate || undefined,
+        fiscalYear: formData.fiscalYear || undefined,
       });
       
       push("Invoice created", `Invoice generated successfully.`);
@@ -135,8 +139,24 @@ export function CreateInvoiceForm({ onClose }: CreateInvoiceFormProps) {
               <option value="PAN">PAN</option>
             </select>
           </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">B.S. Date (e.g. 2080-12-01)</label>
+            <Input 
+              placeholder="YYYY-MM-DD"
+              value={formData.bsDate} 
+              onChange={(e) => setFormData({ ...formData, bsDate: e.target.value })} 
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Fiscal Year (e.g. 2080/81)</label>
+            <Input 
+              placeholder="YYYY/YY"
+              value={formData.fiscalYear} 
+              onChange={(e) => setFormData({ ...formData, fiscalYear: e.target.value })} 
+            />
+          </div>
           <Input 
-            className="md:col-span-2 lg:col-span-3 mt-4"
+            className="md:col-span-1 lg:col-span-1"
             placeholder="Invoice Notes / Payment Terms" 
             value={formData.notes} 
             onChange={(e) => setFormData({ ...formData, notes: e.target.value })} 

@@ -106,13 +106,15 @@ const LedgerDocument = ({ customer, ledger, company, period }: LedgerPdfProps) =
           <Text style={styles.title}>Customer Statement</Text>
           <Text>{company.name}</Text>
           <Text>{company.address}</Text>
-          <Text>VAT/PAN: {company.taxNumber}</Text>
+          {company.panNo && <Text>PAN: {company.panNo}</Text>}
+          {company.vatNo && <Text>VAT: {company.vatNo}</Text>}
         </View>
         <View style={{ textAlign: "right" }}>
           <Text>Date: {formatDate(new Date())}</Text>
           {period.start && period.end && (
             <Text>Period: {formatDate(period.start)} to {formatDate(period.end)}</Text>
           )}
+          <Text style={{ marginTop: 4, fontSize: 8 }}>All amounts in NPR</Text>
         </View>
       </View>
 

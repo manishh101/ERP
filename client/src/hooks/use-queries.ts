@@ -63,6 +63,13 @@ type RawProduct = {
   status: string;
   costPrice: number | string;
   sellingPrice: number | string;
+  hsCode?: string | null;
+  woodType?: string | null;
+  finishType?: string | null;
+  assemblyRequired?: boolean;
+  warrantyMonths?: number | string;
+  leadTimeDays?: number | string;
+  isCustomizable?: boolean;
   variants: Array<{
     id: string;
     stockQuantity: number | string;
@@ -173,7 +180,12 @@ type RawSalesOrder = {
   orderDate: string;
   deliveryDate?: string | null;
   orderAmount: number | string;
+  paidAmount: number | string;
   balanceDue: number | string;
+  isCustomOrder?: boolean;
+  expectedReadyDate?: string | null;
+  assemblyNotes?: string | null;
+  deliveryFloor?: number | string | null;
   customer: {
     name: string;
   };
@@ -189,6 +201,8 @@ type RawInvoice = {
   taxAmount: number | string;
   amountPaid: number | string;
   invoiceType: string;
+  bsDate?: string | null;
+  fiscalYear?: string | null;
   salesOrder: {
     customer: {
       name: string;
@@ -210,6 +224,12 @@ type RawDelivery = {
       name: string;
     };
   };
+  floor?: number | null;
+  assemblyNote?: string | null;
+  deliveryCharge?: number | string | null;
+  assemblyCharge?: number | string | null;
+  floorDelivery?: boolean;
+  assemblyService?: boolean;
 };
 
 type RawInventoryRecord = {
@@ -315,7 +335,8 @@ type RawSettingsPayload = {
   companyProfile?: {
     name: string;
     address: string;
-    taxNumber: string;
+    panNo?: string | null;
+    vatNo?: string | null;
     bankDetails: string;
     email?: string;
     phone?: string;
@@ -520,6 +541,13 @@ function mapProduct(product: RawProduct): ProductRow {
     valuation: stock * costPrice,
     sellingPrice,
     defaultVariantId: product.variants[0]?.id || "",
+    hsCode: product.hsCode ?? undefined,
+    woodType: product.woodType ?? undefined,
+    finishType: product.finishType ?? undefined,
+    assemblyRequired: product.assemblyRequired,
+    warrantyMonths: toNumber(product.warrantyMonths),
+    leadTimeDays: toNumber(product.leadTimeDays),
+    isCustomizable: product.isCustomizable,
   };
 }
 
@@ -618,6 +646,11 @@ function mapSalesOrder(order: RawSalesOrder): SalesOrderRow {
     deliveryDate: order.deliveryDate ?? order.orderDate,
     total: toNumber(order.orderAmount),
     balanceDue: toNumber(order.balanceDue),
+    paidAmount: toNumber(order.paidAmount),
+    isCustomOrder: order.isCustomOrder,
+    expectedReadyDate: order.expectedReadyDate ?? undefined,
+    assemblyNotes: order.assemblyNotes ?? undefined,
+    deliveryFloor: order.deliveryFloor ? toNumber(order.deliveryFloor) : undefined,
   };
 }
 
@@ -635,6 +668,8 @@ function mapInvoice(invoice: RawInvoice): TaxInvoiceRow {
     amount,
     balance: Math.max(amount - paid, 0),
     invoiceType: invoice.invoiceType,
+    bsDate: invoice.bsDate ?? undefined,
+    fiscalYear: invoice.fiscalYear ?? undefined,
   };
 }
 
@@ -648,6 +683,13 @@ function mapDelivery(delivery: RawDelivery): DeliveryRow {
     status: formatEnumLabel(delivery.status),
     scheduledDate: delivery.scheduledDate,
     route,
+    deliveryAddress: delivery.deliveryAddress,
+    floor: delivery.floor ?? 0,
+    assemblyNote: delivery.assemblyNote ?? undefined,
+    deliveryCharge: toNumber(delivery.deliveryCharge),
+    assemblyCharge: toNumber(delivery.assemblyCharge),
+    floorDelivery: delivery.floorDelivery ?? false,
+    assemblyService: delivery.assemblyService ?? false,
   };
 }
 
@@ -698,7 +740,8 @@ function mapSettings(payload: RawSettingsPayload): SettingsPayload {
     companyProfile: {
       name: payload.companyProfile?.name ?? "",
       address: payload.companyProfile?.address ?? "",
-      taxNumber: payload.companyProfile?.taxNumber ?? "",
+      panNo: payload.companyProfile?.panNo ?? undefined,
+      vatNo: payload.companyProfile?.vatNo ?? undefined,
       bankDetails: payload.companyProfile?.bankDetails ?? "",
       email: payload.companyProfile?.email ?? "",
       phone: payload.companyProfile?.phone ?? "",
@@ -903,10 +946,23 @@ export type ProductCreatePayload = {
   status: string;
   lowStockThreshold?: number;
   taxRateId?: string;
+  // Furniture specific
+  hsCode?: string;
+  woodType?: string;
+  finishType?: string;
+  assemblyRequired?: boolean;
+  warrantyMonths?: number;
+  leadTimeDays?: number;
+  isCustomizable?: boolean;
   variants: Array<{
     variantName: string;
     sku: string;
     barcode?: string;
+    // Variant furniture specific
+    fabricColor?: string;
+    woodFinish?: string;
+    sizeLabel?: string;
+    hsCode?: string;
   }>;
 };
 
@@ -1089,6 +1145,8 @@ export type CustomerCreatePayload = {
   panNo?: string;
   vatNo?: string;
   invoicePref: string;
+  district?: string;
+  ward?: string;
 };
 
 export type RawCustomer = {
@@ -1142,11 +1200,21 @@ export type SalesOrderCreatePayload = {
   depositAmount: number;
   deliveryDate?: string;
   notes?: string;
+  // Furniture fields
+  isCustomOrder?: boolean;
+  expectedReadyDate?: string;
+  assemblyNotes?: string;
+  deliveryFloor?: number;
   lineItems: Array<{
     productVariantId: string;
     quantity: number;
     unitPrice: number;
     discountPct: number;
+    // Furniture line fields
+    isCustom?: boolean;
+    fabricColor?: string;
+    woodFinish?: string;
+    customizationNotes?: string;
   }>;
 };
 
@@ -1223,11 +1291,11 @@ export function useConfirmSalesOrderMutation() {
 export function useRecordSalesOrderDepositMutation() {
   const { token } = useAuth();
   return useMutation({
-    mutationFn: async ({ id, amount }: { id: string; amount: number }) => {
+    mutationFn: async ({ id, amount, method, reference }: { id: string; amount: number; method: string; reference?: string }) => {
       return apiRequest<any>(`/sales-orders/${id}/deposit`, {
         method: "POST",
         token: token!,
-        body: { amount },
+        body: { amount, method, reference },
       });
     },
     onSuccess: () => {
@@ -1265,6 +1333,9 @@ export type InvoiceCreatePayload = {
   taxAmount: number;
   invoiceType?: string;
   notes?: string;
+  // Nepal specifics
+  bsDate?: string;
+  fiscalYear?: string;
 };
 
 export function useCreateInvoiceMutation() {
@@ -1292,6 +1363,8 @@ export type PaymentCreatePayload = {
   paymentDate?: string;
   reference?: string;
   note?: string;
+  bsDate: string;
+  fiscalYear: string;
 };
 
 export function useRecordPaymentMutation() {
@@ -1341,6 +1414,12 @@ export type DeliveryCreatePayload = {
   deliveryAddress: string;
   notes?: string;
   proofPhotoUrl?: string;
+  floor?: number;
+  assemblyNote?: string;
+  deliveryCharge?: number;
+  assemblyCharge?: number;
+  floorDelivery?: boolean;
+  assemblyService?: boolean;
 };
 
 export function useCreateDeliveryMutation() {
@@ -1600,15 +1679,42 @@ export function useUsersQuery() {
   const enabled = Boolean(token) && user?.role === "ADMIN";
 
   return useQuery({
-    queryKey: ["users", token, user?.role],
+    queryKey: ["users", token],
     enabled,
-    queryFn: async () =>
-      mapUsers(
-        await apiRequest<PaginatedResponse<RawUser>>("/users", {
-          token: token!,
-          query: { pageSize: 100 },
-        }),
-      ),
+    queryFn: async () => {
+      const response = await apiRequest<PaginatedResponse<RawUser>>("/users", {
+        token: token!,
+        query: { pageSize: 100 },
+      });
+      return mapUsers(response);
+    },
+  });
+}
+
+export function useArLedgerQuery(customerId: string) {
+  const { token } = useAuth();
+  return useQuery({
+    queryKey: ["ar-ledger", token, customerId],
+    enabled: Boolean(token) && Boolean(customerId),
+    queryFn: async () => {
+      return apiRequest<any>(`/accounting/customers/${customerId}/ledger`, {
+        token: token!,
+      });
+    },
+  });
+}
+
+export function useVatRegisterQuery(month?: string) {
+  const { token } = useAuth();
+  return useQuery({
+    queryKey: ["vat-register", token, month],
+    enabled: Boolean(token),
+    queryFn: async () => {
+      return apiRequest<any>("/accounting/vat-register", {
+        token: token!,
+        query: month ? { month } : undefined,
+      });
+    },
   });
 }
 

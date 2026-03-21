@@ -69,6 +69,14 @@ export type ProductRow = {
   valuation: number;
   sellingPrice: number;
   defaultVariantId: string;
+  // Furniture specific
+  hsCode?: string;
+  woodType?: string;
+  finishType?: string;
+  assemblyRequired?: boolean;
+  warrantyMonths?: number;
+  leadTimeDays?: number;
+  isCustomizable?: boolean;
 };
 
 export type PurchaseOrderLineRow = {
@@ -156,6 +164,12 @@ export type SalesOrderRow = {
   deliveryDate: string;
   total: number;
   balanceDue: number;
+  paidAmount: number;
+  // Furniture fields
+  isCustomOrder?: boolean;
+  expectedReadyDate?: string;
+  assemblyNotes?: string;
+  deliveryFloor?: number;
 };
 
 export type TaxInvoiceRow = {
@@ -169,6 +183,8 @@ export type TaxInvoiceRow = {
   balance: number;
   invoiceType: string;
   printed?: boolean;
+  bsDate?: string;
+  fiscalYear?: string;
 };
 
 export type ArLedgerEntry = {
@@ -200,6 +216,13 @@ export type DeliveryRow = {
   status: string;
   scheduledDate: string;
   route: string;
+  deliveryAddress: string;
+  floor: number;
+  assemblyNote?: string;
+  deliveryCharge: number;
+  assemblyCharge: number;
+  floorDelivery: boolean;
+  assemblyService: boolean;
 };
 
 export type InventoryRecordRow = {
@@ -308,7 +331,8 @@ export type SettingsPayload = {
   companyProfile: {
     name: string;
     address: string;
-    taxNumber: string;
+    panNo?: string;
+    vatNo?: string;
     bankDetails: string;
     email?: string;
     phone?: string;

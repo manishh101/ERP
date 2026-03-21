@@ -16,6 +16,8 @@ export function RecordDepositModal({ orderId, orderNumber, onClose }: RecordDepo
   const { push } = useToast();
   const recordDeposit = useRecordSalesOrderDepositMutation();
   const [amount, setAmount] = useState("");
+  const [method, setMethod] = useState("CASH");
+  const [reference, setReference] = useState("");
 
   const handleSubmit = async () => {
     if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
@@ -27,6 +29,8 @@ export function RecordDepositModal({ orderId, orderNumber, onClose }: RecordDepo
       await recordDeposit.mutateAsync({
         id: orderId,
         amount: Number(amount),
+        method,
+        reference: reference || undefined,
       });
       
       push("Deposit recorded", `The deposit for order ${orderNumber} has been successfully recorded.`);
@@ -59,6 +63,30 @@ export function RecordDepositModal({ orderId, orderNumber, onClose }: RecordDepo
                 if (e.key === "Enter") handleSubmit();
               }}
             />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Payment Method *</label>
+              <select 
+                className="flex h-11 w-full rounded-2xl border border-border bg-white/90 px-4 text-sm"
+                value={method}
+                onChange={(e) => setMethod(e.target.value)}
+              >
+                <option value="CASH">Cash</option>
+                <option value="BANK">Bank Transfer</option>
+                <option value="CHEQUE">Cheque</option>
+                <option value="QR">QR Payment</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Reference</label>
+              <Input 
+                placeholder="Ref # / Note"
+                value={reference} 
+                onChange={(e) => setReference(e.target.value)}
+              />
+            </div>
           </div>
 
           <div className="flex gap-3 justify-end mt-6">

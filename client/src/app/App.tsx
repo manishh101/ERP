@@ -2,6 +2,8 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import { useAuth } from "@/components/auth/auth-provider";
 import { AppShell } from "@/components/layout/app-shell";
 import { AccountingPage } from "@/pages/AccountingPage";
+import ArLedgerPage from "@/pages/ArLedgerPage";
+import VatRegisterPage from "@/pages/VatRegisterPage";
 import { DashboardPage } from "@/pages/DashboardPage";
 import { DeliveryPage } from "@/pages/DeliveryPage";
 import { InventoryPage } from "@/pages/InventoryPage";
@@ -11,6 +13,7 @@ import { NotFoundPage } from "@/pages/NotFoundPage";
 import { ProductDetailPage } from "@/pages/ProductDetailPage";
 import { PurchasingPage } from "@/pages/PurchasingPage";
 import { ReportingPage } from "@/pages/ReportingPage";
+import { SalesOrderDetailPage } from "@/pages/SalesOrderDetailPage";
 import { SalesPage } from "@/pages/SalesPage";
 import { SettingsPage } from "@/pages/SettingsPage";
 import { UsersPage } from "@/pages/UsersPage";
@@ -46,8 +49,11 @@ export function App() {
         <Route path="/inventory/products/:productId" element={<ProductDetailPage />} />
         <Route path="/purchasing" element={<PurchasingPage />} />
         <Route path="/sales" element={<SalesPage />} />
+        <Route path="/sales/:id" element={<SalesOrderDetailPage />} />
         <Route path="/invoicing" element={<InvoicingPage />} />
         <Route path="/accounting" element={<AccountingPage />} />
+        <Route path="/accounting/ledger" element={<ArLedgerPage />} />
+        <Route path="/accounting/vat" element={<VatRegisterPage />} />
         <Route path="/delivery" element={<DeliveryPage />} />
         <Route path="/reporting" element={<ReportingPage />} />
         <Route path="/settings" element={<SettingsPage />} />

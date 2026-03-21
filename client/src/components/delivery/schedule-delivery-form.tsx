@@ -24,6 +24,12 @@ export function ScheduleDeliveryForm({ onClose }: ScheduleDeliveryFormProps) {
     scheduledDate: new Date().toISOString().split("T")[0],
     deliveryAddress: "",
     notes: "",
+    floor: "",
+    assemblyNote: "",
+    assemblyCharge: "0",
+    deliveryCharge: "0",
+    floorDelivery: false,
+    assemblyService: false,
   });
 
   const handleSubmit = async () => {
@@ -41,6 +47,12 @@ export function ScheduleDeliveryForm({ onClose }: ScheduleDeliveryFormProps) {
         scheduledDate: formData.scheduledDate ? new Date(formData.scheduledDate).toISOString() : new Date().toISOString(),
         deliveryAddress: formData.deliveryAddress,
         notes: formData.notes || undefined,
+        floor: formData.floor ? Number(formData.floor) : undefined,
+        assemblyNote: formData.assemblyNote || undefined,
+        assemblyCharge: Number(formData.assemblyCharge),
+        deliveryCharge: Number(formData.deliveryCharge),
+        floorDelivery: formData.floorDelivery,
+        assemblyService: formData.assemblyService,
       });
       
       push("Delivery Scheduled", `The delivery route has been successfully scheduled.`);
@@ -125,9 +137,67 @@ export function ScheduleDeliveryForm({ onClose }: ScheduleDeliveryFormProps) {
             />
           </div>
 
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Delivery Floor</label>
+            <Input 
+              type="number"
+              value={formData.floor} 
+              onChange={(e) => setFormData({ ...formData, floor: e.target.value })} 
+              placeholder="e.g. 3"
+            />
+          </div>
+
+          <div className="space-y-4 md:col-span-2 lg:col-span-2 border rounded-2xl p-4 bg-white/50">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <input 
+                  type="checkbox" 
+                  id="floorDelivery"
+                  checked={formData.floorDelivery} 
+                  onChange={(e) => setFormData({ ...formData, floorDelivery: e.target.checked })} 
+                />
+                <label htmlFor="floorDelivery" className="text-sm font-medium">Floor Delivery Service</label>
+              </div>
+              <div className="flex items-center gap-2">
+                <input 
+                  type="checkbox" 
+                  id="assemblyService"
+                  checked={formData.assemblyService} 
+                  onChange={(e) => setFormData({ ...formData, assemblyService: e.target.checked })} 
+                />
+                <label htmlFor="assemblyService" className="text-sm font-medium">Assembly Service</label>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">Delivery Charge</label>
+                <Input 
+                  type="number"
+                  value={formData.deliveryCharge} 
+                  onChange={(e) => setFormData({ ...formData, deliveryCharge: e.target.value })} 
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">Assembly Charge</label>
+                <Input 
+                  type="number"
+                  value={formData.assemblyCharge} 
+                  onChange={(e) => setFormData({ ...formData, assemblyCharge: e.target.value })} 
+                />
+              </div>
+            </div>
+          </div>
+
           <Input 
-            className="md:col-span-2 lg:col-span-3 mt-4"
-            placeholder="Delivery Notes / Instructions" 
+            className="md:col-span-1 lg:col-span-1"
+            placeholder="Assembly Instructions" 
+            value={formData.assemblyNote} 
+            onChange={(e) => setFormData({ ...formData, assemblyNote: e.target.value })} 
+          />
+          <Input 
+            className="md:col-span-2 lg:col-span-2"
+            placeholder="General Delivery Notes" 
             value={formData.notes} 
             onChange={(e) => setFormData({ ...formData, notes: e.target.value })} 
           />

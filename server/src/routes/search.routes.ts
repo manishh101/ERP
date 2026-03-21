@@ -57,20 +57,25 @@ searchRouter.get(
       }),
       prisma.taxInvoice.findMany({
         where: {
-          invoiceNumber: {
-            contains: search,
-            mode: "insensitive" as const,
-          },
+          OR: [
+            { invoiceNumber: { contains: search, mode: "insensitive" } },
+            { bsDate: { contains: search, mode: "insensitive" } },
+            { salesOrder: { customer: { name: { contains: search, mode: "insensitive" } } } },
+          ],
         },
+        include: { salesOrder: { include: { customer: true } } },
         take: 5,
       }),
       prisma.salesOrder.findMany({
         where: {
-          id: {
-            contains: search,
-            mode: "insensitive" as const,
-          },
+          OR: [
+            { id: { contains: search, mode: "insensitive" } },
+            { bsDate: { contains: search, mode: "insensitive" } },
+            { customer: { name: { contains: search, mode: "insensitive" } } },
+            { notes: { contains: search, mode: "insensitive" } },
+          ],
         },
+        include: { customer: true },
         take: 5,
       }),
     ]);

@@ -28,6 +28,8 @@ export function RecordPaymentForm({ onClose }: RecordPaymentFormProps) {
     paymentDate: new Date().toISOString().split("T")[0],
     reference: "",
     note: "",
+    bsDate: "",
+    fiscalYear: "",
   });
   const [downloadLink, setDownloadLink] = useState<string | null>(null);
 
@@ -45,6 +47,8 @@ export function RecordPaymentForm({ onClose }: RecordPaymentFormProps) {
         paymentDate: formData.paymentDate ? new Date(formData.paymentDate).toISOString() : undefined,
         reference: formData.reference || undefined,
         note: formData.note || undefined,
+        bsDate: formData.bsDate,
+        fiscalYear: formData.fiscalYear,
       });
       
       push("Payment recorded", `The payment has been successfully recorded.`);
@@ -141,8 +145,24 @@ export function RecordPaymentForm({ onClose }: RecordPaymentFormProps) {
                   onChange={(e) => setFormData({ ...formData, amount: e.target.value })} 
                 />
               </div>
-              <div className="space-y-2 lg:col-span-2">
-                <label className="text-sm font-medium">Reference Code (Txn ID, Check #)</label>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">B.S. Date (e.g. 2080-12-01) *</label>
+                <Input 
+                  placeholder="YYYY-MM-DD" 
+                  value={formData.bsDate} 
+                  onChange={(e) => setFormData({ ...formData, bsDate: e.target.value })} 
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Fiscal Year (e.g. 2080/81) *</label>
+                <Input 
+                  placeholder="YYYY/YY" 
+                  value={formData.fiscalYear} 
+                  onChange={(e) => setFormData({ ...formData, fiscalYear: e.target.value })} 
+                />
+              </div>
+              <div className="space-y-2 lg:col-span-1">
+                <label className="text-sm font-medium">Reference Code</label>
                 <Input 
                   placeholder="e.g. TXN-987654321" 
                   value={formData.reference} 

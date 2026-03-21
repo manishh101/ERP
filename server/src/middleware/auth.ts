@@ -19,6 +19,10 @@ export function requireAuth(request: Request, _response: Response, next: NextFun
 
   try {
     const payload = verifyToken(token);
+    
+    if (!payload.sub || !payload.role || !payload.email || !payload.name) {
+      return next(new ApiError(401, "Invalid token payload: missing required fields"));
+    }
 
     request.user = {
       id: payload.sub,
@@ -28,7 +32,8 @@ export function requireAuth(request: Request, _response: Response, next: NextFun
     };
 
     return next();
-  } catch {
+  } catch (err) {
+    if (err instanceof ApiError) return next(err);
     return next(new ApiError(401, "Invalid or expired token"));
   }
 }

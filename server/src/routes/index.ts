@@ -17,6 +17,7 @@ import { settingsRouter } from "./settings.routes";
 import { suppliersRouter } from "./suppliers.routes";
 import { usersRouter } from "./users.routes";
 import { bankRouter } from "./bank.routes";
+import invoiceDownloadRouter from "./invoice-download.route";
 
 export function registerRoutes(app: Express) {
   const router = Router();
@@ -38,6 +39,7 @@ export function registerRoutes(app: Express) {
   router.use("/users", usersRouter);
   router.use("/search", searchRouter);
   router.use("/bank", bankRouter);
+  router.use("/secure", invoiceDownloadRouter);
 
   app.use("/api", router);
 }

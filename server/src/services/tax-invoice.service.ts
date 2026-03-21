@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { generateInvoiceNumber } from '../shared/invoice-seq.util';
+import { nextInvoiceNumber } from '../shared/invoice-seq.util';
 import { getCurrentFiscalYear, getBsDate } from '../shared/fiscal-year.util';
 import { ApiError } from '../utils/api-error';
 
@@ -13,13 +13,14 @@ export const taxInvoiceService = {
     const issueDate = new Date();
     const fiscalYear = getCurrentFiscalYear(issueDate);
     const bsDate = getBsDate(issueDate);
-    const invoiceNumber = await generateInvoiceNumber(fiscalYear, 'INV');
 
     // Rule: DO NOT AUTO-COMPUTE INVOICE AMOUNTS from line items. 
     // They are fully manual and user-entered.
 
     return prisma.$transaction(async (tx) => {
-      const invoice = await tx.taxInvoice.create({
+      const invoiceNumber = await nextInvoiceNumber(tx, fiscalYear);
+
+      const invoice = await (tx as any).taxInvoice.create({
         data: {
           soId: data.soId,
           invoiceNumber,
@@ -37,7 +38,7 @@ export const taxInvoiceService = {
 
       // Post to VAT Register immediately if it contains tax
       if (data.invoiceType === "VAT") {
-        await tx.vatRegister.create({
+        await (tx as any).vatRegister.create({
           data: {
             taxInvoiceId: invoice.id,
             customerId: order.customerId,

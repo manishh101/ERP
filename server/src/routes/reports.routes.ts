@@ -3,7 +3,7 @@ import { prisma } from "../config/prisma";
 import { requireAuth, requireRole } from "../middleware/auth";
 import { asyncHandler } from "../middleware/async-handler";
 import { validate } from "../middleware/validate";
-import { customReportSchema, reportQuerySchema } from "../schemas/domain";
+import { customReportSchema, reportQuerySchema, idParamSchema, listQuerySchema } from "../schemas/domain";
 import {
   getApAgingReport,
   getAraAgingReport,
@@ -276,7 +276,7 @@ reportsRouter.get(
       topCustomers: customers
         .map((customer) => ({
           customer: customer.name,
-          revenue: customer.salesOrders.reduce((sum, order) => {
+          revenue: (customer as any).salesOrders.reduce((sum: number, order: any) => {
             return sum + toNumber(order.orderAmount);
           }, 0),
         }))
@@ -386,7 +386,7 @@ reportsRouter.post(
 
     const datasets: Record<CustomReportEntity, CustomReportRow[]> = {
       sales: salesRows.map((order) => {
-        const subtotal = order.lineItems.reduce((sum, lineItem) => {
+        const subtotal = (order as any).lineItems.reduce((sum: number, lineItem: any) => {
           const lineTotal = lineItem.quantity * toNumber(lineItem.unitPrice);
           return sum + (lineTotal - lineTotal * (toNumber(lineItem.discountPct) / 100));
         }, 0);
@@ -425,7 +425,7 @@ reportsRouter.post(
         phone: customer.phone,
         creditLimit: toNumber(customer.creditLimit),
         outstandingBalance: toNumber(customer.outstandingBalance),
-        lifetimeRevenue: customer.salesOrders.reduce((sum, order) => {
+        lifetimeRevenue: (customer as any).salesOrders.reduce((sum: number, order: any) => {
           return sum + toNumber(order.orderAmount);
         }, 0),
         orderCount: customer.salesOrders.length,
@@ -507,7 +507,7 @@ reportsRouter.get("/customer-ledger/:id/pdf", asyncHandler(async (request, respo
 
   try {
     const { id } = idParamSchema.parse(request.params);
-    const { startDate, endDate } = listQuerySchema.parse(req.query);
+    const { startDate, endDate } = listQuerySchema.parse(request.query);
 
     const [customer, ledger, company] = await Promise.all([
       prisma.customer.findUnique({ where: { id } }),

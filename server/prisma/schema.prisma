@@ -141,6 +141,13 @@ model Product {
   status            ProductStatus    @default(ACTIVE)
   lowStockThreshold Int              @default(5) @map("low_stock_threshold")
   taxRateId         String?          @map("tax_rate_id")
+  hsCode            String?          @map("hs_code")
+  woodType          String?          @map("wood_type")
+  finishType        String?          @map("finish_type")
+  assemblyRequired  Boolean          @default(false) @map("assembly_required")
+  warrantyMonths    Int              @default(0) @map("warranty_months")
+  leadTimeDays      Int              @default(0) @map("lead_time_days")
+  isCustomizable    Boolean          @default(false) @map("is_customizable")
   createdAt         DateTime         @default(now()) @map("created_at")
   updatedAt         DateTime         @updatedAt @map("updated_at")
   taxRate           TaxRate?         @relation(fields: [taxRateId], references: [id])
@@ -157,6 +164,10 @@ model ProductVariant {
   skuVariant     String                  @unique @map("sku_variant")
   additionalCost Decimal                 @default(0) @map("additional_cost") @db.Decimal(14, 2)
   stockQuantity  Int                     @default(0) @map("stock_quantity")
+  fabricColor    String?                 @map("fabric_color")
+  woodFinish     String?                 @map("wood_finish")
+  sizeLabel      String?                 @map("size_label")
+  hsCode         String?                 @map("hs_code")
   createdAt      DateTime                @default(now()) @map("created_at")
   updatedAt      DateTime                @updatedAt @map("updated_at")
   product        Product                 @relation(fields: [productId], references: [id], onDelete: Cascade)
@@ -324,6 +335,8 @@ model Customer {
   panNo              String?       @map("pan_no")
   vatNo              String?       @map("vat_no")
   invoicePref        String        @default("NONE") @map("invoice_pref")
+  district           String?
+  ward               String?
   createdAt          DateTime      @default(now()) @map("created_at")
   updatedAt          DateTime      @updatedAt @map("updated_at")
   salesOrders        SalesOrder[]
@@ -347,6 +360,11 @@ model SalesOrder {
   deliveryDate        DateTime?            @map("delivery_date")
   fiscalYear          String?              @map("fiscal_year")
   bsDate              String?              @map("bs_date")
+  paidAmount          Decimal              @default(0) @map("paid_amount") @db.Decimal(14, 2)
+  isCustomOrder       Boolean              @default(false) @map("is_custom_order")
+  expectedReadyDate   DateTime?            @map("expected_ready_date")
+  assemblyNotes       String?              @map("assembly_notes")
+  deliveryFloor       Int?                 @map("delivery_floor")
   notes               String?
   createdAt           DateTime             @default(now()) @map("created_at")
   updatedAt           DateTime             @updatedAt @map("updated_at")
@@ -493,6 +511,10 @@ model Delivery {
   proofPhotoUrl   String?        @map("proof_photo_url")
   failureReason   String?        @map("failure_reason")
   completedAt     DateTime?      @map("completed_at")
+  floorDelivery   Boolean        @default(false) @map("floor_delivery")
+  assemblyService Boolean        @default(false) @map("assembly_service")
+  assemblyCharge  Decimal        @default(0) @map("assembly_charge") @db.Decimal(14, 2)
+  deliveryCharge  Decimal        @default(0) @map("delivery_charge") @db.Decimal(14, 2)
   createdAt       DateTime       @default(now()) @map("created_at")
   updatedAt       DateTime       @updatedAt @map("updated_at")
   salesOrder      SalesOrder     @relation(fields: [soId], references: [id], onDelete: Cascade)
@@ -541,7 +563,8 @@ model CompanyProfile {
   name        String
   logoUrl     String?  @map("logo_url")
   address     String
-  taxNumber   String   @map("tax_number")
+  panNo       String?  @map("pan_no")
+  vatNo       String?  @map("vat_no")
   bankDetails String   @map("bank_details")
   email       String?
   phone       String?
@@ -677,4 +700,12 @@ model InvoiceCounter {
   lastSeq    Int    @default(0) @map("last_seq")
 
   @@map("invoice_counters")
+}
+
+model ReceiptCounter {
+  id         String @id @default(cuid())
+  fiscalYear String @unique @map("fiscal_year") // "2081/82"
+  lastSeq    Int    @default(0) @map("last_seq")
+
+  @@map("receipt_counters")
 }

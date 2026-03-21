@@ -18,7 +18,9 @@ export async function renderReceiptPdfBuffer({ payment, companyProfile }: { paym
         <View style={styles.header}>
           <Text style={styles.company}>{companyProfile?.name ?? "Company"}</Text>
           <Text>{companyProfile?.address ?? ""}</Text>
-          <Text>Receipt: {payment?.id}</Text>
+          {companyProfile?.panNo && <Text>PAN: {companyProfile.panNo}</Text>}
+          {companyProfile?.vatNo && <Text>VAT: {companyProfile.vatNo}</Text>}
+          <Text style={{ marginTop: 8, fontSize: 12, fontWeight: 700 }}>PAYMENT RECEIPT</Text>
         </View>
 
         <View style={{ marginBottom: 8 }}>
@@ -44,8 +46,8 @@ export async function renderReceiptPdfBuffer({ payment, companyProfile }: { paym
         </View>
 
         <View style={styles.footer}>
-          <Text>Processed on {payment?.paymentDate ? new Date(payment.paymentDate).toLocaleDateString() : ""}</Text>
-          <Text>Thank you for your payment.</Text>
+          <Text>Date: {payment?.paymentDate ? new Date(payment.paymentDate).toLocaleDateString() : ""} (AD) / {payment?.bsDate || ""} (BS)</Text>
+          <Text>Processed on behalf of {companyProfile?.name}. Thank you for your payment.</Text>
         </View>
       </Page>
     </Document>

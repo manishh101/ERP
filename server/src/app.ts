@@ -1,11 +1,26 @@
 import cors from "cors";
 import express from "express";
+import helmet from "helmet";
+import morgan from "morgan";
+import rateLimit from "express-rate-limit";
 import { env } from "./config/env";
 import { errorHandler } from "./middleware/error-handler";
 import { registerRoutes } from "./routes";
 
 export function createApp() {
   const app = express();
+
+  // Security & Logging
+  app.use(helmet());
+  app.use(morgan("dev"));
+  
+  const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // Limit each IP to 100 requests per windowMs
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+  app.use("/api", limiter as any);
 
   app.use(
     cors({

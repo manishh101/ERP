@@ -1,25 +1,36 @@
-import NepaliDate from 'nepali-datetime';
+import NepaliDate from "nepali-datetime";
 
 /**
- * Returns the current Nepali Fiscal Year in the format "YYYY/YY" (e.g. "2081/82")
- * The Nepali fiscal year changes on Shrawan 1st (month index 3 since Baisakh is 0).
+ * Nepal fiscal year runs Shrawan 1 (mid-July) to Ashadh 31 (mid-July)
+ * BS date format: "YYYY-MM-DD" e.g. "2081-09-15"
  */
-export function getCurrentFiscalYear(date: Date = new Date()): string {
-  const nepaliDate = new NepaliDate(date);
-  const year = nepaliDate.getYear();
-  const month = nepaliDate.getMonth(); // 0-indexed, where 0 is Baisakh, 3 is Shrawan.
 
-  if (month >= 3) {
-    return `${year}/${(year + 1).toString().slice(-2)}`;
+export function getFiscalYearFromBsDate(bsDate: string): string {
+  // bsDate format: "YYYY-MM-DD"
+  const parts = bsDate.split("-");
+  const year = parseInt(parts[0]);
+  const month = parseInt(parts[1]);
+
+  // If BS month >= 4 (Shrawan), fiscal year is "YYYY/(YYYY+1 % 100)"
+  // If BS month < 4 (before Shrawan), fiscal year is "(YYYY-1)/YYYY % 100"
+  if (month >= 4) {
+    const nextYear = (year + 1) % 100;
+    return `${year}/${nextYear.toString().padStart(2, "0")}`;
   } else {
-    return `${year - 1}/${year.toString().slice(-2)}`;
+    const prevYear = year - 1;
+    const currentYearShort = year % 100;
+    return `${prevYear}/${currentYearShort.toString().padStart(2, "0")}`;
   }
 }
 
-/**
- * Returns the BS date string in "YYYY-MM-DD" format.
- */
-export function getBsDate(date: Date = new Date()): string {
-  const nepaliDate = new NepaliDate(date);
-  return nepaliDate.format('YYYY-MM-DD');
+export function adDateToBs(adDate: Date = new Date()): string {
+  const nepaliDate = new NepaliDate(adDate);
+  return nepaliDate.format("YYYY-MM-DD");
+}
+
+export const getBsDate = adDateToBs;
+
+export function getCurrentFiscalYear(adDate: Date = new Date()): string {
+  const bsDate = adDateToBs(adDate);
+  return getFiscalYearFromBsDate(bsDate);
 }

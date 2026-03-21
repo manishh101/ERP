@@ -21,12 +21,11 @@ export async function getDashboardSummary() {
 
   const [invoices, inventoryItems, deliveries, lowStockItems, recentSalesOrders, salesOrders] =
     await Promise.all([
-      prisma.taxInvoice.findMany({
+      prisma.salesOrder.findMany({
         where: {
-          issueDate: {
-            gte: monthStart,
-          },
-        },
+          orderDate: { gte: monthStart },
+          status: { not: "CANCELLED" }
+        }
       }),
       prisma.inventory.findMany({
         include: {
@@ -80,14 +79,13 @@ export async function getDashboardSummary() {
       }),
     ]);
 
-  const totalRevenueMtd = invoices.reduce((sum, invoice) => sum + toNumber(invoice.invoiceAmount), 0);
-  const outstandingAr = (
-    await prisma.customer.aggregate({
-      _sum: {
-        outstandingBalance: true,
-      },
-    })
-  );
+  const totalRevenueMtd = invoices.reduce((sum, o) => sum + toNumber(o.orderAmount), 0);
+  const openOrders = await prisma.salesOrder.findMany({
+    where: { balanceDue: { gt: 0 }, status: { not: "CANCELLED" } },
+    select: { balanceDue: true }
+  });
+  const outstandingArValue = openOrders.reduce((sum, o) => sum + toNumber(o.balanceDue), 0);
+
 
   const inventoryValue = inventoryItems.reduce((sum, item) => {
     const baseCost = toNumber(item.productVariant.product.costPrice);
@@ -206,15 +204,21 @@ export async function getDashboardSummary() {
     .sort((left, right) => right.quantity - left.quantity)
     .slice(0, 10);
 
+  const customInProduction = await prisma.salesOrder.count({
+    where: { isCustomOrder: true, status: { in: ["CONFIRMED", "DEPOSIT_PAID", "IN_WAREHOUSE"] } }
+  });
+
   const profitAndLoss = await getProfitAndLoss(monthStart, new Date());
-  const outstandingArValue = toNumber(outstandingAr._sum.outstandingBalance ?? 0);
+  // const outstandingArValue = toNumber(outstandingAr._sum.outstandingBalance ?? 0); // REPLACED ABOVE
+
   const totalRevenueMtdValue = totalRevenueMtd;
   const netProfitValue = profitAndLoss.netProfit;
 
   return {
     kpis: [
       { label: "Revenue (MTD)", value: formatCurrency(totalRevenueMtdValue), change: "Live", tone: "positive" },
-      { label: "Outstanding AR", value: formatCurrency(outstandingArValue), change: "Open invoices", tone: outstandingArValue > 0 ? "neutral" : "positive" },
+      { label: "Outstanding AR", value: formatCurrency(outstandingArValue), change: "Open orders", tone: outstandingArValue > 0 ? "neutral" : "positive" },
+      { label: "Custom Orders", value: String(customInProduction), change: "In production", tone: "neutral" },
       { label: "Inventory Value", value: formatCurrency(inventoryValue), change: "Weighted average", tone: "positive" },
       { label: "Pending Deliveries", value: String(deliveries), change: "Current queue", tone: deliveries > 0 ? "neutral" : "positive" },
       { label: "Low Stock Items", value: String(lowStockItems.length), change: "Threshold alerts", tone: lowStockItems.length > 0 ? "negative" : "positive" },

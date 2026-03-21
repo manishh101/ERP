@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { prisma } from "../config/prisma";
+import { PaymentMethod } from "@prisma/client";
 import { requireAuth, requireRole } from "../middleware/auth";
 import { asyncHandler } from "../middleware/async-handler";
 import { validate } from "../middleware/validate";
@@ -95,11 +96,11 @@ salesOrdersRouter.post(
   validate(salesOrderSchema),
   asyncHandler(async (request, response) => {
     const body = request.validated?.body as ReturnType<typeof salesOrderSchema.parse>;
-    const { order, subtotal } = await salesOrderService.createOrder(body, request.user?.id);
+    const { order, orderAmount } = await salesOrderService.createOrder(body, request.user?.id);
 
     response.status(201).json({
       ...order,
-      subtotal,
+      orderAmount,
     });
   }),
 );
@@ -208,7 +209,8 @@ salesOrdersRouter.post(
     await paymentService.recordCustomerPayment({
       salesOrderId: params.id,
       amount: body.amount,
-      method: "BANK",
+      method: body.method as PaymentMethod,
+      reference: body.reference,
       paymentDate: new Date(),
     });
 

@@ -3,6 +3,7 @@ import { Document, Page, View, Text, StyleSheet, Font, pdf } from "@react-pdf/re
 import path from "path";
 
 Font.register({ family: "Inter", src: path.resolve(process.cwd(), "src/assets/fonts/Inter-Regular.ttf") });
+import { toEnglishWords } from "../../shared/number-words.util";
 
 const styles = StyleSheet.create({
   page: { fontFamily: "Inter", fontSize: 10, padding: 24, color: "#222" },
@@ -26,11 +27,14 @@ export async function renderInvoicePdfBuffer({ invoice, companyProfile, template
         <View style={styles.header}>
           <Text style={styles.company}>{companyProfile?.name ?? "Company"}</Text>
           <Text>{companyProfile?.address ?? ""}</Text>
-          {companyProfile?.taxNumber ? <Text>Tax: {companyProfile.taxNumber}</Text> : null}
-          <Text style={styles.invoiceTitle}>{invoice?.invoiceType === "TAX" ? "Tax Invoice" : "Invoice"} {invoice?.invoiceNumber}</Text>
+          {companyProfile?.panNo ? <Text>PAN: {companyProfile.panNo}</Text> : null}
+          {companyProfile?.vatNo ? <Text>VAT: {companyProfile.vatNo}</Text> : null}
+          <Text style={styles.invoiceTitle}>
+            {invoice?.invoiceType === "TAX" ? "Tax Invoice" : "Invoice"} {invoice?.invoiceNumber}
+          </Text>
           <View style={styles.row}>
-            <Text>Issue Date: {invoice?.issueDate ? new Date(invoice.issueDate).toLocaleDateString() : ""} (AD) / {invoice?.bsDate || ""}</Text>
-            <Text>Payment Method: {invoice?.paymentMethod || "Cash"}</Text>
+            <Text>Issue Date: {invoice?.issueDate ? new Date(invoice.issueDate).toLocaleDateString() : ""} (AD) / {invoice?.bsDate || ""} (BS)</Text>
+            <Text>Fiscal Year: {invoice?.fiscalYear || ""}</Text>
           </View>
         </View>
 
@@ -49,7 +53,11 @@ export async function renderInvoicePdfBuffer({ invoice, companyProfile, template
         </View>
 
         {invoice?.salesOrder?.lineItems?.map((line: any) => {
-          const desc = `${line.productVariant?.product?.name ?? ""} / ${line.productVariant?.variantName ?? ""}`;
+          const woodFinish = line.productVariant?.woodFinish ? ` | ${line.productVariant.woodFinish}` : "";
+          const fabricColor = line.productVariant?.fabricColor ? ` | ${line.productVariant.fabricColor}` : "";
+          const hsCode = line.productVariant?.hsCode ? ` (HS: ${line.productVariant.hsCode})` : "";
+          
+          const desc = `${line.productVariant?.product?.name ?? ""}${woodFinish}${fabricColor}${hsCode}`;
           const qty = line.quantity;
           const unit = Number(line.unitPrice).toFixed(2);
           const total = (Number(line.unitPrice) * line.quantity).toFixed(2);
@@ -74,8 +82,11 @@ export async function renderInvoicePdfBuffer({ invoice, companyProfile, template
             <Text>{Number(invoice?.taxAmount ?? 0).toFixed(2)}</Text>
           </View>
           <View style={styles.row}>
-            <Text style={{ fontWeight: 700 }}>Total</Text>
-            <Text style={{ fontWeight: 700 }}>{Number(invoice?.total ?? 0).toFixed(2)}</Text>
+            <Text style={{ fontWeight: 700 }}>Total Amount</Text>
+            <Text style={{ fontWeight: 700 }}>NPR {Number(invoice?.invoiceAmount ?? 0).toFixed(2)}</Text>
+          </View>
+          <View style={{ marginTop: 12, fontStyle: "italic", fontSize: 9 }}>
+            <Text>In Words: {toEnglishWords(Number(invoice?.invoiceAmount ?? 0))}</Text>
           </View>
         </View>
 

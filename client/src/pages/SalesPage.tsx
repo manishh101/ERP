@@ -138,7 +138,7 @@ export function SalesPage() {
           <CardContent>
             <DataTable
               rows={data.items}
-              detailHref={() => "/sales"}
+              detailHref={(row) => `/sales/${row.id}`}
               selectedId={selectedOrderId}
               onSelectRow={setSelectedOrderId}
               columns={[

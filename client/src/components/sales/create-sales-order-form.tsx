@@ -24,9 +24,22 @@ export function CreateSalesOrderForm({ onClose }: CreateSalesOrderFormProps) {
     depositAmount: "0",
     deliveryDate: "",
     notes: "",
+    isCustomOrder: false,
+    expectedReadyDate: "",
+    assemblyNotes: "",
+    deliveryFloor: "",
   });
-
-  const [lineItems, setLineItems] = useState([{ productVariantId: "", quantity: "", unitPrice: "", discountPct: "" }]);
+  
+  const [lineItems, setLineItems] = useState([{ 
+    productVariantId: "", 
+    quantity: "", 
+    unitPrice: "", 
+    discountPct: "",
+    isCustom: false,
+    fabricColor: "",
+    woodFinish: "",
+    customizationNotes: ""
+  }]);
 
   const handleSubmit = async () => {
     if (!formData.customerId) {
@@ -47,11 +60,19 @@ export function CreateSalesOrderForm({ onClose }: CreateSalesOrderFormProps) {
         depositAmount: Number(formData.depositAmount),
         deliveryDate: formData.deliveryDate ? new Date(formData.deliveryDate).toISOString() : undefined,
         notes: formData.notes || undefined,
+        isCustomOrder: formData.isCustomOrder,
+        expectedReadyDate: formData.expectedReadyDate ? new Date(formData.expectedReadyDate).toISOString() : undefined,
+        assemblyNotes: formData.assemblyNotes || undefined,
+        deliveryFloor: formData.deliveryFloor ? Number(formData.deliveryFloor) : undefined,
         lineItems: validLineItems.map(item => ({
           productVariantId: item.productVariantId,
           quantity: Number(item.quantity),
           unitPrice: Number(item.unitPrice),
-          discountPct: Number(item.discountPct)
+          discountPct: Number(item.discountPct),
+          isCustom: item.isCustom,
+          fabricColor: item.fabricColor || undefined,
+          woodFinish: item.woodFinish || undefined,
+          customizationNotes: item.customizationNotes || undefined
         }))
       });
       
@@ -112,8 +133,41 @@ export function CreateSalesOrderForm({ onClose }: CreateSalesOrderFormProps) {
               onChange={(e) => setFormData({ ...formData, depositAmount: e.target.value })} 
             />
           </div>
+          <div className="flex items-center gap-2 px-4 h-11 border border-border bg-white/90 rounded-2xl">
+            <input 
+              type="checkbox" 
+              id="isCustomOrder"
+              checked={formData.isCustomOrder} 
+              onChange={(e) => setFormData({ ...formData, isCustomOrder: e.target.checked })} 
+            />
+            <label htmlFor="isCustomOrder" className="text-sm">Is Custom Order</label>
+          </div>
+          {formData.isCustomOrder && (
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Expected Ready Date</label>
+              <NepaliDatePickerInput 
+                value={formData.expectedReadyDate} 
+                onChange={(date) => setFormData({ ...formData, expectedReadyDate: date.toISOString().split("T")[0] })} 
+              />
+            </div>
+          )}
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Delivery Floor</label>
+            <Input 
+              type="number"
+              value={formData.deliveryFloor} 
+              onChange={(e) => setFormData({ ...formData, deliveryFloor: e.target.value })} 
+              placeholder="0 for Ground"
+            />
+          </div>
           <Input 
-            className="md:col-span-2 lg:col-span-3"
+            className="md:col-span-1 lg:col-span-1"
+            placeholder="Assembly Notes" 
+            value={formData.assemblyNotes} 
+            onChange={(e) => setFormData({ ...formData, assemblyNotes: e.target.value })} 
+          />
+          <Input 
+            className="md:col-span-2 lg:col-span-2"
             placeholder="Internal or Customer Notes" 
             value={formData.notes} 
             onChange={(e) => setFormData({ ...formData, notes: e.target.value })} 
@@ -125,7 +179,16 @@ export function CreateSalesOrderForm({ onClose }: CreateSalesOrderFormProps) {
             <h4 className="font-semibold">Line Items</h4>
             <Button 
               variant="outline" 
-              onClick={() => setLineItems([...lineItems, { productVariantId: "", quantity: "", unitPrice: "", discountPct: "" }])}
+              onClick={() => setLineItems([...lineItems, { 
+                productVariantId: "", 
+                quantity: "", 
+                unitPrice: "", 
+                discountPct: "",
+                isCustom: false,
+                fabricColor: "",
+                woodFinish: "",
+                customizationNotes: ""
+              }])}
             >
               Add Item
             </Button>
@@ -217,6 +280,56 @@ export function CreateSalesOrderForm({ onClose }: CreateSalesOrderFormProps) {
                     X
                   </Button>
                 </div>
+                {item.productVariantId && (
+                  <div className="md:col-span-12 grid grid-cols-2 md:grid-cols-4 gap-3 pt-2 border-t border-dashed mt-1">
+                    <div className="flex items-center gap-2">
+                      <input 
+                        type="checkbox" 
+                        checked={item.isCustom}
+                        onChange={(e) => {
+                          const newItems = [...lineItems];
+                          newItems[index].isCustom = e.target.checked;
+                          setLineItems(newItems);
+                        }}
+                      />
+                      <label className="text-xs font-medium">Customizable</label>
+                    </div>
+                    {item.isCustom && (
+                      <>
+                        <Input 
+                          placeholder="Fabric Color" 
+                          className="h-8 text-xs"
+                          value={item.fabricColor}
+                          onChange={(e) => {
+                            const newItems = [...lineItems];
+                            newItems[index].fabricColor = e.target.value;
+                            setLineItems(newItems);
+                          }}
+                        />
+                        <Input 
+                          placeholder="Wood Finish" 
+                          className="h-8 text-xs"
+                          value={item.woodFinish}
+                          onChange={(e) => {
+                            const newItems = [...lineItems];
+                            newItems[index].woodFinish = e.target.value;
+                            setLineItems(newItems);
+                          }}
+                        />
+                        <Input 
+                          placeholder="Customization Notes" 
+                          className="h-8 text-xs"
+                          value={item.customizationNotes}
+                          onChange={(e) => {
+                            const newItems = [...lineItems];
+                            newItems[index].customizationNotes = e.target.value;
+                            setLineItems(newItems);
+                          }}
+                        />
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
             );
           })}

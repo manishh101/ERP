@@ -191,50 +191,43 @@ export async function getCashFlow(startDate?: Date, endDate?: Date) {
 }
 
 export async function getTaxSummary(startDate?: Date, endDate?: Date) {
-  const [salesInvoices, supplierInvoices] = await Promise.all([
-    prisma.taxInvoice.findMany({
-      where: {
-        issueDate: buildDateRange(startDate, endDate),
-      },
-    }),
-    prisma.supplierInvoice.findMany({
-      where: {
-        issueDate: buildDateRange(startDate, endDate),
-      },
-    }),
-  ]);
+  const vatEntries = await prisma.vatRegister.findMany({
+    where: { entryDate: buildDateRange(startDate, endDate) },
+  });
+  const supplierInvoices = await prisma.supplierInvoice.findMany({
+    where: { issueDate: buildDateRange(startDate, endDate) },
+  });
 
-  const outputTax = salesInvoices.reduce((sum, invoice) => sum + toNumber(invoice.taxAmount), 0);
-  const inputTax = supplierInvoices.reduce(
-    (sum, invoice) => sum + toNumber(invoice.taxAmount),
-    0,
-  );
+  const outputTax = vatEntries.reduce((sum, e) => sum + toNumber(e.outputVat), 0);
+  const inputTax = supplierInvoices.reduce((sum, inv) => sum + toNumber(inv.taxAmount), 0);
 
-  return {
-    outputTax,
-    inputTax,
-    netPayable: outputTax - inputTax,
-  };
+  return { outputTax, inputTax, netPayable: outputTax - inputTax };
 }
-export async function getCustomerLedger(customerId: string, startDate?: Date, endDate?: Date) {
-  const where: any = { customerId };
-  if (startDate || endDate) {
-    where.entryDate = buildDateRange(startDate, endDate);
-  }
 
+export async function getCustomerLedger(customerId: string, startDate?: Date, endDate?: Date) {
   const entries = await prisma.arLedger.findMany({
-    where,
+    where: {
+      customerId,
+      entryDate: buildDateRange(startDate, endDate),
+    },
+    include: {
+      salesOrder: { select: { id: true, orderDate: true } },
+      payment: { select: { id: true, method: true, reference: true } },
+    },
     orderBy: { entryDate: "asc" },
   });
 
-  return entries.map((tx) => ({
-    date: tx.entryDate,
-    type: tx.entryType,
-    reference: tx.narration || "",
-    amount: toNumber(tx.amount),
-    debit: tx.entryType === "DEBIT" ? toNumber(tx.amount) : 0,
-    credit: tx.entryType === "CREDIT" ? toNumber(tx.amount) : 0,
-    balance: toNumber(tx.runningBalance),
+  return entries.map((entry) => ({
+    id: entry.id,
+    date: entry.entryDate,
+    bsDate: entry.bsDate,
+    type: entry.entryType,        // "DEBIT" | "CREDIT"
+    reference: entry.salesOrder?.id ?? entry.payment?.reference ?? entry.id,
+    narration: entry.narration ?? "",
+    debit: entry.entryType === "DEBIT" ? toNumber(entry.amount) : 0,
+    credit: entry.entryType === "CREDIT" ? toNumber(entry.amount) : 0,
+    balance: toNumber(entry.runningBalance),
   }));
 }
+
 

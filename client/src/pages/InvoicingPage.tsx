@@ -103,6 +103,7 @@ export function InvoicingPage() {
               detailHref={() => "/invoicing"}
               columns={[
                 { key: "invoiceNumber", header: "Invoice" },
+                { key: "bsDate", header: "Date (BS)" },
                 { key: "customer", header: "Customer" },
                 { key: "status", header: "Status", render: (row) => <StatusBadge value={row.status} /> },
                 { key: "dueDate", header: "Due Date", render: (row) => formatDate(row.dueDate) },

@@ -23,6 +23,8 @@ export function CreateCustomerForm({ onClose }: CreateCustomerFormProps) {
     panNo: "",
     vatNo: "",
     invoicePref: "NONE",
+    district: "",
+    ward: "",
   });
 
   const handleSubmit = async () => {
@@ -42,6 +44,8 @@ export function CreateCustomerForm({ onClose }: CreateCustomerFormProps) {
         panNo: formData.panNo || undefined,
         vatNo: formData.vatNo || undefined,
         invoicePref: formData.invoicePref,
+        district: formData.district || undefined,
+        ward: formData.ward || undefined,
       });
       
       push("Customer created", `${formData.name} has been added to the system.`);
@@ -96,10 +100,20 @@ export function CreateCustomerForm({ onClose }: CreateCustomerFormProps) {
             onChange={(e) => setFormData({ ...formData, phone: e.target.value })} 
           />
           <Input 
-            className="md:col-span-2 lg:col-span-3"
+            className="md:col-span-1 lg:col-span-1"
             placeholder="Full Address *" 
             value={formData.address} 
             onChange={(e) => setFormData({ ...formData, address: e.target.value })} 
+          />
+          <Input 
+            placeholder="District" 
+            value={formData.district} 
+            onChange={(e) => setFormData({ ...formData, district: e.target.value })} 
+          />
+          <Input 
+            placeholder="Ward No." 
+            value={formData.ward} 
+            onChange={(e) => setFormData({ ...formData, ward: e.target.value })} 
           />
           <Input 
             placeholder="PAN Number" 
