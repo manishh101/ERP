@@ -1254,6 +1254,20 @@ export function useSalesOrdersQuery() {
   });
 }
 
+export function useSalesOrderQuery(id?: string) {
+  const { token } = useAuth();
+
+  return useQuery({
+    queryKey: ["sales-order", id, token],
+    enabled: Boolean(token && id),
+    queryFn: async () => {
+      return apiRequest<any>(`/sales-orders/${id}`, {
+        token: token!,
+      });
+    },
+  });
+}
+
 export function useCancelSalesOrderMutation() {
   const { token } = useAuth();
   return useMutation({
@@ -1329,8 +1343,12 @@ export type InvoiceCreatePayload = {
   issueDate?: string;
   dueDate?: string;
   status: string;
-  invoiceAmount: number;
-  taxAmount: number;
+  lineItems: Array<{
+    productVariantId: string;
+    quantity: number;
+    unitPrice: number;
+    discountPct: number;
+  }>;
   invoiceType?: string;
   notes?: string;
   // Nepal specifics

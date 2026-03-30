@@ -217,15 +217,15 @@ function formatNPR(amount: number): string {
 }
 
 // Get invoice title based on type and mode
-function getInvoiceTitle(invoiceType: string, isEstimate: boolean): { nepali: string; english: string } {
+function getInvoiceTitle(invoiceType: string, isEstimate: boolean): string {
   if (isEstimate) {
-    return { nepali: "अनुमानित बिजक", english: "ESTIMATE BILL" };
+    return "ESTIMATE BILL";
   }
   if (invoiceType === "VAT") {
-    return { nepali: "कर बिजक", english: "TAX INVOICE" };
+    return "TAX INVOICE";
   }
   // PAN bill
-  return { nepali: "बिजक", english: "INVOICE (PAN)" };
+  return "INVOICE (PAN)";
 }
 
 interface RenderInvoiceOptions {
@@ -240,23 +240,32 @@ function InvoiceDocument({
   companyProfile,
   isEstimate = false,
 }: RenderInvoiceOptions) {
-  const lineItems = invoice?.salesOrder?.lineItems || [];
+  const lineItems = isEstimate 
+    ? (invoice?.salesOrder?.lineItems || []) 
+    : (invoice?.lineItems || []);
+    
   const invoiceType = invoice?.invoiceType || "PAN";
   const isVat = invoiceType === "VAT" && !isEstimate;
 
-  // Compute totals from the user-entered invoiceAmount (never from line items)
-  const total = Number(invoice?.invoiceAmount ?? 0);
-  const vatAmount = Number(invoice?.taxAmount ?? 0);
-  const subtotal = total - vatAmount;
+  // Compute totals by summing line items to ensure mathematical consistency
+  const subtotal = lineItems.reduce((acc: number, item: any) => {
+    const qty = Number(item.quantity || 0);
+    const unitPrice = Number(item.unitPrice || 0);
+    const discountPct = Number(item.discountPct || 0);
+    return acc + (qty * unitPrice * (1 - discountPct / 100));
+  }, 0);
   const taxableAmount = subtotal;
+  const vatAmount = isVat ? (taxableAmount * 0.13) : 0;
+  const total = subtotal + vatAmount;
 
   // Title based on type
   const title = getInvoiceTitle(invoiceType, isEstimate);
 
   // Header colors
-  const headerBg = isEstimate ? "#4a5568" : "#000000";
-  const headerColor = "#ffffff";
-  const totalRowBg = isEstimate ? "#4a5568" : "#000000";
+  const headerBg = "#ffffff";
+  const headerColor = "#000000";
+  const totalRowBg = isEstimate ? "#f1f5f9" : "#e2e8f0";
+  const totalRowColor = "#000000";
 
   return (
     <Document>
@@ -267,11 +276,11 @@ function InvoiceDocument({
         )}
 
         {/* Header */}
-        <View style={{ ...styles.headerBanner, backgroundColor: headerBg, color: headerColor }}>
+        <View style={{ ...styles.headerBanner, backgroundColor: headerBg, color: headerColor, borderBottomWidth: 2, borderBottomColor: "#1e293b", padding: "10 0", borderRadius: 0 }}>
           <View>
             <Text style={styles.headerTitle}>{companyProfile?.name ?? "Company Name"}</Text>
             <Text style={styles.subHeaderTitle}>
-              {title.nepali} / {title.english}
+              {title}
             </Text>
           </View>
           <View style={{ textAlign: "right" }}>
@@ -291,7 +300,7 @@ function InvoiceDocument({
         <View style={styles.infoGrid}>
           {/* Seller */}
           <View style={styles.infoBlock}>
-            <Text style={styles.infoLabel}>SELLER / बिक्रेता</Text>
+            <Text style={styles.infoLabel}>SELLER</Text>
             <Text style={styles.infoValue}>{companyProfile?.name}</Text>
             <Text style={styles.infoSubValue}>{companyProfile?.address}</Text>
             <Text style={styles.infoSubValue}>Tel: {companyProfile?.phone || "N/A"}</Text>
@@ -311,7 +320,7 @@ function InvoiceDocument({
 
           {/* Buyer */}
           <View style={styles.infoBlock}>
-            <Text style={styles.infoLabel}>BUYER / खरिदकर्ता</Text>
+            <Text style={styles.infoLabel}>BUYER</Text>
             <Text style={styles.infoValue}>{invoice?.salesOrder?.customer?.name}</Text>
             <Text style={styles.infoSubValue}>{invoice?.salesOrder?.customer?.address}</Text>
             {invoice?.salesOrder?.customer?.vatNo ? (
@@ -329,7 +338,7 @@ function InvoiceDocument({
 
           {/* Document Details */}
           <View style={styles.infoBlock}>
-            <Text style={styles.infoLabel}>DETAILS / विवरण</Text>
+            <Text style={styles.infoLabel}>DETAILS</Text>
             <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 2 }}>
               <Text style={{ color: "#666", fontSize: 8 }}>
                 {isEstimate ? "Estimate No:" : "Invoice No:"}
@@ -426,7 +435,7 @@ function InvoiceDocument({
               </>
             )}
 
-            <View style={{ ...styles.totalRow, backgroundColor: totalRowBg, color: "#ffffff" }}>
+            <View style={{ ...styles.totalRow, backgroundColor: totalRowBg, color: totalRowColor }}>
               <Text>{isEstimate ? "Estimated Total" : "Total Amount"}</Text>
               <Text>NPR {formatNPR(total)}</Text>
             </View>
@@ -478,14 +487,7 @@ function InvoiceDocument({
           </View>
         </View>
 
-        {/* Copy designation for VAT invoices (IRD requirement) */}
-        {isVat && (
-          <View style={styles.copySection}>
-            <Text style={styles.copyItem}>□ Buyer's Copy</Text>
-            <Text style={styles.copyItem}>□ Seller's Copy</Text>
-            <Text style={styles.copyItem}>□ Office Copy</Text>
-          </View>
-        )}
+        {/* Area removed as requested */}
 
         {/* Compliance Notes */}
         <View style={styles.complianceNotes}>

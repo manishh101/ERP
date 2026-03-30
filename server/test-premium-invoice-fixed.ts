@@ -19,7 +19,7 @@ async function test() {
       lineItems: [
         {
           id: "1",
-          quantity: 2,
+          quantity: 2, // Original order was 2
           unitPrice: 35000,
           productVariant: {
             variantName: "Standard",
@@ -30,7 +30,21 @@ async function test() {
           }
         }
       ]
-    }
+    },
+    lineItems: [
+      {
+        id: "inv-line-1",
+        quantity: 1, // Only invoicing 1
+        unitPrice: 35000,
+        discountPct: 0,
+        productVariant: {
+          variantName: "Standard",
+          product: {
+            name: "Solid State Drive (SSD) 1TB"
+          }
+        }
+      }
+    ]
   };
 
   const mockCompany = {

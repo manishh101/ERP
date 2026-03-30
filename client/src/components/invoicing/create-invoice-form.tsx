@@ -1,9 +1,9 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/layout/toast-provider";
-import { useCreateInvoiceMutation, useSalesOrdersQuery } from "@/hooks/use-queries";
+import { useCreateInvoiceMutation, useSalesOrdersQuery, useSalesOrderQuery } from "@/hooks/use-queries";
 import { getErrorMessage } from "@/lib/api";
 import { formatCurrency } from "@/lib/utils";
 import { NepaliDatePickerInput } from "@/components/ui/nepali-date-picker-input";
@@ -22,13 +22,52 @@ export function CreateInvoiceForm({ onClose }: CreateInvoiceFormProps) {
     issueDate: new Date().toISOString().split("T")[0],
     dueDate: "",
     status: "DRAFT",
-    invoiceAmount: "0",
-    taxAmount: "0",
     invoiceType: "VAT",
     notes: "",
     bsDate: "",
     fiscalYear: "",
   });
+
+  const fullOrder = useSalesOrderQuery(formData.soId);
+  
+  const [lineItems, setLineItems] = useState<Array<{
+    productVariantId: string;
+    productName: string;
+    quantity: string;
+    unitPrice: string;
+    discountPct: string;
+  }>>([]);
+
+  useEffect(() => {
+    setLineItems([]);
+  }, [formData.soId]);
+
+  useEffect(() => {
+    if (fullOrder.data?.lineItems && lineItems.length === 0) {
+      setLineItems(
+        fullOrder.data.lineItems.map((item: any) => ({
+          productVariantId: item.productVariantId,
+          productName: item.productVariant.product.name + (item.productVariant.variantName !== "Default" ? ` (${item.productVariant.variantName})` : ""),
+          quantity: String(item.quantity),
+          unitPrice: String(item.unitPrice),
+          discountPct: String(item.discountPct || "0"),
+        }))
+      );
+    }
+  }, [fullOrder.data]);
+
+  const { subtotal } = useMemo(() => {
+    const st = lineItems.reduce((acc, item) => {
+      const q = Number(item.quantity) || 0;
+      const p = Number(item.unitPrice) || 0;
+      const d = Number(item.discountPct) || 0;
+      return acc + (q * p * (1 - d / 100));
+    }, 0);
+    return { subtotal: st };
+  }, [lineItems]);
+
+  const vatAmount = formData.invoiceType === "VAT" ? subtotal * 0.13 : 0;
+  const totalAmount = subtotal + vatAmount;
 
   // Find the selected sales order to show reference amount
   const selectedOrder = useMemo(() => {
@@ -37,12 +76,12 @@ export function CreateInvoiceForm({ onClose }: CreateInvoiceFormProps) {
   }, [formData.soId, salesOrders.data]);
 
   const handleSubmit = async () => {
-    if (!formData.soId || !formData.invoiceAmount) {
-      push("Validation failed", "Please select a sales order and enter a total amount.");
+    if (!formData.soId || lineItems.length === 0) {
+      push("Validation failed", "Please select a sales order and assure line items exist.");
       return;
     }
 
-    if (Number(formData.invoiceAmount) <= 0) {
+    if (totalAmount <= 0) {
       push("Validation failed", "Invoice amount must be greater than 0.");
       return;
     }
@@ -50,11 +89,15 @@ export function CreateInvoiceForm({ onClose }: CreateInvoiceFormProps) {
     try {
       await createInvoice.mutateAsync({
         soId: formData.soId,
+        lineItems: lineItems.map(item => ({
+          productVariantId: item.productVariantId,
+          quantity: Number(item.quantity),
+          unitPrice: Number(item.unitPrice),
+          discountPct: Number(item.discountPct)
+        })),
         issueDate: formData.issueDate ? new Date(formData.issueDate).toISOString() : undefined,
         dueDate: formData.dueDate ? new Date(formData.dueDate).toISOString() : undefined,
         status: formData.status,
-        invoiceAmount: Number(formData.invoiceAmount),
-        taxAmount: Number(formData.taxAmount),
         invoiceType: formData.invoiceType,
         notes: formData.notes || undefined,
         bsDate: formData.bsDate || undefined,
@@ -89,13 +132,13 @@ export function CreateInvoiceForm({ onClose }: CreateInvoiceFormProps) {
               </div>
               <div className="text-right">
                 <p className="text-lg font-bold text-amber-900">
-                  {formatCurrency(selectedOrder.orderAmount || selectedOrder.total || 0)}
+                  {formatCurrency(selectedOrder.total || 0)}
                 </p>
                 <p className="text-xs text-amber-600">Order Amount</p>
               </div>
             </div>
             <p className="text-xs text-amber-700 mt-2 border-t border-amber-200 pt-2">
-              ⚠️ Invoice amount below may differ from order amount. Enter the actual amount for the tax document.
+              ⚠️ You can modify the quantities/prices below to issue a partial invoice.
             </p>
           </div>
         )}
@@ -106,15 +149,12 @@ export function CreateInvoiceForm({ onClose }: CreateInvoiceFormProps) {
             <select 
               className="flex h-11 w-full rounded-2xl border border-border bg-white/90 px-4 text-sm"
               value={formData.soId}
-              onChange={(e) => {
-                const soId = e.target.value;
-                setFormData({ ...formData, soId });
-              }}
+              onChange={(e) => setFormData({ ...formData, soId: e.target.value })}
             >
               <option value="">Select a sales order</option>
               {salesOrders.data?.items.map((so: any) => (
                 <option key={so.id} value={so.id}>
-                  {so.id.slice(-8)} — {so.customer} — {formatCurrency(so.orderAmount || so.total || 0)}
+                  {so.id.slice(-8)} — {so.customer} — {formatCurrency(so.total || 0)}
                 </option>
               ))}
             </select>
@@ -159,32 +199,125 @@ export function CreateInvoiceForm({ onClose }: CreateInvoiceFormProps) {
               onChange={(date) => setFormData({ ...formData, dueDate: date.toISOString().split("T")[0] })} 
             />
           </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Invoice Amount (for tax bill) *</label>
-            <Input 
-              type="number"
-              step="0.01"
-              placeholder="Enter amount to show on the VAT/PAN bill"
-              value={formData.invoiceAmount} 
-              onChange={(e) => setFormData({ ...formData, invoiceAmount: e.target.value })} 
-            />
-            <p className="text-xs text-muted-foreground">User-entered — not auto-computed from line items</p>
+        </div>
+
+        {/* Dynamic Line Items Section matching Sales Order formatting */}
+        {lineItems.length > 0 && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h4 className="font-semibold text-primary">Invoice Line Items</h4>
+              <p className="text-xs text-muted-foreground">Modify quantities below for partial billing</p>
+            </div>
+            {lineItems.map((item, index) => {
+              const q = Number(item.quantity) || 0;
+              const p = Number(item.unitPrice) || 0;
+              const d = Number(item.discountPct) || 0;
+              const rowTotal = q * p * (1 - d / 100);
+              
+              return (
+                <div key={index} className="grid gap-3 md:grid-cols-12 items-center bg-white p-3 rounded-xl border border-border">
+                  {/* Product Name (readonly since inherited) */}
+                  <div className="md:col-span-4">
+                    <Input disabled value={item.productName} className="font-medium bg-gray-50/50" />
+                  </div>
+                  
+                  {/* Quantity */}
+                  <div className="md:col-span-2">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[10px] uppercase text-muted-foreground font-semibold px-1 tracking-wider">Qty</span>
+                      <Input 
+                        placeholder="Qty" 
+                        type="number"
+                        min="1"
+                        value={item.quantity} 
+                        onChange={(e) => {
+                          const newItems = [...lineItems];
+                          newItems[index].quantity = e.target.value;
+                          setLineItems(newItems);
+                        }} 
+                      />
+                    </div>
+                  </div>
+                  
+                  {/* Unit Price */}
+                  <div className="md:col-span-2">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[10px] uppercase text-muted-foreground font-semibold px-1 tracking-wider">Price</span>
+                      <Input 
+                        placeholder="Price" 
+                        type="number"
+                        step="0.01"
+                        value={item.unitPrice} 
+                        onChange={(e) => {
+                          const newItems = [...lineItems];
+                          newItems[index].unitPrice = e.target.value;
+                          setLineItems(newItems);
+                        }} 
+                      />
+                    </div>
+                  </div>
+                  
+                  {/* Discount */}
+                  <div className="md:col-span-2">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[10px] uppercase text-muted-foreground font-semibold px-1 tracking-wider">Discount %</span>
+                      <Input 
+                        placeholder="%" 
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={item.discountPct} 
+                        onChange={(e) => {
+                          const newItems = [...lineItems];
+                          newItems[index].discountPct = e.target.value;
+                          setLineItems(newItems);
+                        }} 
+                      />
+                    </div>
+                  </div>
+                  
+                  {/* Total and Remove */}
+                  <div className="md:col-span-2 flex items-center justify-between pl-2">
+                    <span className="font-semibold text-sm">
+                      {formatCurrency(rowTotal)}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setLineItems(lineItems.filter((_, i) => i !== index))}
+                      className="text-red-500 hover:text-red-700 hover:bg-red-50 p-2 rounded-full transition-colors flex shrink-0 items-center justify-center opacity-70 hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-red-200"
+                      aria-label="Remove item"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+            
+            {/* Auto-calculated Invoice Totals */}
+            <div className="flex justify-end pt-4 border-t mt-4">
+              <div className="w-full md:w-1/2 lg:w-1/3 space-y-2 text-sm bg-white p-4 rounded-xl border border-primary/20 shadow-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground font-medium">Subtotal</span>
+                  <span className="font-semibold">{formatCurrency(subtotal)}</span>
+                </div>
+                {formData.invoiceType === "VAT" && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground font-medium">VAT (13%)</span>
+                    <span className="font-semibold">{formatCurrency(vatAmount)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between font-bold text-base pt-2 border-t mt-2 text-primary">
+                  <span>Total Due</span>
+                  <span>{formatCurrency(totalAmount)}</span>
+                </div>
+              </div>
+            </div>
           </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">
-              {formData.invoiceType === "VAT" ? "VAT Amount" : "Tax Amount"}
-            </label>
-            <Input 
-              type="number"
-              step="0.01"
-              placeholder={formData.invoiceType === "VAT" ? "e.g. 7800 for 13% on 60000" : "0 for PAN bill"}
-              value={formData.taxAmount} 
-              onChange={(e) => setFormData({ ...formData, taxAmount: e.target.value })} 
-            />
-            <p className="text-xs text-muted-foreground">
-              {formData.invoiceType === "VAT" ? "User-entered — do not assume 13% automatically" : "Usually 0 for PAN bills"}
-            </p>
-          </div>
+        )}
+
+        {/* Nepal Legal Info */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           <div className="space-y-2">
             <label className="text-sm font-medium">B.S. Date (e.g. 2081-09-15)</label>
             <Input 

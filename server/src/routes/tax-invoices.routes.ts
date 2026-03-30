@@ -87,11 +87,11 @@ taxInvoicesRouter.post(
 
     const invoice = await createTaxInvoice({
       salesOrderId: body.soId,
-      invoiceAmount: body.invoiceAmount,
-      vatAmount: body.taxAmount,
+      lineItems: body.lineItems,
       invoiceType: body.invoiceType as "VAT" | "PAN",
-      bsDate: getBsDate(),
-      fiscalYear: getCurrentFiscalYear(),
+      bsDate: body.bsDate || getBsDate(),
+      fiscalYear: body.fiscalYear || getCurrentFiscalYear(),
+      notes: body.notes
     });
 
     response.status(201).json(invoice);
@@ -116,6 +116,15 @@ taxInvoicesRouter.get(
                     product: true,
                   },
                 },
+              },
+            },
+          },
+        },
+        lineItems: {
+          include: {
+            productVariant: {
+              include: {
+                product: true,
               },
             },
           },
@@ -226,6 +235,15 @@ taxInvoicesRouter.get(
                       product: true,
                     },
                   },
+                },
+              },
+            },
+          },
+          lineItems: {
+            include: {
+              productVariant: {
+                include: {
+                  product: true,
                 },
               },
             },

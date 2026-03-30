@@ -12,8 +12,7 @@ import { postEntry } from "../vat-register/vat-register.service";
 
 export async function createTaxInvoice(input: {
   salesOrderId: string;
-  invoiceAmount: number;    // User-entered taxable amount
-  vatAmount: number;        // User-entered tax amount
+  lineItems: { productVariantId: string; quantity: number; unitPrice: number; discountPct: number }[];
   invoiceType: "VAT" | "PAN";
   bsDate: string;
   fiscalYear: string;
@@ -31,22 +30,37 @@ export async function createTaxInvoice(input: {
     });
     if (!order) throw new ApiError(440, "Order not found");
 
-    // 2. Generate invoice number
+    // 2. Auto-compute amounts from line items
+    const subtotal = input.lineItems.reduce((acc, item) => {
+      return acc + (item.quantity * item.unitPrice * (1 - item.discountPct / 100));
+    }, 0);
+    const taxAmount = input.invoiceType === "VAT" ? (subtotal * 0.13) : 0;
+    const invoiceAmount = subtotal + taxAmount;
+
+    // 3. Generate invoice number
     const invoiceNumber = await nextInvoiceNumber(tx, input.fiscalYear);
 
-    // 3. Create TaxInvoice
+    // 4. Create TaxInvoice with LineItems mapping
     const taxInvoice = await tx.taxInvoice.create({
       data: {
         soId: input.salesOrderId,
         invoiceNumber,
         invoiceType: input.invoiceType,
         issueDate: new Date(),
-        invoiceAmount: input.invoiceAmount,
-        taxAmount: input.vatAmount,
+        invoiceAmount,
+        taxAmount,
         fiscalYear: input.fiscalYear,
         bsDate: input.bsDate,
         notes: input.notes,
-        status: "SENT"
+        status: "SENT",
+        lineItems: {
+          create: input.lineItems.map(item => ({
+            productVariantId: item.productVariantId,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            discountPct: item.discountPct,
+          }))
+        }
       }
     });
 
@@ -54,8 +68,8 @@ export async function createTaxInvoice(input: {
     await postEntry(tx, {
       taxInvoiceId: taxInvoice.id,
       customerId: order.customerId,
-      taxableAmount: input.invoiceAmount,
-      outputVat: input.vatAmount,
+      taxableAmount: subtotal,
+      outputVat: taxAmount,
       bsDate: input.bsDate,
       fiscalYear: input.fiscalYear
     });

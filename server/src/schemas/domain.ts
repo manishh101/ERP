@@ -188,19 +188,25 @@ export const recordDepositSchema = z.object({
   reference: z.string().optional(),
 });
 
+export const taxInvoiceLineItemSchema = z.object({
+  productVariantId: z.string().min(1),
+  quantity: z.coerce.number().int().min(1),
+  unitPrice: decimalNumber,
+  discountPct: z.coerce.number().min(0).max(100).default(0),
+});
+
 export const taxInvoiceSchema = z.object({
   soId: z.string().min(1),
   invoiceNumber: z.string().min(2).optional(),
   issueDate: z.coerce.date().default(new Date()),
   dueDate: optionalDate,
   status: z.nativeEnum(InvoiceStatus).default(InvoiceStatus.DRAFT),
-  invoiceAmount: decimalNumber,
-  taxAmount: decimalNumber.default(0),
   invoiceType: z.enum(["VAT", "PAN", "NONE"]).default("NONE"),
   fiscalYear: z.string().optional(),
   bsDate: z.string().optional(),
   printed: z.boolean().default(false),
   notes: z.string().optional(),
+  lineItems: z.array(taxInvoiceLineItemSchema).min(1),
 });
 
 export const taxInvoiceUpdateSchema = taxInvoiceSchema.partial().omit({ soId: true });

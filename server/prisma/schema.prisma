@@ -158,23 +158,24 @@ model Product {
 }
 
 model ProductVariant {
-  id             String                  @id @default(cuid())
-  productId      String                  @map("product_id")
-  variantName    String                  @map("variant_name")
-  skuVariant     String                  @unique @map("sku_variant")
-  additionalCost Decimal                 @default(0) @map("additional_cost") @db.Decimal(14, 2)
-  stockQuantity  Int                     @default(0) @map("stock_quantity")
-  fabricColor    String?                 @map("fabric_color")
-  woodFinish     String?                 @map("wood_finish")
-  sizeLabel      String?                 @map("size_label")
-  hsCode         String?                 @map("hs_code")
-  createdAt      DateTime                @default(now()) @map("created_at")
-  updatedAt      DateTime                @updatedAt @map("updated_at")
-  product        Product                 @relation(fields: [productId], references: [id], onDelete: Cascade)
-  inventoryItems Inventory[]
-  poLineItems    PurchaseOrderLineItem[]
-  soLineItems    SalesOrderLineItem[]
-  stockMovements StockMovement[]
+  id                  String                  @id @default(cuid())
+  productId           String                  @map("product_id")
+  variantName         String                  @map("variant_name")
+  skuVariant          String                  @unique @map("sku_variant")
+  additionalCost      Decimal                 @default(0) @map("additional_cost") @db.Decimal(14, 2)
+  stockQuantity       Int                     @default(0) @map("stock_quantity")
+  fabricColor         String?                 @map("fabric_color")
+  woodFinish          String?                 @map("wood_finish")
+  sizeLabel           String?                 @map("size_label")
+  hsCode              String?                 @map("hs_code")
+  createdAt           DateTime                @default(now()) @map("created_at")
+  updatedAt           DateTime                @updatedAt @map("updated_at")
+  product             Product                 @relation(fields: [productId], references: [id], onDelete: Cascade)
+  inventoryItems      Inventory[]
+  poLineItems         PurchaseOrderLineItem[]
+  soLineItems         SalesOrderLineItem[]
+  stockMovements      StockMovement[]
+  taxInvoiceLineItems TaxInvoiceLineItem[]
 
   @@index([productId])
   @@map("product_variants")
@@ -398,26 +399,43 @@ model SalesOrderLineItem {
 }
 
 model TaxInvoice {
-  id            String        @id @default(cuid())
-  soId          String        @unique @map("so_id")
-  invoiceNumber String        @unique @map("invoice_number")
-  invoiceType   String?       @map("invoice_type")
-  issueDate     DateTime      @default(now()) @map("issue_date")
-  dueDate       DateTime?     @map("due_date")
-  status        InvoiceStatus @default(DRAFT)
-  invoiceAmount Decimal       @default(0) @map("invoice_amount") @db.Decimal(14, 2)
-  taxAmount     Decimal       @default(0) @map("tax_amount") @db.Decimal(14, 2)
-  fiscalYear    String?       @map("fiscal_year")
-  bsDate        String?       @map("bs_date")
-  printed       Boolean       @default(false)
+  id            String               @id @default(cuid())
+  soId          String               @unique @map("so_id")
+  invoiceNumber String               @unique @map("invoice_number")
+  invoiceType   String?              @map("invoice_type")
+  issueDate     DateTime             @default(now()) @map("issue_date")
+  dueDate       DateTime?            @map("due_date")
+  status        InvoiceStatus        @default(DRAFT)
+  invoiceAmount Decimal              @default(0) @map("invoice_amount") @db.Decimal(14, 2)
+  taxAmount     Decimal              @default(0) @map("tax_amount") @db.Decimal(14, 2)
+  fiscalYear    String?              @map("fiscal_year")
+  bsDate        String?              @map("bs_date")
+  printed       Boolean              @default(false)
   notes         String?
-  createdAt     DateTime      @default(now()) @map("created_at")
-  updatedAt     DateTime      @updatedAt @map("updated_at")
-  salesOrder    SalesOrder    @relation(fields: [soId], references: [id], onDelete: Cascade)
+  createdAt     DateTime             @default(now()) @map("created_at")
+  updatedAt     DateTime             @updatedAt @map("updated_at")
+  salesOrder    SalesOrder           @relation(fields: [soId], references: [id], onDelete: Cascade)
   vatRegister   VatRegister?
+  lineItems     TaxInvoiceLineItem[]
 
   @@index([status, dueDate])
   @@map("tax_invoices")
+}
+
+model TaxInvoiceLineItem {
+  id               String         @id @default(cuid())
+  invoiceId        String         @map("invoice_id")
+  productVariantId String         @map("product_variant_id")
+  quantity         Int
+  unitPrice        Decimal        @map("unit_price") @db.Decimal(14, 2)
+  discountPct      Decimal        @default(0) @map("discount_pct") @db.Decimal(5, 2)
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
+  taxInvoice       TaxInvoice     @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  productVariant   ProductVariant @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
+
+  @@index([invoiceId])
+  @@map("tax_invoice_line_items")
 }
 
 model Payment {
