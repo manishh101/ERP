@@ -143,10 +143,19 @@ taxInvoicesRouter.patch(
   validate(taxInvoiceUpdateSchema),
   asyncHandler(async (request, response) => {
     const params = request.validated?.params as { id: string };
-    const body = request.validated?.body as ReturnType<typeof taxInvoiceUpdateSchema.parse>;
+    const { lineItems, ...rest } = request.validated?.body as any;
+    
     const invoice = await prisma.taxInvoice.update({
       where: { id: params.id },
-      data: body,
+      data: {
+        ...rest,
+        ...(lineItems ? {
+          lineItems: {
+            deleteMany: {},
+            create: lineItems
+          }
+        } : {})
+      },
     });
 
     response.json(invoice);

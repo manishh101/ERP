@@ -2150,14 +2150,20 @@ export function useCustomerLedgerQuery(customerId: string, options?: { startDate
       if (options?.startDate) query.startDate = options.startDate.toISOString();
       if (options?.endDate) query.endDate = options.endDate.toISOString();
 
-      const data = await apiRequest<any[]>("/reports/customer-ledger/" + customerId, {
+      const data = await apiRequest<{ entries: any[] }>(`/accounting/customers/${customerId}/ledger`, {
         token: token!,
         query,
       });
 
-      return data.map((tx: any) => ({
-        ...tx,
-        date: new Date(tx.date),
+      return data.entries.map((tx: any) => ({
+        id: tx.id,
+        date: new Date(tx.entryDate),
+        type: tx.entryType,
+        reference: tx.referenceId,
+        narration: tx.narration,
+        debit: tx.debit,
+        credit: tx.credit,
+        balance: tx.runningBalance,
       }));
     },
     enabled: !!customerId && !!token,
