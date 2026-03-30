@@ -12,7 +12,7 @@ import { CreateInvoiceForm } from "@/components/invoicing/create-invoice-form";
 import { RecordPaymentForm } from "@/components/invoicing/record-payment-form";
 import { useAuth } from "@/components/auth/auth-provider";
 import { API_BASE_URL } from "@/lib/api";
-import { Download } from "lucide-react";
+import { Download, FileText } from "lucide-react";
 
 export function InvoicingPage() {
   const { data, error, isLoading } = useTaxInvoicesQuery();
@@ -20,7 +20,7 @@ export function InvoicingPage() {
   const [createInvoiceOpen, setCreateInvoiceOpen] = useState(false);
   const [recordPaymentOpen, setRecordPaymentOpen] = useState(false);
 
-  const handleDownloadPdf = async (invoiceId: string) => {
+  const handleDownloadPdf = async (invoiceId: string, type: "invoice" | "estimate" = "invoice") => {
     try {
       const baseUrl = API_BASE_URL.replace(/\/$/, "");
       const response = await fetch(`${baseUrl}/auth/download-token`, {
@@ -32,8 +32,13 @@ export function InvoicingPage() {
       
       if (!response.ok) throw new Error('Failed to get download token');
       const { token: downloadToken } = await response.json();
+ 
+      const queryParams = new URLSearchParams({
+        token: downloadToken,
+        type: type
+      }).toString();
 
-      const url = `${baseUrl}/tax-invoices/${invoiceId}/pdf?token=${downloadToken}`;
+      const url = `${baseUrl}/tax-invoices/${invoiceId}/pdf?${queryParams}`;
       window.open(url, "_blank");
     } catch (error) {
       console.error('Download error:', error);
@@ -114,16 +119,30 @@ export function InvoicingPage() {
                   header: "", 
                   className: "text-right",
                   render: (row) => (
-                    <Button 
-                      variant="ghost" 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDownloadPdf(row.id);
-                      }}
-                      className="h-8 w-8 p-0"
-                    >
-                      <Download className="h-4 w-4" />
-                    </Button>
+                    <div className="flex justify-end gap-1">
+                      <Button 
+                        variant="ghost" 
+                        title="Download Tax Invoice PDF"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDownloadPdf(row.id, "invoice");
+                        }}
+                        className="h-8 w-8 p-0 hover:text-green-600"
+                      >
+                        <Download className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        title="Download Estimate Bill PDF"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDownloadPdf(row.id, "estimate");
+                        }}
+                        className="h-8 w-8 p-0 hover:text-blue-600 text-muted-foreground"
+                      >
+                        <FileText className="h-4 w-4" />
+                      </Button>
+                    </div>
                   )
                 },
               ]}

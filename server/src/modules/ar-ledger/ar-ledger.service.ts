@@ -21,7 +21,7 @@ export async function postDebit(
   // 1. Get current running balance for customer
   const lastEntry = await tx.arLedger.findFirst({
     where: { customerId: input.customerId },
-    orderBy: { entryDate: "desc" },
+    orderBy: [{ entryDate: "desc" }, { id: "desc" }],
   });
 
   const lastBalance = lastEntry ? Number(lastEntry.runningBalance) : 0;
@@ -58,7 +58,7 @@ export async function postCredit(
   // 1. Get current running balance
   const lastEntry = await tx.arLedger.findFirst({
     where: { customerId: input.customerId },
-    orderBy: { entryDate: "desc" },
+    orderBy: [{ entryDate: "desc" }, { id: "desc" }],
   });
 
   const lastBalance = lastEntry ? Number(lastEntry.runningBalance) : 0;
@@ -81,7 +81,46 @@ export async function postCredit(
   });
 }
 
-export async function getCustomerLedger(customerId: string, startDate?: Date, endDate?: Date) {
+export interface LedgerEntry {
+  id: string;
+  entryDate: Date;
+  bsDate: string;
+  entryType: string;
+  referenceId: string;
+  narration: string;
+  debit: number;
+  credit: number;
+  runningBalance: number;
+}
+
+export interface LedgerPayload {
+  openingBalance: number;
+  closingBalance: number;
+  entries: LedgerEntry[];
+}
+
+export async function getCustomerLedger(
+  customerId: string,
+  startDate?: Date,
+  endDate?: Date
+): Promise<LedgerPayload> {
+  // 1. Calculate Opening Balance (sum of all entries before startDate)
+  let openingBalance = 0;
+  if (startDate) {
+    const previousEntries = await prisma.arLedger.findMany({
+      where: {
+        customerId,
+        entryDate: { lt: startDate },
+      },
+      select: { amount: true, entryType: true },
+    });
+
+    openingBalance = previousEntries.reduce((acc, entry) => {
+      return entry.entryType === "DEBIT" ? acc + Number(entry.amount) : acc - Number(entry.amount);
+    }, 0);
+  }
+
+  // 2. Fetch entries within range
   const entries = await prisma.arLedger.findMany({
     where: {
       customerId,
@@ -94,18 +133,35 @@ export async function getCustomerLedger(customerId: string, startDate?: Date, en
       salesOrder: { select: { id: true, orderDate: true } },
       payment: { select: { id: true, method: true, reference: true } },
     },
-    orderBy: { entryDate: "asc" },
+    orderBy: [{ entryDate: "asc" }, { id: "asc" }],
   });
 
-  return entries.map((entry) => ({
-    id: entry.id,
-    date: entry.entryDate,
-    bsDate: entry.bsDate,
-    type: entry.entryType,        // "DEBIT" | "CREDIT"
-    reference: entry.salesOrder?.id ?? entry.payment?.reference ?? entry.id,
-    narration: entry.narration ?? "",
-    debit: entry.entryType === "DEBIT" ? Number(entry.amount) : 0,
-    credit: entry.entryType === "CREDIT" ? Number(entry.amount) : 0,
-    balance: Number(entry.runningBalance),
-  }));
+  // 3. Calculate running balance kumulatively
+  let currentBalance = openingBalance;
+  
+  const mappedEntries = entries.map((entry) => {
+    const debit = entry.entryType === "DEBIT" ? Number(entry.amount) : 0;
+    const credit = entry.entryType === "CREDIT" ? Number(entry.amount) : 0;
+    currentBalance += debit - credit;
+
+    return {
+      id: entry.id,
+      entryDate: entry.entryDate,
+      bsDate: entry.bsDate,
+      entryType: entry.entryType,
+      referenceId: entry.salesOrder?.id ?? entry.payment?.reference ?? entry.id,
+      narration: entry.narration ?? "",
+      debit,
+      credit,
+      runningBalance: currentBalance,
+    };
+  });
+
+  return {
+    openingBalance,
+    closingBalance: currentBalance,
+    entries: mappedEntries,
+  };
 }
+
+

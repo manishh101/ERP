@@ -1,8 +1,11 @@
 import React from "react";
 import { Document, Page, View, Text, StyleSheet, Font, pdf } from "@react-pdf/renderer";
+import path from "path";
 
-Font.register({ family: "Inter", src: "https://fonts.gstatic.com/s/inter/v12/UcCO3FwrK3i9gJ8REA.ttf" });
-
+Font.register({
+  family: "Inter",
+  src: path.join(__dirname, "../../assets/fonts/Inter-Regular.ttf"),
+});
 const styles = StyleSheet.create({
   page: { fontFamily: "Inter", fontSize: 10, padding: 24, color: "#222" },
   header: { marginBottom: 12 },
@@ -46,7 +49,8 @@ export async function renderReceiptPdfBuffer({ payment, companyProfile }: { paym
         </View>
 
         <View style={styles.footer}>
-          <Text>Date: {payment?.paymentDate ? new Date(payment.paymentDate).toLocaleDateString() : ""} (AD) / {payment?.bsDate || ""} (BS)</Text>
+          <Text>Date (BS): {payment?.bsDate ?? ""}</Text>
+          <Text>Date (AD): {payment?.paymentDate ? new Date(payment.paymentDate).toLocaleDateString() : ""}</Text>
           <Text>Processed on behalf of {companyProfile?.name}. Thank you for your payment.</Text>
         </View>
       </Page>

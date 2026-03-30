@@ -82,6 +82,9 @@ authRouter.post(
       {
         sub: request.user!.id,
         purpose: "download",
+        role: request.user!.role,
+        email: request.user!.email,
+        name: request.user!.name,
       },
       "1m",
     );

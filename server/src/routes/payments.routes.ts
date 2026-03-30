@@ -13,7 +13,8 @@ import { verifyToken } from "../utils/jwt";
 import { renderReceiptPdfBuffer } from "../lib/pdf/receipt";
 import { getPagination } from "../utils/pagination";
 import { toNumber } from "../utils/number";
-import { paymentService } from "../services/payment.service";
+import { getBsDate, getCurrentFiscalYear } from "../shared/fiscal-year.util";
+import { recordPayment } from "../modules/payments/payment.service";
 
 export const paymentsRouter = Router();
 
@@ -38,7 +39,7 @@ paymentsRouter.get(
       prisma.payment.findMany({
         where,
         include: {
-          salesOrder: true,
+          salesOrder: { include: { customer: true } },
           purchaseOrder: true,
           supplierInvoice: true,
         },
@@ -64,13 +65,15 @@ paymentsRouter.post(
     let payment;
 
     if (body.salesOrderId) {
-      payment = await paymentService.recordCustomerPayment({
+      payment = await recordPayment({
         salesOrderId: body.salesOrderId,
         amount: body.amount,
         method: body.method,
         reference: body.reference,
         note: body.note,
         paymentDate: body.paymentDate,
+        bsDate: getBsDate(body.paymentDate),
+        fiscalYear: getCurrentFiscalYear(body.paymentDate),
       });
     } else {
       payment = await prisma.$transaction(async (tx: import("@prisma/client").Prisma.TransactionClient) => {

@@ -158,3 +158,49 @@ export async function confirmOrder(orderId: string) {
     });
   });
 }
+
+export async function cancelOrder(orderId: string) {
+  return prisma.$transaction(async (tx) => {
+    const order = await tx.salesOrder.findUnique({
+      where: { id: orderId },
+      include: { lineItems: true }
+    });
+
+    if (!order) throw new ApiError(404, "Order not found");
+    if (order.status === "DELIVERED" || order.status === "CANCELLED") {
+      throw new ApiError(400, `Cannot cancel order in status ${order.status}`);
+    }
+
+    if (order.status === "CONFIRMED" || order.status === "IN_WAREHOUSE" || order.status === "DISPATCHED" || order.status === "OUT_FOR_DELIVERY") {
+      // Revert stock reservation
+      for (const item of order.lineItems) {
+        const variant = await tx.productVariant.findUnique({
+          where: { id: item.productVariantId }
+        });
+  
+        if (variant) {
+          await tx.productVariant.update({
+            where: { id: item.productVariantId },
+            data: { stockQuantity: { increment: item.quantity } }
+          });
+  
+          await tx.stockMovement.create({
+            data: {
+              productVariantId: item.productVariantId,
+              warehouseId: order.assignedWarehouseId || "system",
+              type: "RELEASE",
+              quantity: item.quantity,
+              balanceAfter: variant.stockQuantity + item.quantity,
+              source: `Cancelled Order ${order.id}`,
+            }
+          });
+        }
+      }
+    }
+
+    return tx.salesOrder.update({
+      where: { id: orderId },
+      data: { status: "CANCELLED" }
+    });
+  });
+}

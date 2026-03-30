@@ -14,8 +14,9 @@ import {
 import { ApiError } from "../utils/api-error";
 import { getPagination } from "../utils/pagination";
 import { toNumber } from "../utils/number";
-import { salesOrderService } from "../services/sales-order.service";
-import { paymentService } from "../services/payment.service";
+import { getBsDate, getCurrentFiscalYear } from "../shared/fiscal-year.util";
+import { createOrder, confirmOrder, cancelOrder } from "../modules/sales-orders/sales-order.service";
+import { recordPayment } from "../modules/payments/payment.service";
 
 export const salesOrdersRouter = Router();
 
@@ -96,12 +97,20 @@ salesOrdersRouter.post(
   validate(salesOrderSchema),
   asyncHandler(async (request, response) => {
     const body = request.validated?.body as ReturnType<typeof salesOrderSchema.parse>;
-    const { order, orderAmount } = await salesOrderService.createOrder(body, request.user?.id);
-
-    response.status(201).json({
-      ...order,
-      orderAmount,
+    const order = await createOrder({
+      customerId: body.customerId,
+      lineItems: body.lineItems,
+      depositAmount: body.depositAmount,
+      deliveryDate: body.deliveryDate,
+      notes: body.notes,
+      bsDate: getBsDate(),
+      fiscalYear: getCurrentFiscalYear(),
+      assignedWarehouseId: body.assignedWarehouseId,
+      salespersonId: body.salespersonId ?? request.user?.id,
+      isCustomOrder: (body as any).isCustomOrder,
     });
+
+    response.status(201).json(order);
   }),
 );
 
@@ -190,10 +199,19 @@ salesOrdersRouter.post(
   validate(idParamSchema, "params"),
   asyncHandler(async (request, response) => {
     const params = request.validated?.params as { id: string };
+    const salesOrder = await confirmOrder(params.id);
+    response.json(salesOrder);
+  }),
+);
 
-    const updated = await salesOrderService.confirmOrder(params.id, request.user?.id);
-
-    response.json(updated);
+salesOrdersRouter.post(
+  "/:id/cancel",
+  requireRole(["ADMIN", "SALES"]),
+  validate(idParamSchema, "params"),
+  asyncHandler(async (request, response) => {
+    const params = request.validated?.params as { id: string };
+    const salesOrder = await cancelOrder(params.id);
+    response.json(salesOrder);
   }),
 );
 
@@ -206,12 +224,13 @@ salesOrdersRouter.post(
     const params = request.validated?.params as { id: string };
     const body = request.validated?.body as ReturnType<typeof recordDepositSchema.parse>;
 
-    await paymentService.recordCustomerPayment({
+    await recordPayment({
       salesOrderId: params.id,
       amount: body.amount,
-      method: body.method as PaymentMethod,
-      reference: body.reference,
-      paymentDate: new Date(),
+      method: body.method as any,
+      bsDate: getBsDate(),
+      fiscalYear: getCurrentFiscalYear(),
+      note: "Deposit / advance payment",
     });
 
     const order = await prisma.salesOrder.findUnique({
@@ -225,32 +244,5 @@ salesOrdersRouter.post(
     });
 
     response.json(order);
-  }),
-);
-salesOrdersRouter.post(
-  "/:id/cancel",
-  requireRole(["ADMIN", "SALES"]),
-  validate(idParamSchema, "params"),
-  asyncHandler(async (request, response) => {
-    const params = request.validated?.params as { id: string };
-
-    const order = await prisma.salesOrder.findUnique({
-      where: { id: params.id },
-      include: {
-        lineItems: true,
-      },
-    });
-
-    if (!order) {
-      throw new ApiError(404, "Sales order not found");
-    }
-
-    if (order.status === "DELIVERED" || order.status === "CANCELLED") {
-      throw new ApiError(400, `Cannot cancel order in ${order.status} status`);
-    }
-
-    const updated = await salesOrderService.cancelOrder(params.id, request.user?.id);
-
-    response.json(updated);
   }),
 );

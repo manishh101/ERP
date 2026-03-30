@@ -159,14 +159,26 @@ productsRouter.patch(
   asyncHandler(async (request, response) => {
     const params = request.validated?.params as { id: string };
     const body = request.validated?.body as any;
-    const { variants, ...productData } = body;
     const updated = await prisma.product.update({
       where: { id: params.id },
-      data: productData,
-      include: {
-        variants: true,
-        taxRate: true,
+      data: {
+        name: body.name,
+        sku: body.sku,
+        category: body.category,
+        description: body.description,
+        costPrice: body.costPrice,
+        sellingPrice: body.sellingPrice,
+        material: body.material,
+        color: body.color,
+        length: body.length,
+        width: body.width,
+        height: body.height,
+        weight: body.weight,
+        status: body.status,
+        lowStockThreshold: body.lowStockThreshold,
+        taxRateId: body.taxRateId ?? undefined,
       },
+      include: { variants: true, taxRate: true },
     });
 
     response.json(updated);

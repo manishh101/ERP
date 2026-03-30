@@ -10,13 +10,13 @@ import {
   getBalanceSheet,
   getCashFlow,
   getProfitAndLoss,
-  getCustomerLedger,
 } from "../services/report.service";
+import { getCustomerLedger } from "../modules/ar-ledger/ar-ledger.service";
 import { toNumber } from "../utils/number";
 import { verifyToken } from "../utils/jwt";
 import { ApiError } from "../utils/api-error";
 
-import { vatRegisterService } from "../services/vat-register.service";
+import { getEntries, getMonthlySummary } from "../modules/vat-register/vat-register.service";
 
 export const reportsRouter = Router();
 
@@ -90,6 +90,10 @@ reportsRouter.get(
 
     const orders = await prisma.salesOrder.findMany({
       where: {
+        orderDate: {
+          gte: query.startDate,
+          lte: query.endDate,
+        },
         customer: {
           type: query.customerType,
         },
@@ -315,9 +319,21 @@ reportsRouter.get(
 reportsRouter.get(
   "/vat-summary",
   asyncHandler(async (request, response) => {
-    const fiscalYear = (request.query.fiscalYear as string) || "2081/82"; // Default for current Nepal FY
-    const summary = await vatRegisterService.getMonthlySummary(fiscalYear);
+    const fiscalYear = String(request.query.fiscalYear);
+    if (!fiscalYear) throw new ApiError(400, "Fiscal year is required");
+    const summary = await getMonthlySummary(fiscalYear);
     response.json(summary);
+  }),
+);
+
+reportsRouter.get(
+  "/vat-entries",
+  asyncHandler(async (request, response) => {
+    const fiscalYear = String(request.query.fiscalYear);
+    if (!fiscalYear) throw new ApiError(400, "Fiscal year is required");
+    const month = request.query.month ? Number(request.query.month) : undefined;
+    const entries = await getEntries(fiscalYear, month);
+    response.json(entries);
   }),
 );
 
@@ -474,16 +490,8 @@ reportsRouter.post(
     });
   }),
 );
-reportsRouter.get("/customer-ledger/:id", async (req, res) => {
-  try {
-    const { id } = idParamSchema.parse(req.params);
-    const { startDate, endDate } = listQuerySchema.parse(req.query);
-    const ledger = await getCustomerLedger(id, startDate, endDate);
-    res.json(ledger);
-  } catch (error) {
-    res.status(400).json({ error: "Invalid request parameters" });
-  }
-});
+// Removed redundant /customer-ledger/:id as it's now in accounting.routes.ts
+
 
 reportsRouter.get("/customer-ledger/:id/pdf", asyncHandler(async (request, response) => {
   // Check if authenticated or has a valid download token
@@ -522,7 +530,8 @@ reportsRouter.get("/customer-ledger/:id/pdf", asyncHandler(async (request, respo
     const { renderLedgerPdf } = await import("../lib/pdf/ar-statement.pdf");
     const pdfStream = await renderLedgerPdf({
       customer,
-      ledger,
+      ledger: ledger.entries,
+
       company: company || {
         name: process.env.COMPANY_NAME || "ERP System",
         address: "",

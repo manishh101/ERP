@@ -169,8 +169,8 @@ bankRouter.post(
   "/imports/:importId/lines/:lineId/match",
   requireRole(["ADMIN", "ACCOUNTANT"]),
   asyncHandler(async (request, response) => {
-    const importId = String(request.params.importId);
-    const lineId = String(request.params.lineId);
+    const importId = String(request.params.importId ?? "");
+    const lineId = String(request.params.lineId ?? "");
     const { paymentId } = request.body as { paymentId?: string };
 
     if (!paymentId) {
@@ -204,15 +204,10 @@ bankRouter.post(
   "/imports/:importId/lines/:lineId/unmatch",
   requireRole(["ADMIN", "ACCOUNTANT"]),
   asyncHandler(async (request, response) => {
-    const importId = String(request.params.importId);
-    const lineId = String(request.params.lineId);
+    const importId = String(request.params.importId ?? "");
+    const lineId = String(request.params.lineId ?? "");
 
-    const [bankImport, line] = await Promise.all([
-      prisma.bankStatementImport.findUnique({ where: { id: importId } }),
-      prisma.bankStatementLine.findUnique({ where: { id: lineId } }),
-    ]);
-
-    if (!bankImport) throw new ApiError(404, "Import not found");
+    const line = await prisma.bankStatementLine.findUnique({ where: { id: lineId } });
     if (!line) throw new ApiError(404, "Bank statement line not found");
 
     if (!line.matchedPaymentId) {
@@ -225,5 +220,37 @@ bankRouter.post(
     });
 
     response.json({ success: true });
+  }),
+);
+
+bankRouter.post(
+  "/imports/:importId/lines/:lineId/suggest",
+  requireRole(["ADMIN", "ACCOUNTANT"]),
+  asyncHandler(async (request, response) => {
+    const lineId = String(request.params.lineId ?? "");
+    const line = await prisma.bankStatementLine.findUnique({ where: { id: lineId } });
+    if (!line) throw new ApiError(404, "Bank statement line not found");
+
+    const suggestions = await prisma.payment.findMany({
+      where: {
+        OR: [
+          { reference: line.reference },
+          { amount: line.amount, matchedBankLines: { none: {} } },
+        ],
+      },
+      take: 5,
+    });
+
+    response.json(suggestions);
+  }),
+);
+
+bankRouter.post(
+  "/imports/:importId/delete",
+  requireRole(["ADMIN", "ACCOUNTANT"]),
+  asyncHandler(async (request, response) => {
+    const importId = String(request.params.importId ?? "");
+    await prisma.bankStatementImport.delete({ where: { id: importId } });
+    response.status(204).send();
   }),
 );

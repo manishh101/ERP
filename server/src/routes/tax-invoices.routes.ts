@@ -10,11 +10,12 @@ import {
   taxInvoiceUpdateSchema,
   listQuerySchema,
 } from "../schemas/domain";
-import { taxInvoiceService } from "../services/tax-invoice.service";
+import { createTaxInvoice } from "../modules/tax-invoices/tax-invoice.service";
 import { renderInvoicePdfBuffer } from "../lib/pdf/vat-invoice.pdf";
 import { ApiError } from "../utils/api-error";
 import { getPagination } from "../utils/pagination";
 import { verifyToken } from "../utils/jwt";
+import { getBsDate, getCurrentFiscalYear } from "../shared/fiscal-year.util";
 
 export const taxInvoicesRouter = Router();
 
@@ -84,11 +85,13 @@ taxInvoicesRouter.post(
   asyncHandler(async (request, response) => {
     const body = request.validated?.body as ReturnType<typeof taxInvoiceSchema.parse>;
 
-    const invoice = await taxInvoiceService.createInvoice({
-      soId: body.soId,
+    const invoice = await createTaxInvoice({
+      salesOrderId: body.soId,
       invoiceAmount: body.invoiceAmount,
-      taxAmount: body.taxAmount,
-      invoiceType: body.invoiceType as "VAT" | "PAN" | "NONE",
+      vatAmount: body.taxAmount,
+      invoiceType: body.invoiceType as "VAT" | "PAN",
+      bsDate: getBsDate(),
+      fiscalYear: getCurrentFiscalYear(),
     });
 
     response.status(201).json(invoice);
@@ -237,10 +240,16 @@ taxInvoicesRouter.get(
       throw new ApiError(404, "Tax invoice not found");
     }
 
-    const buffer = await renderInvoicePdfBuffer({ invoice, companyProfile, template } as any);
+    const isEstimate = request.query.type === "estimate";
+    const buffer = await renderInvoicePdfBuffer({ 
+      invoice, 
+      companyProfile, 
+      template,
+      isEstimate 
+    } as any);
 
     response.setHeader("Content-Type", "application/pdf");
-    response.setHeader("Content-Disposition", `inline; filename=tax-invoice-${invoice.invoiceNumber}.pdf`);
+    response.setHeader("Content-Disposition", `inline; filename=${isEstimate ? 'estimate' : 'tax-invoice'}-${invoice.invoiceNumber}.pdf`);
     response.send(buffer);
   }),
 );

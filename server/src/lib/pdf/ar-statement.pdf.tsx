@@ -2,7 +2,8 @@ import React from "react";
 import { Document, Page, Text, View, StyleSheet, renderToStream, Font } from "@react-pdf/renderer";
 import path from "path";
 
-Font.register({ family: "Inter", src: path.resolve(process.cwd(), "src/assets/fonts/Inter-Regular.ttf") });
+// Using standard PDF fonts for better reliability
+
 
 const formatDate = (date: Date) => {
   return date.toISOString().split("T")[0];
@@ -12,7 +13,8 @@ const styles = StyleSheet.create({
   page: {
     padding: 30,
     fontSize: 10,
-    fontFamily: "Inter",
+    fontFamily: "Helvetica",
+
     color: "#333",
   },
   header: {
@@ -80,13 +82,14 @@ const styles = StyleSheet.create({
 });
 
 interface LedgerItem {
-  date: Date;
-  type: string;
-  reference: string;
+  entryDate: Date;
+  entryType: string;
+  referenceId: string;
   debit: number;
   credit: number;
-  balance: number;
+  runningBalance: number;
 }
+
 
 interface LedgerPdfProps {
   customer: any;
@@ -138,20 +141,22 @@ const LedgerDocument = ({ customer, ledger, company, period }: LedgerPdfProps) =
 
         {ledger.map((item, index) => (
           <View key={index} style={styles.tableRow}>
-            <Text style={styles.col1}>{formatDate(item.date)}</Text>
-            <Text style={styles.col2}>{item.type}</Text>
-            <Text style={styles.col3}>{item.reference}</Text>
+            <Text style={styles.col1}>{formatDate(item.entryDate)}</Text>
+            <Text style={styles.col2}>{item.entryType.replace(/_/g, " ")}</Text>
+            <Text style={styles.col3}>{item.referenceId}</Text>
             <Text style={styles.col4}>{item.debit.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</Text>
             <Text style={styles.col5}>{item.credit.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</Text>
-            <Text style={styles.col6}>{item.balance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</Text>
+            <Text style={styles.col6}>{item.runningBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</Text>
           </View>
         ))}
+
       </View>
 
       <View style={{ marginTop: 20, textAlign: "right", borderTopWidth: 2, borderTopColor: "#333", paddingTop: 10 }}>
         <Text style={{ fontSize: 14, fontWeight: "bold" }}>
-          Closing Balance: NPR {ledger.length > 0 ? ledger[ledger.length - 1].balance.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : "0.00"}
+          Closing Balance: NPR {ledger.length > 0 ? ledger[ledger.length - 1].runningBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : "0.00"}
         </Text>
+
       </View>
 
       <Text style={styles.footer}>

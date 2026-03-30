@@ -32,9 +32,10 @@ export async function postEntry(
   });
 }
 
-export async function getVatSummary(startDate?: Date, endDate?: Date) {
+export async function getVatSummary(fiscalYear?: string, startDate?: Date, endDate?: Date) {
   const vatEntries = await prisma.vatRegister.findMany({
     where: {
+      ...(fiscalYear ? { fiscalYear } : {}),
       entryDate: {
         ...(startDate ? { gte: startDate } : {}),
         ...(endDate ? { lte: endDate } : {}),
@@ -55,4 +56,35 @@ export async function getVatSummary(startDate?: Date, endDate?: Date) {
   const inputTax = supplierInvoices.reduce((sum, inv) => sum + Number(inv.taxAmount), 0);
 
   return { outputTax, inputTax, netPayable: outputTax - inputTax };
+}
+
+export async function getMonthlySummary(fiscalYear: string) {
+  const result = await prisma.vatRegister.groupBy({
+    by: ["bsDate"],
+    _sum: {
+      taxableAmount: true,
+      outputVat: true,
+    },
+    where: {
+      fiscalYear,
+    },
+  });
+
+  return result.map((r) => ({
+    month: r.bsDate.substring(5, 7),
+    taxableAmount: r._sum.taxableAmount,
+    vatAmount: r._sum.outputVat,
+  }));
+}
+
+export async function getEntries(fiscalYear: string, month?: string) {
+  return prisma.vatRegister.findMany({
+    where: {
+      fiscalYear,
+      ...(month ? { bsDate: { startsWith: `${fiscalYear}-${month}` } } : {}),
+    },
+    orderBy: {
+      bsDate: "asc",
+    },
+  });
 }

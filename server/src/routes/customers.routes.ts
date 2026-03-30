@@ -6,7 +6,8 @@ import { validate } from "../middleware/validate";
 import { customerSchema, idParamSchema, listQuerySchema } from "../schemas/domain";
 import { getPagination } from "../utils/pagination";
 import { toNumber } from "../utils/number";
-import { arLedgerService } from "../services/ar-ledger.service";
+import { getCustomerLedger } from "../modules/ar-ledger/ar-ledger.service";
+import { ApiError } from "../utils/api-error";
 
 import { signToken, verifyToken } from "../utils/jwt";
 
@@ -130,6 +131,41 @@ customersRouter.patch(
     });
 
     response.json(customer);
+  }),
+);
+
+customersRouter.get(
+  "/:id/statement",
+  validate(idParamSchema, "params"),
+  asyncHandler(async (request, response) => {
+    const params = request.validated?.params as { id: string };
+    const startDate = request.query.startDate
+      ? new Date(String(request.query.startDate))
+      : undefined;
+    const endDate = request.query.endDate
+      ? new Date(String(request.query.endDate))
+      : undefined;
+
+    const customer = await prisma.customer.findUnique({
+      where: { id: params.id },
+      select: {
+        id: true,
+        name: true,
+        phone: true,
+        panNo: true,
+        vatNo: true,
+        outstandingBalance: true,
+      },
+    });
+    if (!customer) throw new ApiError(404, "Customer not found");
+
+    const entries = await getCustomerLedger(params.id, startDate, endDate);
+
+    response.json({
+      customer,
+      entries: entries.entries,
+      closingBalance: entries.closingBalance,
+    });
   }),
 );
 

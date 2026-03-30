@@ -7,13 +7,17 @@ import { validate } from "../middleware/validate";
 import {
   accountSchema,
   bankImportSchema,
+  idParamSchema,
   journalEntrySchema,
   listQuerySchema,
   reportQuerySchema,
 } from "../schemas/domain";
+
 import { createBalancedJournalEntry } from "../services/accounting.service";
+import { getCustomerLedger } from "../modules/ar-ledger/ar-ledger.service";
 import {
   getBalanceSheet,
+
   getCashFlow,
   getProfitAndLoss,
   getTaxSummary,
@@ -203,4 +207,15 @@ accountingRouter.get(
     response.json(await getTaxSummary(query.startDate, query.endDate));
   }),
 );
+
+accountingRouter.get(
+  "/customers/:id/ledger",
+  asyncHandler(async (request, response) => {
+    const { id } = idParamSchema.parse(request.params);
+    const { startDate, endDate } = listQuerySchema.parse(request.query);
+    const ledger = await getCustomerLedger(id, startDate, endDate);
+    response.json(ledger);
+  }),
+);
+
 

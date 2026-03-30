@@ -19,67 +19,74 @@ function formatCurrency(value: number) {
 export async function getDashboardSummary() {
   const monthStart = startOfCurrentMonth();
 
-  const [invoices, inventoryItems, deliveries, lowStockItems, recentSalesOrders, salesOrders] =
-    await Promise.all([
-      prisma.salesOrder.findMany({
-        where: {
-          orderDate: { gte: monthStart },
-          status: { not: "CANCELLED" }
-        }
-      }),
-      prisma.inventory.findMany({
-        include: {
-          productVariant: {
-            include: {
-              product: true,
-            },
+  const [
+    monthOrders,
+    inventoryItems,
+    deliveries,
+    lowStockItems,
+    recentSalesOrders,
+    allSalesOrders,
+  ] = await Promise.all([
+    prisma.salesOrder.findMany({
+      where: {
+        orderDate: { gte: monthStart },
+        status: { not: "CANCELLED" },
+      },
+      select: { orderAmount: true },
+    }),
+    prisma.inventory.findMany({
+      include: {
+        productVariant: {
+          include: {
+            product: true,
           },
         },
-      }),
-      prisma.delivery.count({
-        where: {
-          status: {
-            in: ["SCHEDULED", "OUT_FOR_DELIVERY", "FAILED_ATTEMPT"],
-          },
+      },
+    }),
+    prisma.delivery.count({
+      where: {
+        status: {
+          in: ["SCHEDULED", "OUT_FOR_DELIVERY", "FAILED_ATTEMPT"],
         },
-      }),
-      prisma.productVariant.findMany({
-        where: {
-          stockQuantity: {
-            lte: 5,
-          },
+      },
+    }),
+    prisma.productVariant.findMany({
+      where: {
+        stockQuantity: {
+          lte: 5,
         },
-        include: {
-          product: true,
-        },
-        take: 10,
-      }),
-      prisma.salesOrder.findMany({
-        include: {
-          customer: true,
-          lineItems: true,
-        },
-        orderBy: {
-          createdAt: "desc",
-        },
-        take: 8,
-      }),
-      prisma.salesOrder.findMany({
-        include: {
-          lineItems: {
-            include: {
-              productVariant: {
-                include: {
-                  product: true,
-                },
+      },
+      include: {
+        product: true,
+      },
+      take: 10,
+    }),
+    prisma.salesOrder.findMany({
+      include: {
+        customer: true,
+        lineItems: true,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+      take: 8,
+    }),
+    prisma.salesOrder.findMany({
+      include: {
+        lineItems: {
+          include: {
+            productVariant: {
+              include: {
+                product: true,
               },
             },
           },
         },
-      }),
-    ]);
+      },
+    }),
+  ]);
 
-  const totalRevenueMtd = invoices.reduce((sum, o) => sum + toNumber(o.orderAmount), 0);
+  const totalRevenueMtd = monthOrders.reduce((sum, o) => sum + toNumber(o.orderAmount), 0);
   const openOrders = await prisma.salesOrder.findMany({
     where: { balanceDue: { gt: 0 }, status: { not: "CANCELLED" } },
     select: { balanceDue: true }
@@ -148,7 +155,7 @@ export async function getDashboardSummary() {
     };
   });
 
-  salesOrders.forEach((order) => {
+  allSalesOrders.forEach((order) => {
     const bucket = revenueVsCogs.find(
       (item) =>
         item.month === new NepaliDate(order.orderDate).format("MMMM"),
@@ -192,7 +199,7 @@ export async function getDashboardSummary() {
   });
 
   const topProductMap = new Map<string, number>();
-  salesOrders.forEach((order) => {
+  allSalesOrders.forEach((order) => {
     order.lineItems.forEach((lineItem) => {
       const name = `${lineItem.productVariant.product.name} / ${lineItem.productVariant.variantName}`;
       topProductMap.set(name, (topProductMap.get(name) ?? 0) + lineItem.quantity);

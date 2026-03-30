@@ -102,8 +102,8 @@ async function main() {
   const users = {
     admin: await prisma.user.create({
       data: {
-        name: "Admin User",
-        email: "admin@atlaserp.local",
+        name: "Manish Admin",
+        email: "admin@manishsteel.com.np",
         passwordHash,
         role: "ADMIN",
       },
@@ -111,7 +111,7 @@ async function main() {
     accountant: await prisma.user.create({
       data: {
         name: "Asha Ledger",
-        email: "accountant@atlaserp.local",
+        email: "accountant@manishsteel.com.np",
         passwordHash,
         role: "ACCOUNTANT",
       },
@@ -119,7 +119,7 @@ async function main() {
     sales: await prisma.user.create({
       data: {
         name: "Ravi Sales",
-        email: "sales@atlaserp.local",
+        email: "sales@manishsteel.com.np",
         passwordHash,
         role: "SALES",
       },
@@ -127,7 +127,7 @@ async function main() {
     warehouse: await prisma.user.create({
       data: {
         name: "Kiran Store",
-        email: "warehouse@atlaserp.local",
+        email: "warehouse@manishsteel.com.np",
         passwordHash,
         role: "WAREHOUSE",
       },
@@ -135,22 +135,23 @@ async function main() {
     driver: await prisma.user.create({
       data: {
         name: "Sanjay Driver",
-        email: "driver@atlaserp.local",
+        email: "driver@manishsteel.com.np",
         passwordHash,
         role: "DRIVER",
       },
     }),
   } satisfies Record<string, { id: string; email: string; role: UserRole }>;
 
-     prisma.companyProfile.create({
+     await prisma.companyProfile.create({
        data: {
-         name: "Manish Steel",
-         address: "Baluwatar, Kathmandu, Nepal",
+         name: "Shree Manish Steel Furniture Udhyog Pvt. Ltd.",
+         address: "Dharan Rd, Biratnagar-05, Nepal",
          panNo: "300012345",
          vatNo: "300012345",
-         bankDetails: "Bank of Kathmandu · A/C 0100012345 · SWIFT BOKLNPKA",
-         email: "accounts@atlasfurniture.local",
-         phone: "+977-1-5551234",
+         bankDetails: "NIC Asia Bank · A/C 0100012345 · Biratnagar Branch",
+         email: "shreemanishfurniture@gmail.com",
+         phone: "+977-9824336371",
+         website: "https://www.manishsteel.com.np",
        },
      });
 
@@ -201,22 +202,22 @@ async function main() {
   const warehouses = {
     showroom: await prisma.warehouse.create({
       data: {
-        name: "Main Showroom",
-        location: "Jawalakhel, Lalitpur",
+        name: "Biratnagar Showroom",
+        location: "Dharan Road, Biratnagar",
         type: "SHOWROOM",
       },
     }),
     storage: await prisma.warehouse.create({
       data: {
-        name: "Storage Warehouse",
-        location: "Bhaktapur Industrial Estate",
+        name: "Itahari Factory Depot",
+        location: "Itahari-04, Sunsari",
         type: "STORAGE",
       },
     }),
     transit: await prisma.warehouse.create({
       data: {
-        name: "Transit Hub",
-        location: "Kalanki Distribution Point",
+        name: "Dharan Service Point",
+        location: "Bhanu Chowk, Dharan",
         type: "TRANSIT",
       },
     }),
@@ -267,102 +268,80 @@ async function main() {
   const suppliers = await Promise.all([
     prisma.supplier.create({
       data: {
-        name: "Kathmandu Woodcraft",
-        contact: "Nabin Maharjan",
-        email: "orders@ktmwoodcraft.local",
-        phone: "+977-9800001001",
+        name: "Hulas Steel Industries",
+        contact: "Sanjay Agrawal",
+        email: "sales@hulassteel.com.np",
+        phone: "+977-21-555001",
         country: "Nepal",
-        paymentTerms: "30 days",
-        leadTimeDays: 8,
+        paymentTerms: "15 days",
+        leadTimeDays: 5,
+        rating: 4.9,
+      },
+    }),
+    prisma.supplier.create({
+      data: {
+        name: "Tata Steel Nepal",
+        contact: "Kiran Sharma",
+        email: "orders@tatasteel.com.np",
+        phone: "+977-1-444332",
+        country: "Nepal/India",
+        paymentTerms: "Advance",
+        leadTimeDays: 14,
         rating: 4.8,
       },
     }),
     prisma.supplier.create({
       data: {
-        name: "Oak & Iron Imports",
-        contact: "Pooja Sharma",
-        email: "supply@oakiron.local",
-        phone: "+91-9900002002",
-        country: "India",
-        paymentTerms: "45 days",
-        leadTimeDays: 14,
-        rating: 4.4,
-      },
-    }),
-    prisma.supplier.create({
-      data: {
-        name: "Pacific Foam Works",
-        contact: "Leo Chen",
-        email: "trade@pacificfoam.local",
-        phone: "+86-13000003003",
-        country: "China",
-        paymentTerms: "50% advance / 50% on shipment",
-        leadTimeDays: 21,
-        rating: 4.1,
-      },
-    }),
-    prisma.supplier.create({
-      data: {
-        name: "Terra Outdoor Living",
-        contact: "Amit Bista",
-        email: "sales@terraoutdoor.local",
-        phone: "+977-9800004004",
+        name: "Asian Paints Biratnagar",
+        contact: "Amit Shah",
+        email: "brt@asianpaints.com.np",
+        phone: "+977-21-522114",
         country: "Nepal",
         paymentTerms: "30 days",
-        leadTimeDays: 10,
+        leadTimeDays: 3,
         rating: 4.6,
       },
     }),
     prisma.supplier.create({
       data: {
-        name: "Nordic Hardware House",
-        contact: "Sofia Berg",
-        email: "ops@nordichardware.local",
-        phone: "+46-7000005005",
-        country: "Sweden",
-        paymentTerms: "60 days",
-        leadTimeDays: 24,
-        rating: 4.7,
+        name: "Local Hardware & Co.",
+        contact: "Rajesh Gupta",
+        email: "rajesh@localhardware.com",
+        phone: "+977-9810010011",
+        country: "Nepal",
+        paymentTerms: "7 days",
+        leadTimeDays: 2,
+        rating: 4.2,
       },
     }),
   ]);
 
   const customersInput: any[] = [
-    { name: "Mia Thompson", email: "mia@example.com", phone: "+1-202-555-0101", type: "RETAIL", creditLimit: 0, address: "Durbarmarg, Kathmandu", panNo: "100123456", invoicePref: "PAN", district: "Kathmandu", ward: "1" },
-    { name: "Evergreen Homes", email: "procurement@evergreen.local", phone: "+977-9800001101", type: "TRADE", creditLimit: 25000, address: "Pulchowk, Lalitpur", vatNo: "300123456", invoicePref: "VAT", district: "Lalitpur", ward: "3" },
-    { name: "Urban Nest Studio", email: "orders@urbannest.local", phone: "+977-9800001102", type: "CONTRACTOR", creditLimit: 40000, address: "Thamel, Kathmandu", vatNo: "300234567", invoicePref: "VAT", district: "Kathmandu", ward: "26" },
-    { name: "Cedar Lane Hotels", email: "finance@cedarlane.local", phone: "+977-9800001103", type: "TRADE", creditLimit: 50000, address: "Lakeside, Pokhara", vatNo: "300345678", invoicePref: "VAT", district: "Kaski", ward: "6" },
-    { name: "Aria Interiors", email: "hello@aria.local", phone: "+977-9800001104", type: "CONTRACTOR", creditLimit: 35000, address: "Boudha, Kathmandu", vatNo: "300456789", invoicePref: "VAT", district: "Kathmandu", ward: "6" },
-    { name: "Nexa Offices", email: "ap@nexa.local", phone: "+977-9800001105", type: "TRADE", creditLimit: 45000, address: "New Baneshwor, Kathmandu", vatNo: "300567890", invoicePref: "VAT", district: "Kathmandu", ward: "10" },
-    { name: "Suman Shrestha", email: "suman@example.com", phone: "+977-9800001106", type: "RETAIL", creditLimit: 0, address: "Bhaktapur Durbar Square", invoicePref: "NONE", district: "Bhaktapur", ward: "2" },
-    { name: "Blue Horizon Villas", email: "sourcing@bluehorizon.local", phone: "+977-9800001107", type: "TRADE", creditLimit: 30000, address: "Dhulikhel, Kavre", vatNo: "300678901", invoicePref: "VAT", district: "Kavre", ward: "4" },
-    { name: "Craftspace Studio", email: "studio@craftspace.local", phone: "+977-9800001108", type: "CONTRACTOR", creditLimit: 28000, address: "Kupondole, Lalitpur", vatNo: "300789012", invoicePref: "VAT", district: "Lalitpur", ward: "10" },
-    { name: "Priya Karki", email: "priya@example.com", phone: "+977-9800001109", type: "RETAIL", creditLimit: 0, address: "Pokhara, Kaski", invoicePref: "NONE", district: "Kaski", ward: "17" },
+    { name: "Ram Kumar", email: "ram@example.com", phone: "+977-9810001101", type: "RETAIL", creditLimit: 0, address: "Tinkune, Biratnagar", panNo: "100123456", invoicePref: "PAN", district: "Morang", ward: "3" },
+    { name: "Birat Medical College", email: "procurement@biratmedical.local", phone: "+977-21-444111", type: "TRADE", creditLimit: 50000, address: "Tankisinuwari, Morang", vatNo: "300123456", invoicePref: "VAT", district: "Morang", ward: "2" },
+    { name: "Nobel Hospital", email: "ap@nobel.local", phone: "+977-21-555222", type: "TRADE", creditLimit: 100000, address: "Kanchanbari, Biratnagar", vatNo: "300234567", invoicePref: "VAT", district: "Morang", ward: "4" },
+    { name: "Sita Poudel", email: "sita@example.com", phone: "+977-9842001102", type: "RETAIL", creditLimit: 0, address: "Puspalal Chowk, Biratnagar", invoicePref: "PAN", district: "Morang", ward: "2" },
+    { name: "Bikash Thapa", email: "bikash@example.com", phone: "+977-9800001103", type: "RETAIL", creditLimit: 0, address: "Bhanu Chowk, Dharan", invoicePref: "NONE", district: "Sunsari", ward: "1" },
+    { name: "Itahari Business Center", email: "office@itahari.biz", phone: "+977-25-580101", type: "TRADE", creditLimit: 35000, address: "Main Road, Itahari", vatNo: "300456789", invoicePref: "VAT", district: "Sunsari", ward: "4" },
   ];
 
   const customers = await Promise.all(customersInput.map((customer) => prisma.customer.create({ data: customer })));
 
   const productTemplates = [
-    ["Monarch Sofa", "SOF-MON-001", "Sofa", "Walnut", "Sand Linen", 620, 1080],
-    ["Crest Sectional", "SOF-CRE-002", "Sofa", "Oak", "Charcoal", 920, 1540],
-    ["Hearth Loveseat", "SOF-HEA-003", "Sofa", "Ash", "Stone", 480, 840],
-    ["Solace Recliner", "SOF-SOL-004", "Sofa", "Teak", "Olive", 410, 760],
-    ["Aster Dining Table", "DIN-AST-005", "Dining", "Oak", "Travertine", 700, 1260],
-    ["Rowan Dining Chair Set", "DIN-ROW-006", "Dining", "Walnut", "Leather", 360, 640],
-    ["Atlas Sideboard", "DIN-ATL-007", "Dining", "Ash", "Natural", 540, 980],
-    ["Ember Bar Stool", "DIN-EMB-008", "Dining", "Oak", "Black", 180, 340],
-    ["Luna Bed Frame", "BED-LUN-009", "Bedroom", "Walnut", "Ivory", 680, 1220],
-    ["Haven Nightstand", "BED-HAV-010", "Bedroom", "Oak", "Fawn", 170, 310],
-    ["Cascade Dresser", "BED-CAS-011", "Bedroom", "Ash", "Natural", 460, 860],
-    ["Cedar Wardrobe", "BED-CED-012", "Bedroom", "Walnut", "Bronze", 740, 1320],
-    ["Vela Executive Desk", "OFF-VEL-013", "Office", "Walnut", "Graphite", 590, 1140],
-    ["Draft Task Chair", "OFF-DRA-014", "Office", "Steel", "Black Mesh", 220, 430],
-    ["Pivot Bookshelf", "OFF-PIV-015", "Office", "Oak", "Natural", 310, 590],
-    ["Orbit Filing Cabinet", "OFF-ORB-016", "Office", "Steel", "Cream", 260, 480],
-    ["Harbor Lounge Chair", "OUT-HAR-017", "Outdoor", "Teak", "Sand Rope", 340, 620],
-    ["Cove Patio Set", "OUT-COV-018", "Outdoor", "Teak", "Pebble", 940, 1680],
-    ["Terra Bistro Table", "OUT-TER-019", "Outdoor", "Acacia", "Stone", 280, 520],
-    ["Sora Sunbed", "OUT-SOR-020", "Outdoor", "Teak", "White", 430, 790],
+    ["Royal 3-Door Steel Almirah", "ALM-ROY-001", "Almirah", "Steel", "Walnut Finish", 18500, 24500],
+    ["Deluxe 2-Door Steel Almirah", "ALM-DEL-002", "Almirah", "Steel", "Ivory", 12500, 16800],
+    ["Standard Steel Daraz", "DRZ-STD-003", "Daraz", "Steel", "Gray", 8200, 11500],
+    ["Office Executive Daraz", "DRZ-EXE-004", "Daraz", "Steel", "Black", 14500, 21000],
+    ["Steel Double Bed (Khat)", "BED-DBL-005", "Bed", "Steel", "Metallic Gray", 13800, 19500],
+    ["Steel Single Bed (Khat)", "BED-SNG-006", "Bed", "Steel", "Black", 7200, 10500],
+    ["Folding Steel Bed", "BED-FLD-007", "Bed", "Steel", "Blue", 4200, 6200],
+    ["Executive Office Chair", "CHR-EXE-008", "Office", "Leatherette", "Black", 9200, 13800],
+    ["Staff / Task Mesh Chair", "CHR-TSK-009", "Office", "Mesh", "Gray", 4200, 6500],
+    ["4-Drawer Steel Filing Cabinet", "CAB-FIL-010", "Office", "Steel", "Gray", 10200, 14800],
+    ["Slotted Angle Rack (Heavy Duty)", "RCK-SLT-011", "Rack", "Steel", "Blue/Orange", 6200, 9200],
+    ["Computer / Study Table", "TBL-COM-012", "Table", "Wood/Steel", "Brown", 5200, 7800],
+    ["Bedside Folding Table", "TBL-BED-013", "Table", "Steel", "Ivory", 2200, 3600],
+    ["Armchair (Super Quality)", "CHR-ARM-014", "Chair", "Plastic/Steel", "Red", 1200, 1850],
   ] as const;
 
   const variantMap = new Map<string, { id: string; productId: string; skuVariant: string }>();
@@ -409,10 +388,10 @@ async function main() {
         height: 28 + (index % 6),
         weight: 20 + (index % 9),
         status: index === 16 ? "DISCONTINUED" : "ACTIVE",
-        lowStockThreshold: category === "Bedroom" ? 4 : 5,
-        taxRateId: category === "Outdoor" ? taxRates.outdoor.id : taxRates.standard.id,
+        lowStockThreshold: category === "Almirah" ? 2 : 5,
+        taxRateId: taxRates.standard.id,
         hsCode: "9403.60.00",
-        woodType: material === "Oak" || material === "Walnut" || material === "Ash" ? material : "Teak",
+        woodType: material === "Wood/Steel" ? "Mixed" : "None",
         finishType: "Matte Lacquer",
         assemblyRequired: index % 3 === 0,
         warrantyMonths: 12,
@@ -494,8 +473,8 @@ async function main() {
         notes: "Frames and walnut components",
         lineItems: {
           create: [
-            { productVariantId: variantMap.get("SOF-MON-001-STD")!.id, quantity: 8, receivedQuantity: 6, unitCost: 620 },
-            { productVariantId: variantMap.get("DIN-AST-005-LRG")!.id, quantity: 4, receivedQuantity: 2, unitCost: 790 },
+            { productVariantId: variantMap.get("ALM-ROY-001-STD")!.id, quantity: 10, receivedQuantity: 6, unitCost: 18500 },
+            { productVariantId: variantMap.get("DRZ-STD-003-LRG")!.id, quantity: 5, receivedQuantity: 2, unitCost: 8290 },
           ],
         },
       },
@@ -513,8 +492,8 @@ async function main() {
         notes: "Metal bases and desk hardware",
         lineItems: {
           create: [
-            { productVariantId: variantMap.get("OFF-VEL-013-STD")!.id, quantity: 6, receivedQuantity: 6, unitCost: 590 },
-            { productVariantId: variantMap.get("OFF-ORB-016-STD")!.id, quantity: 10, receivedQuantity: 10, unitCost: 260 },
+            { productVariantId: variantMap.get("CHR-EXE-008-STD")!.id, quantity: 15, receivedQuantity: 15, unitCost: 9200 },
+            { productVariantId: variantMap.get("CAB-FIL-010-STD")!.id, quantity: 8, receivedQuantity: 8, unitCost: 10200 },
           ],
         },
       },
@@ -532,8 +511,8 @@ async function main() {
         notes: "Outdoor teak collection",
         lineItems: {
           create: [
-            { productVariantId: variantMap.get("OUT-COV-018-STD")!.id, quantity: 3, receivedQuantity: 3, unitCost: 940 },
-            { productVariantId: variantMap.get("OUT-SOR-020-LRG")!.id, quantity: 6, receivedQuantity: 6, unitCost: 520 },
+            { productVariantId: variantMap.get("BED-DBL-005-STD")!.id, quantity: 5, receivedQuantity: 5, unitCost: 13800 },
+            { productVariantId: variantMap.get("BED-SNG-006-LRG")!.id, quantity: 8, receivedQuantity: 8, unitCost: 7290 },
           ],
         },
       },
@@ -636,8 +615,8 @@ async function main() {
         notes: "Site delivery for model apartment",
         lineItems: {
           create: [
-            { productVariantId: variantMap.get("SOF-MON-001-LRG")!.id, quantity: 2, unitPrice: 1170, discountPct: 5 },
-            { productVariantId: variantMap.get("OFF-VEL-013-STD")!.id, quantity: 2, unitPrice: 1140, discountPct: 0 },
+            { productVariantId: variantMap.get("ALM-ROY-001-LRG")!.id, quantity: 2, unitPrice: 24500, discountPct: 5 },
+            { productVariantId: variantMap.get("DRZ-EXE-004-STD")!.id, quantity: 1, unitPrice: 21000, discountPct: 0 },
           ],
         },
       },
@@ -659,8 +638,8 @@ async function main() {
         notes: "Customer requested afternoon delivery window",
         lineItems: {
           create: [
-            { productVariantId: variantMap.get("BED-LUN-009-STD")!.id, quantity: 1, unitPrice: 1220, discountPct: 0 },
-            { productVariantId: variantMap.get("BED-HAV-010-STD")!.id, quantity: 2, unitPrice: 310, discountPct: 0 },
+            { productVariantId: variantMap.get("BED-DBL-005-STD")!.id, quantity: 1, unitPrice: 19500, discountPct: 0 },
+            { productVariantId: variantMap.get("TBL-BED-013-STD")!.id, quantity: 2, unitPrice: 3600, discountPct: 0 },
           ],
         },
       },
@@ -682,8 +661,8 @@ async function main() {
         notes: "Hotel lobby refit package",
         lineItems: {
           create: [
-            { productVariantId: variantMap.get("DIN-ATL-007-STD")!.id, quantity: 6, unitPrice: 980, discountPct: 8 },
-            { productVariantId: variantMap.get("DIN-ROW-006-STD")!.id, quantity: 12, unitPrice: 640, discountPct: 10 },
+            { productVariantId: variantMap.get("CAB-FIL-010-STD")!.id, quantity: 6, unitPrice: 14800, discountPct: 8 },
+            { productVariantId: variantMap.get("CHR-EXE-008-STD")!.id, quantity: 12, unitPrice: 13800, discountPct: 10 },
           ],
         },
       },
@@ -705,8 +684,8 @@ async function main() {
         notes: "Staging furniture for office reception",
         lineItems: {
           create: [
-            { productVariantId: variantMap.get("OFF-VEL-013-LRG")!.id, quantity: 4, unitPrice: 1230, discountPct: 0 },
-            { productVariantId: variantMap.get("OFF-PIV-015-STD")!.id, quantity: 6, unitPrice: 590, discountPct: 0 },
+            { productVariantId: variantMap.get("CHR-EXE-008-LRG")!.id, quantity: 4, unitPrice: 14500, discountPct: 0 },
+            { productVariantId: variantMap.get("TBL-COM-012-STD")!.id, quantity: 6, unitPrice: 7800, discountPct: 0 },
           ],
         },
       },
@@ -889,7 +868,6 @@ async function main() {
   });
 
   for (const invoice of invoices) {
-    const revenue = Number(invoice.invoiceAmount) - Number(invoice.taxAmount);
     await createBalancedEntry({
       date: invoice.issueDate,
       description: "Sales invoice posted",
@@ -899,7 +877,7 @@ async function main() {
       createdById: users.accountant.id,
       lines: [
         { accountId: accountMap.get("1100")!.id, debit: Number(invoice.invoiceAmount), credit: 0, type: accountMap.get("1100")!.type },
-        { accountId: accountMap.get("4000")!.id, debit: 0, credit: revenue, type: accountMap.get("4000")!.type },
+        { accountId: accountMap.get("4000")!.id, debit: 0, credit: Number(invoice.invoiceAmount) - Number(invoice.taxAmount), type: accountMap.get("4000")!.type },
         { accountId: accountMap.get("2100")!.id, debit: 0, credit: Number(invoice.taxAmount), type: accountMap.get("2100")!.type },
       ],
     });

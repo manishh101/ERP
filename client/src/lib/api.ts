@@ -1,4 +1,4 @@
-export const API_BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:4000/api";
+export const API_BASE_URL = import.meta.env.VITE_API_URL ?? "/api";
 
 type ApiRequestOptions = Omit<RequestInit, "body" | "headers"> & {
   body?: unknown;
@@ -23,7 +23,13 @@ export class ApiError extends Error {
 }
 
 function buildUrl(path: string, query?: ApiRequestOptions["query"]) {
-  const url = new URL(`${API_BASE_URL.replace(/\/$/, "")}${path.startsWith("/") ? path : `/${path}`}`);
+  const base = API_BASE_URL.replace(/\/$/, "");
+  const p = path.startsWith("/") ? path.slice(1) : path;
+  const combined = `${base}/${p}`;
+  
+  const url = combined.startsWith("http") 
+    ? new URL(combined) 
+    : new URL(combined, window.location.origin);
 
   Object.entries(query ?? {}).forEach(([key, value]) => {
     if (value === undefined || value === null || value === "") {

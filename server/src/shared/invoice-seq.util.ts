@@ -1,47 +1,33 @@
-import { Prisma, PrismaClient } from "@prisma/client";
-
-/**
- * Atomically generate next invoice number for a fiscal year
- * Uses a DB counter table to prevent race conditions
- */
+import { Prisma } from "@prisma/client";
+import { prisma } from "../config/prisma";
 
 export async function nextInvoiceNumber(
   tx: Prisma.TransactionClient,
-  fiscalYear: string
+  fiscalYear: string,
 ): Promise<string> {
-  const counter = await tx.invoiceCounter.upsert({
-    where: { fiscalYear },
-    update: { lastSeq: { increment: 1 } },
-    create: { fiscalYear, lastSeq: 1 },
-  });
-
-  const seqStr = counter.lastSeq.toString().padStart(4, "0");
+  // Single atomic SQL statement — no race condition possible
+  const result = await tx.$queryRaw<Array<{ last_seq: number }>>`
+    INSERT INTO invoice_counters (id, fiscal_year, last_seq)
+    VALUES (gen_random_uuid()::text, ${fiscalYear}, 1)
+    ON CONFLICT (fiscal_year)
+    DO UPDATE SET last_seq = invoice_counters.last_seq + 1
+    RETURNING last_seq
+  `;
+  const seqStr = result[0].last_seq.toString().padStart(4, "0");
   return `INV-${fiscalYear}-${seqStr}`;
 }
 
-/**
- * Atomically generate next receipt number for a fiscal year
- * Similar to invoice but for payments
- */
 export async function nextReceiptNumber(
   tx: Prisma.TransactionClient,
-  fiscalYear: string
+  fiscalYear: string,
 ): Promise<string> {
-  // Using the same table or a different one? 
-  // GAP 2 says: add a ReceiptCounter table the same way as InvoiceCounter.
-  
-  // Actually I need to add ReceiptCounter to schema.prisma as well.
-  // I'll do that in a moment.
-  
-  // For now, I'll use a placeholder or assume it exists.
-  // Wait, I should have added it to schema.prisma.
-  
-  const counter = await (tx as any).receiptCounter.upsert({
-    where: { fiscalYear },
-    update: { lastSeq: { increment: 1 } },
-    create: { fiscalYear, lastSeq: 1 },
-  });
-
-  const seqStr = counter.lastSeq.toString().padStart(4, "0");
+  const result = await tx.$queryRaw<Array<{ last_seq: number }>>`
+    INSERT INTO receipt_counters (id, fiscal_year, last_seq)
+    VALUES (gen_random_uuid()::text, ${fiscalYear}, 1)
+    ON CONFLICT (fiscal_year)
+    DO UPDATE SET last_seq = receipt_counters.last_seq + 1
+    RETURNING last_seq
+  `;
+  const seqStr = result[0].last_seq.toString().padStart(4, "0");
   return `REC-${fiscalYear}-${seqStr}`;
 }
