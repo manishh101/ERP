@@ -113,7 +113,7 @@ export function RecordPaymentForm({ onClose }: RecordPaymentFormProps) {
                   }}
                 >
                   <option value="">Select an order</option>
-                  {salesOrders.data?.items.map(so => (
+                  {salesOrders.data?.items.filter(so => toNumber(so.balanceDue) > 0 || so.id === formData.salesOrderId).map(so => (
                     <option key={so.id} value={so.id}>{so.id} - {so.customer} - Balance: {formatCurrency(toNumber(so.balanceDue))}</option>
                   ))}
                 </select>
