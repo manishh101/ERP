@@ -133,9 +133,9 @@ const LedgerDocument = ({ customer, ledger, company, period }: LedgerPdfProps) =
         <View style={[styles.tableRow, styles.tableHeader]}>
           <Text style={styles.col1}>Date</Text>
           <Text style={styles.col2}>Type</Text>
-          <Text style={styles.col3}>Reference</Text>
-          <Text style={styles.col4}>Debit (NPR)</Text>
-          <Text style={styles.col5}>Credit (NPR)</Text>
+          <Text style={styles.col3}>Payment Reference</Text>
+          <Text style={styles.col4}>Debit (Sales)</Text>
+          <Text style={styles.col5}>Credit (Payment)</Text>
           <Text style={styles.col6}>Balance (NPR)</Text>
         </View>
 

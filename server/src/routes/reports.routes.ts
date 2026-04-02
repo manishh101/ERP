@@ -329,9 +329,9 @@ reportsRouter.get(
 reportsRouter.get(
   "/vat-entries",
   asyncHandler(async (request, response) => {
-    const fiscalYear = String(request.query.fiscalYear);
+    const fiscalYear = request.query.fiscalYear as string;
     if (!fiscalYear) throw new ApiError(400, "Fiscal year is required");
-    const month = request.query.month ? Number(request.query.month) : undefined;
+    const month = request.query.month as string | undefined;
     const entries = await getEntries(fiscalYear, month);
     response.json(entries);
   }),

@@ -74,16 +74,16 @@ export function CustomerLedgerModal({ customerId, customerName, onClose }: Custo
                     header: "Type",
                     render: (row) => formatEnumLabel(row.type)
                   },
-                  { key: "reference", header: "Reference" },
+                  { key: "reference", header: "Payment Reference" },
                   { 
                     key: "debit", 
-                    header: "Debit", 
+                    header: "Debit (Sales)", 
                     className: "text-right",
                     render: (row) => row.debit > 0 ? formatCurrency(row.debit) : "-" 
                   },
                   { 
                     key: "credit", 
-                    header: "Credit", 
+                    header: "Credit (Payment)", 
                     className: "text-right",
                     render: (row) => row.credit > 0 ? formatCurrency(row.credit) : "-" 
                   },

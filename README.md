@@ -73,30 +73,29 @@ Required values are already documented in `.env.example`.
 ## Setup
 
 1. Install dependencies:
+   ```bash
+   npm install
+   ```
 
-```bash
-npm install
-```
-
-2. Create a PostgreSQL database and point `DATABASE_URL` at it.
+2. Start the database (using Docker Compose):
+   ```bash
+   docker compose up -d
+   ```
 
 3. Generate Prisma client:
-
-```bash
-npm run generate --workspace server
-```
+   ```bash
+   npm run generate --workspace server
+   ```
 
 4. Apply migrations:
-
-```bash
-npm run migrate --workspace server
-```
+   ```bash
+   npm run migrate --workspace server
+   ```
 
 5. Seed the database:
-
-```bash
-npm run seed
-```
+   ```bash
+   npm run seed
+   ```
 
 6. Start both apps:
 
@@ -133,11 +132,11 @@ Password123!
 
 Accounts:
 
-- Admin: `admin@atlaserp.local`
-- Accountant: `accountant@atlaserp.local`
-- Sales: `sales@atlaserp.local`
-- Warehouse: `warehouse@atlaserp.local`
-- Driver: `driver@atlaserp.local`
+- Admin: `admin@manishsteel.com.np`
+- Accountant: `accountant@manishsteel.com.np`
+- Sales: `sales@manishsteel.com.np`
+- Warehouse: `warehouse@manishsteel.com.np`
+- Driver: `driver@manishsteel.com.np`
 
 ## API Notes
 
