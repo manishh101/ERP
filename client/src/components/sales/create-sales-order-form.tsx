@@ -7,6 +7,7 @@ import { useCreateSalesOrderMutation, useCustomersQuery, useProductsQuery } from
 import { getErrorMessage } from "@/lib/api";
 import { NepaliDatePickerInput } from "@/components/ui/nepali-date-picker-input";
 import { formatCurrency, toNumber } from "@/lib/utils";
+import { CreateCustomerForm } from "@/components/sales/create-customer-form";
 
 type CreateSalesOrderFormProps = {
   onClose: () => void;
@@ -18,6 +19,7 @@ export function CreateSalesOrderForm({ onClose }: CreateSalesOrderFormProps) {
   const customers = useCustomersQuery();
   const products = useProductsQuery();
   
+  const [createCustomerOpen, setCreateCustomerOpen] = useState(false);
   const [formData, setFormData] = useState({
     customerId: "",
     status: "QUOTE",
@@ -26,8 +28,6 @@ export function CreateSalesOrderForm({ onClose }: CreateSalesOrderFormProps) {
     notes: "",
     isCustomOrder: false,
     expectedReadyDate: "",
-    assemblyNotes: "",
-    deliveryFloor: "",
   });
   
   const [lineItems, setLineItems] = useState([{ 
@@ -62,8 +62,6 @@ export function CreateSalesOrderForm({ onClose }: CreateSalesOrderFormProps) {
         notes: formData.notes || undefined,
         isCustomOrder: formData.isCustomOrder,
         expectedReadyDate: formData.expectedReadyDate ? new Date(formData.expectedReadyDate).toISOString() : undefined,
-        assemblyNotes: formData.assemblyNotes || undefined,
-        deliveryFloor: formData.deliveryFloor ? Number(formData.deliveryFloor) : undefined,
         lineItems: validLineItems.map(item => ({
           productVariantId: item.productVariantId,
           quantity: Number(item.quantity),
@@ -85,6 +83,13 @@ export function CreateSalesOrderForm({ onClose }: CreateSalesOrderFormProps) {
 
   return (
     <Card className="mb-6 border-primary/20 bg-primary/5">
+      {createCustomerOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-stone-950/40 p-6 backdrop-blur-sm">
+          <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto relative rounded-[2rem]">
+            <CreateCustomerForm onClose={() => setCreateCustomerOpen(false)} />
+          </div>
+        </div>
+      )}
       <CardHeader>
         <div>
           <CardTitle>Create Sales Order</CardTitle>
@@ -94,7 +99,19 @@ export function CreateSalesOrderForm({ onClose }: CreateSalesOrderFormProps) {
       <CardContent className="space-y-6">
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           <div className="space-y-2">
-            <label className="text-sm font-medium">Customer *</label>
+            <div className="flex justify-between items-center">
+              <label className="text-sm font-medium">Customer *</label>
+              <Button 
+                variant="link" 
+                className="h-auto p-0 text-xs text-primary" 
+                onClick={(e) => {
+                  e.preventDefault();
+                  setCreateCustomerOpen(true);
+                }}
+              >
+                + New Customer
+              </Button>
+            </div>
             <select 
               className="flex h-11 w-full rounded-2xl border border-border bg-white/90 px-4 text-sm"
               value={formData.customerId}
@@ -143,35 +160,22 @@ export function CreateSalesOrderForm({ onClose }: CreateSalesOrderFormProps) {
             <label htmlFor="isCustomOrder" className="text-sm">Is Custom Order</label>
           </div>
           {formData.isCustomOrder && (
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Expected Ready Date</label>
-              <NepaliDatePickerInput 
-                value={formData.expectedReadyDate} 
-                onChange={(date) => setFormData({ ...formData, expectedReadyDate: date.toISOString().split("T")[0] })} 
+            <>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Expected Ready Date</label>
+                <NepaliDatePickerInput 
+                  value={formData.expectedReadyDate} 
+                  onChange={(date) => setFormData({ ...formData, expectedReadyDate: date.toISOString().split("T")[0] })} 
+                />
+              </div>
+              <Input 
+                className="md:col-span-1 lg:col-span-1"
+                placeholder="Internal or Customer Notes" 
+                value={formData.notes} 
+                onChange={(e) => setFormData({ ...formData, notes: e.target.value })} 
               />
-            </div>
+            </>
           )}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Delivery Floor</label>
-            <Input 
-              type="number"
-              value={formData.deliveryFloor} 
-              onChange={(e) => setFormData({ ...formData, deliveryFloor: e.target.value })} 
-              placeholder="0 for Ground"
-            />
-          </div>
-          <Input 
-            className="md:col-span-1 lg:col-span-1"
-            placeholder="Assembly Notes" 
-            value={formData.assemblyNotes} 
-            onChange={(e) => setFormData({ ...formData, assemblyNotes: e.target.value })} 
-          />
-          <Input 
-            className="md:col-span-2 lg:col-span-2"
-            placeholder="Internal or Customer Notes" 
-            value={formData.notes} 
-            onChange={(e) => setFormData({ ...formData, notes: e.target.value })} 
-          />
         </div>
 
         <div className="space-y-3">
