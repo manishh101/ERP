@@ -8,6 +8,7 @@ import { getErrorMessage } from "@/lib/api";
 import { NepaliDatePickerInput } from "@/components/ui/nepali-date-picker-input";
 import { formatCurrency, toNumber } from "@/lib/utils";
 import { CreateCustomerForm } from "@/components/sales/create-customer-form";
+import { CreateProductForm } from "@/components/inventory/create-product-form";
 
 type CreateSalesOrderFormProps = {
   onClose: () => void;
@@ -20,6 +21,7 @@ export function CreateSalesOrderForm({ onClose }: CreateSalesOrderFormProps) {
   const products = useProductsQuery();
   
   const [createCustomerOpen, setCreateCustomerOpen] = useState(false);
+  const [createProductOpen, setCreateProductOpen] = useState(false);
   const [formData, setFormData] = useState({
     customerId: "",
     status: "QUOTE",
@@ -87,6 +89,13 @@ export function CreateSalesOrderForm({ onClose }: CreateSalesOrderFormProps) {
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-stone-950/40 p-6 backdrop-blur-sm">
           <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto relative rounded-[2rem]">
             <CreateCustomerForm onClose={() => setCreateCustomerOpen(false)} />
+          </div>
+        </div>
+      )}
+      {createProductOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-stone-950/40 p-6 backdrop-blur-sm">
+          <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto relative rounded-[2rem]">
+            <CreateProductForm onClose={() => setCreateProductOpen(false)} />
           </div>
         </div>
       )}
@@ -181,21 +190,30 @@ export function CreateSalesOrderForm({ onClose }: CreateSalesOrderFormProps) {
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h4 className="font-semibold">Line Items</h4>
-            <Button 
-              variant="outline" 
-              onClick={() => setLineItems([...lineItems, { 
-                productVariantId: "", 
-                quantity: "", 
-                unitPrice: "", 
-                discountPct: "",
-                isCustom: false,
-                fabricColor: "",
-                woodFinish: "",
-                customizationNotes: ""
-              }])}
-            >
-              Add Item
-            </Button>
+            <div className="flex gap-2">
+              <Button 
+                variant="link" 
+                className="h-9 px-2 text-primary"
+                onClick={() => setCreateProductOpen(true)}
+              >
+                + New Product
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={() => setLineItems([...lineItems, { 
+                  productVariantId: "", 
+                  quantity: "", 
+                  unitPrice: "", 
+                  discountPct: "",
+                  isCustom: false,
+                  fabricColor: "",
+                  woodFinish: "",
+                  customizationNotes: ""
+                }])}
+              >
+                Add Item
+              </Button>
+            </div>
           </div>
           {lineItems.map((item, index) => {
             const rowTotal = toNumber(item.quantity) * toNumber(item.unitPrice) * (1 - (toNumber(item.discountPct) / 100));
