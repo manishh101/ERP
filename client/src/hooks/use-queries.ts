@@ -1381,8 +1381,8 @@ export type PaymentCreatePayload = {
   paymentDate?: string;
   reference?: string;
   note?: string;
-  bsDate: string;
-  fiscalYear: string;
+  bsDate?: string;
+  fiscalYear?: string;
 };
 
 export function useRecordPaymentMutation() {

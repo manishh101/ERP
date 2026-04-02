@@ -24,12 +24,10 @@ export function RecordPaymentForm({ onClose }: RecordPaymentFormProps) {
   const [formData, setFormData] = useState({
     salesOrderId: "",
     amount: "",
-    method: "BANK_TRANSFER",
+    method: "BANK",
     paymentDate: new Date().toISOString().split("T")[0],
-    reference: "",
+    reference: `PAY-${Date.now().toString().slice(-6)}`,
     note: "",
-    bsDate: "",
-    fiscalYear: "",
   });
   const [downloadLink, setDownloadLink] = useState<string | null>(null);
 
@@ -47,8 +45,6 @@ export function RecordPaymentForm({ onClose }: RecordPaymentFormProps) {
         paymentDate: formData.paymentDate ? new Date(formData.paymentDate).toISOString() : undefined,
         reference: formData.reference || undefined,
         note: formData.note || undefined,
-        bsDate: formData.bsDate,
-        fiscalYear: formData.fiscalYear,
       });
       
       push("Payment recorded", `The payment has been successfully recorded.`);
@@ -107,7 +103,13 @@ export function RecordPaymentForm({ onClose }: RecordPaymentFormProps) {
                   value={formData.salesOrderId}
                   onChange={(e) => {
                     const salesOrderId = e.target.value;
-                    setFormData({ ...formData, salesOrderId });
+                    const reference = `PAY-${salesOrderId.slice(0, 8).toUpperCase()}`;
+                    setFormData({ 
+                      ...formData, 
+                      salesOrderId,
+                      note: `Payment`,
+                      reference: salesOrderId ? reference : `PAY-${Date.now().toString().slice(-6)}`
+                    });
                   }}
                 >
                   <option value="">Select an order</option>
@@ -123,10 +125,10 @@ export function RecordPaymentForm({ onClose }: RecordPaymentFormProps) {
                   value={formData.method}
                   onChange={(e) => setFormData({ ...formData, method: e.target.value })}
                 >
-                  <option value="BANK_TRANSFER">Bank Transfer</option>
-                  <option value="CREDIT_CARD">Credit Card</option>
+                  <option value="BANK">Bank Transfer</option>
+                  <option value="CARD">Credit Card</option>
                   <option value="CASH">Cash</option>
-                  <option value="CHECK">Check</option>
+                  <option value="INSTALLMENT">Installment</option>
                 </select>
               </div>
               <div className="space-y-2">
@@ -145,22 +147,7 @@ export function RecordPaymentForm({ onClose }: RecordPaymentFormProps) {
                   onChange={(e) => setFormData({ ...formData, amount: e.target.value })} 
                 />
               </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">B.S. Date (e.g. 2080-12-01) *</label>
-                <Input 
-                  placeholder="YYYY-MM-DD" 
-                  value={formData.bsDate} 
-                  onChange={(e) => setFormData({ ...formData, bsDate: e.target.value })} 
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Fiscal Year (e.g. 2080/81) *</label>
-                <Input 
-                  placeholder="YYYY/YY" 
-                  value={formData.fiscalYear} 
-                  onChange={(e) => setFormData({ ...formData, fiscalYear: e.target.value })} 
-                />
-              </div>
+
               <div className="space-y-2 lg:col-span-1">
                 <label className="text-sm font-medium">Reference Code</label>
                 <Input 
@@ -169,12 +156,14 @@ export function RecordPaymentForm({ onClose }: RecordPaymentFormProps) {
                   onChange={(e) => setFormData({ ...formData, reference: e.target.value })} 
                 />
               </div>
-              <Input 
-                className="md:col-span-2 lg:col-span-3 mt-4"
-                placeholder="Additional Notes" 
-                value={formData.note} 
-                onChange={(e) => setFormData({ ...formData, note: e.target.value })} 
-              />
+              <div className="space-y-2 lg:col-span-1">
+                <label className="text-sm font-medium">Particulars</label>
+                <Input 
+                  placeholder="e.g. Payment for Order" 
+                  value={formData.note} 
+                  onChange={(e) => setFormData({ ...formData, note: e.target.value })} 
+                />
+              </div>
             </div>
 
             <div className="flex gap-3 justify-end mt-4">

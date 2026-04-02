@@ -71,8 +71,8 @@ export function CustomerLedgerModal({ customerId, customerName, onClose }: Custo
                   },
                   { 
                     key: "type", 
-                    header: "Type",
-                    render: (row) => formatEnumLabel(row.type)
+                    header: "Particulars",
+                    render: (row: any) => row.narration || formatEnumLabel(row.type)
                   },
                   { key: "reference", header: "Payment Reference" },
                   { 

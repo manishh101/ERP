@@ -38,7 +38,7 @@ export async function postDebit(
       fiscalYear: input.fiscalYear,
       bsDate: input.bsDate,
       entryDate: new Date(),
-      narration: input.narration ?? `Order ${input.salesOrderId} debit`,
+      narration: input.narration ?? `Sales`,
     },
   });
 }
@@ -76,7 +76,7 @@ export async function postCredit(
       fiscalYear: input.fiscalYear,
       bsDate: input.bsDate,
       entryDate: new Date(),
-      narration: input.narration ?? `Payment ${input.paymentId} credit`,
+      narration: input.narration ?? `Payment`,
     },
   });
 }
@@ -140,17 +140,47 @@ export async function getCustomerLedger(
   let currentBalance = openingBalance;
   
   const mappedEntries = entries.map((entry) => {
-    const debit = entry.entryType === "DEBIT" ? Number(entry.amount) : 0;
-    const credit = entry.entryType === "CREDIT" ? Number(entry.amount) : 0;
+    const isDebit = entry.entryType === "DEBIT";
+    const isCredit = entry.entryType === "CREDIT";
+    const debit = isDebit ? Number(entry.amount) : 0;
+    const credit = isCredit ? Number(entry.amount) : 0;
     currentBalance += debit - credit;
+
+    let referenceId = "";
+    if (isCredit) {
+      let methodStr = "";
+      if (entry.payment?.method === "BANK") methodStr = "Bank Transfer";
+      else if (entry.payment?.method === "CARD") methodStr = "Credit Card";
+      else if (entry.payment?.method === "CASH") methodStr = "Cash";
+      else if (entry.payment?.method === "INSTALLMENT") methodStr = "Installment";
+      else methodStr = entry.payment?.method || "";
+      
+      const ref = entry.payment?.reference;
+      if (ref && !ref.startsWith("PAY-")) {
+        referenceId = methodStr ? `${methodStr} (${ref})` : ref;
+      } else {
+        referenceId = methodStr || `PAY-${entry.id.slice(0, 5).toUpperCase()}`;
+      }
+    } else {
+      referenceId = "-";
+    }
+
+    let narration = entry.narration ?? (isDebit ? "Sales" : "Payment");
+    if (isDebit) {
+      narration = "Sales";
+    } else if (isCredit) {
+      if (narration.includes("Payment received via") || narration.includes("Payment ")) {
+        narration = "Payment";
+      }
+    }
 
     return {
       id: entry.id,
       entryDate: entry.entryDate,
       bsDate: entry.bsDate,
       entryType: entry.entryType,
-      referenceId: entry.salesOrder?.id ?? entry.payment?.reference ?? entry.id,
-      narration: entry.narration ?? "",
+      referenceId,
+      narration,
       debit,
       credit,
       runningBalance: currentBalance,

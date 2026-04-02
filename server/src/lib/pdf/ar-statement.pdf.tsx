@@ -85,6 +85,7 @@ interface LedgerItem {
   entryDate: Date;
   entryType: string;
   referenceId: string;
+  narration?: string;
   debit: number;
   credit: number;
   runningBalance: number;
@@ -132,7 +133,7 @@ const LedgerDocument = ({ customer, ledger, company, period }: LedgerPdfProps) =
       <View style={styles.table}>
         <View style={[styles.tableRow, styles.tableHeader]}>
           <Text style={styles.col1}>Date</Text>
-          <Text style={styles.col2}>Type</Text>
+          <Text style={styles.col2}>Particulars</Text>
           <Text style={styles.col3}>Payment Reference</Text>
           <Text style={styles.col4}>Debit (Sales)</Text>
           <Text style={styles.col5}>Credit (Payment)</Text>
@@ -142,7 +143,7 @@ const LedgerDocument = ({ customer, ledger, company, period }: LedgerPdfProps) =
         {ledger.map((item, index) => (
           <View key={index} style={styles.tableRow}>
             <Text style={styles.col1}>{formatDate(item.entryDate)}</Text>
-            <Text style={styles.col2}>{item.entryType.replace(/_/g, " ")}</Text>
+            <Text style={styles.col2}>{item.narration || item.entryType.replace(/_/g, " ")}</Text>
             <Text style={styles.col3}>{item.referenceId}</Text>
             <Text style={styles.col4}>{item.debit.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</Text>
             <Text style={styles.col5}>{item.credit.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</Text>
