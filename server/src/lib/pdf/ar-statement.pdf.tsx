@@ -102,70 +102,81 @@ interface LedgerPdfProps {
   };
 }
 
-const LedgerDocument = ({ customer, ledger, company, period }: LedgerPdfProps) => (
-  <Document>
-    <Page size="A4" style={styles.page}>
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.title}>Customer Statement</Text>
-          <Text>{company.name}</Text>
-          <Text>{company.address}</Text>
-          {company.panNo && <Text>PAN: {company.panNo}</Text>}
-          {company.vatNo && <Text>VAT: {company.vatNo}</Text>}
-        </View>
-        <View style={{ textAlign: "right" }}>
-          <Text>Date: {formatDate(new Date())}</Text>
-          {period.start && period.end && (
-            <Text>Period: {formatDate(period.start)} to {formatDate(period.end)}</Text>
-          )}
-          <Text style={{ marginTop: 4, fontSize: 8 }}>All amounts in NPR</Text>
-        </View>
-      </View>
+const LedgerDocument = ({ customer, ledger, company, period }: LedgerPdfProps) => {
+  const totalDebit = ledger.reduce((sum, item) => sum + item.debit, 0);
+  const totalCredit = ledger.reduce((sum, item) => sum + item.credit, 0);
+  const closingBalance = ledger.length > 0 ? ledger[ledger.length - 1].runningBalance : 0;
 
-      <View style={styles.customerInfo}>
-        <Text style={styles.sectionTitle}>Bill To:</Text>
-        <Text style={{ fontWeight: "bold" }}>{customer.name}</Text>
-        <Text>{customer.address}</Text>
-        <Text>Email: {customer.email || "N/A"}</Text>
-        <Text>Phone: {customer.phone || "N/A"}</Text>
-      </View>
-
-      <View style={styles.table}>
-        <View style={[styles.tableRow, styles.tableHeader]}>
-          <Text style={styles.col1}>Date</Text>
-          <Text style={styles.col2}>Particulars</Text>
-          <Text style={styles.col3}>Payment Reference</Text>
-          <Text style={styles.col4}>Debit (Sales)</Text>
-          <Text style={styles.col5}>Credit (Payment)</Text>
-          <Text style={styles.col6}>Balance (NPR)</Text>
-        </View>
-
-        {ledger.map((item, index) => (
-          <View key={index} style={styles.tableRow}>
-            <Text style={styles.col1}>{formatDate(item.entryDate)}</Text>
-            <Text style={styles.col2}>{item.narration || item.entryType.replace(/_/g, " ")}</Text>
-            <Text style={styles.col3}>{item.referenceId}</Text>
-            <Text style={styles.col4}>{item.debit.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</Text>
-            <Text style={styles.col5}>{item.credit.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</Text>
-            <Text style={styles.col6}>{item.runningBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</Text>
+  return (
+    <Document>
+      <Page size="A4" style={styles.page}>
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.title}>Customer Statement</Text>
+            <Text>{company.name}</Text>
+            <Text>{company.address}</Text>
+            {company.panNo && <Text>PAN: {company.panNo}</Text>}
+            {company.vatNo && <Text>VAT: {company.vatNo}</Text>}
           </View>
-        ))}
+          <View style={{ textAlign: "right" }}>
+            <Text>Date: {formatDate(new Date())}</Text>
+            {period.start && period.end && (
+              <Text>Period: {formatDate(period.start)} to {formatDate(period.end)}</Text>
+            )}
+            <Text style={{ marginTop: 4, fontSize: 8 }}>All amounts in NPR</Text>
+          </View>
+        </View>
 
-      </View>
+        <View style={styles.customerInfo}>
+          <Text style={styles.sectionTitle}>Bill To:</Text>
+          <Text style={{ fontWeight: "bold" }}>{customer.name}</Text>
+          <Text>{customer.address}</Text>
+          <Text>Email: {customer.email || "N/A"}</Text>
+          <Text>Phone: {customer.phone || "N/A"}</Text>
+        </View>
 
-      <View style={{ marginTop: 20, textAlign: "right", borderTopWidth: 2, borderTopColor: "#333", paddingTop: 10 }}>
-        <Text style={{ fontSize: 14, fontWeight: "bold" }}>
-          Closing Balance: NPR {ledger.length > 0 ? ledger[ledger.length - 1].runningBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : "0.00"}
+        <View style={styles.table}>
+          <View style={[styles.tableRow, styles.tableHeader]}>
+            <Text style={styles.col1}>Date</Text>
+            <Text style={styles.col2}>Particulars</Text>
+            <Text style={styles.col3}>Payment Reference</Text>
+            <Text style={styles.col4}>Debit (Sales)</Text>
+            <Text style={styles.col5}>Credit (Payment)</Text>
+            <Text style={styles.col6}>Balance (NPR)</Text>
+          </View>
+
+          {ledger.map((item, index) => (
+            <View key={index} style={styles.tableRow}>
+              <Text style={styles.col1}>{formatDate(item.entryDate)}</Text>
+              <Text style={styles.col2}>{item.narration || item.entryType.replace(/_/g, " ")}</Text>
+              <Text style={styles.col3}>{item.referenceId}</Text>
+              <Text style={styles.col4}>{item.debit.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</Text>
+              <Text style={styles.col5}>{item.credit.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</Text>
+              <Text style={styles.col6}>{item.runningBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</Text>
+            </View>
+          ))}
+
+          <View style={[styles.tableRow, { borderTopWidth: 1.5, borderTopColor: "#333", backgroundColor: "#f9f9f9", fontWeight: "bold" }]}>
+            <Text style={{ width: "55%", textAlign: "right", paddingRight: 10 }}>Total:</Text>
+            <Text style={styles.col4}>{totalDebit.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</Text>
+            <Text style={styles.col5}>{totalCredit.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</Text>
+            <Text style={styles.col6}>{closingBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</Text>
+          </View>
+        </View>
+
+        <View style={{ marginTop: 20, textAlign: "right" }}>
+          <Text style={{ fontSize: 14, fontWeight: "bold" }}>
+            Closing Balance: NPR {closingBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+          </Text>
+        </View>
+
+        <Text style={styles.footer}>
+          This is a computer generated statement. For any queries, please contact {company.name}.
         </Text>
-
-      </View>
-
-      <Text style={styles.footer}>
-        This is a computer generated statement. For any queries, please contact {company.name}.
-      </Text>
-    </Page>
-  </Document>
-);
+      </Page>
+    </Document>
+  );
+};
 
 export async function renderLedgerPdf(props: LedgerPdfProps) {
   return await renderToStream(<LedgerDocument {...props} />);
