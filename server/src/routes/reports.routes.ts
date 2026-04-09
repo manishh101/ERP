@@ -83,7 +83,7 @@ reportsRouter.get(
       startDate?: Date;
       endDate?: Date;
       groupBy?: string;
-      customerType?: "RETAIL" | "TRADE" | "CONTRACTOR";
+      customerType?: "RETAIL" | "SHOWROOM";
       salespersonId?: string;
       category?: string;
     };

@@ -166,7 +166,7 @@ export function CreateSalesOrderForm({ onClose }: CreateSalesOrderFormProps) {
               checked={formData.isCustomOrder} 
               onChange={(e) => setFormData({ ...formData, isCustomOrder: e.target.checked })} 
             />
-            <label htmlFor="isCustomOrder" className="text-sm">Is Custom Order</label>
+            <label htmlFor="isCustomOrder" className="text-sm">Custom Project <span className="text-xs text-muted-foreground">(bespoke order)</span></label>
           </div>
           {formData.isCustomOrder && (
             <>
@@ -314,7 +314,7 @@ export function CreateSalesOrderForm({ onClose }: CreateSalesOrderFormProps) {
                           setLineItems(newItems);
                         }}
                       />
-                      <label className="text-xs font-medium">Customizable</label>
+                      <label className="text-xs font-medium">Custom Specs <span className="text-muted-foreground">(fabric/finish)</span></label>
                     </div>
                     {item.isCustom && (
                       <>

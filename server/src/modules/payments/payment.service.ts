@@ -129,6 +129,6 @@ export async function recordPayment(input: {
     // 7. Post GL - Placeholder for Journal Entry
     // Dr Cash/Bank (1000) / Cr Accounts Receivable (1100)
     
-    return { ...firstPaymentRecord, salesOrder: { id: firstOrder.id } };
+    return { ...firstPaymentRecord!, salesOrder: { id: firstOrder.id } };
   });
 }

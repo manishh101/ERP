@@ -167,6 +167,10 @@ export const salesOrderLineItemSchema = z.object({
   quantity: z.coerce.number().int().min(1),
   unitPrice: decimalNumber,
   discountPct: z.coerce.number().min(0).max(100).default(0),
+  isCustom: z.boolean().default(false),
+  fabricColor: z.string().optional(),
+  woodFinish: z.string().optional(),
+  customizationNotes: z.string().optional(),
 });
 
 export const salesOrderSchema = z.object({
@@ -177,6 +181,8 @@ export const salesOrderSchema = z.object({
   depositAmount: decimalNumber.default(0),
   deliveryDate: optionalDate,
   notes: z.string().optional(),
+  isCustomOrder: z.boolean().default(false),
+  expectedReadyDate: optionalDate,
   lineItems: z.array(salesOrderLineItemSchema).min(1),
 });
 

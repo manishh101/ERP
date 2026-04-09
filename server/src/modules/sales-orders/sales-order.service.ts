@@ -2,7 +2,6 @@ import { prisma } from "../../config/prisma";
 import { Prisma, SalesOrderStatus } from "@prisma/client";
 import { ApiError } from "../../utils/api-error";
 import { postDebit } from "../ar-ledger/ar-ledger.service";
-import { recordPayment } from "../payments/payment.service";
 
 /**
  * Sales Order Service
@@ -15,7 +14,11 @@ export async function createOrder(input: {
     productVariantId: string; 
     quantity: number; 
     unitPrice: number; 
-    discountPct?: number 
+    discountPct?: number;
+    isCustom?: boolean;
+    fabricColor?: string;
+    woodFinish?: string;
+    customizationNotes?: string;
   }>;
   depositAmount?: number;
   paymentMethod?: any; // Required if depositAmount > 0
@@ -69,6 +72,10 @@ export async function createOrder(input: {
             quantity: item.quantity,
             unitPrice: item.unitPrice,
             discountPct: item.discountPct ?? 0,
+            isCustom: item.isCustom ?? false,
+            fabricColor: item.fabricColor,
+            woodFinish: item.woodFinish,
+            customizationNotes: item.customizationNotes,
           }))
         }
       }
@@ -97,16 +104,62 @@ export async function createOrder(input: {
       });
     }
 
-    // 5. If depositAmount > 0, record the payment
+    // 5. If depositAmount > 0, record the payment inline (cannot call recordPayment here
+    //    because that opens its own prisma.$transaction, which can't see the uncommitted order)
     if (deposit > 0) {
-      await recordPayment({
-        salesOrderId: order.id,
-        amount: deposit,
-        method: input.paymentMethod || "CASH",
-        bsDate: input.bsDate,
-        fiscalYear: input.fiscalYear,
-        note: "Initial deposit",
+      const payment = await tx.payment.create({
+        data: {
+          salesOrderId: order.id,
+          amount: deposit,
+          method: input.paymentMethod || "CASH",
+          note: "Initial deposit",
+          bsDate: input.bsDate,
+          paymentDate: new Date(),
+        },
       });
+
+      const newPaidAmount = deposit;
+      const newBalanceDue = Math.max(orderAmount - deposit, 0);
+      const newStatus = newBalanceDue <= 0 ? "PAID" : "DEPOSIT_PAID";
+
+      await tx.salesOrder.update({
+        where: { id: order.id },
+        data: { paidAmount: newPaidAmount, balanceDue: newBalanceDue, status: newStatus },
+      });
+
+      // Post the AR credit for the deposit
+      const lastArEntry = await tx.arLedger.findFirst({
+        where: { customerId: input.customerId },
+        orderBy: [{ entryDate: "desc" }, { id: "desc" }],
+      });
+      const lastBalance = lastArEntry ? Number(lastArEntry.runningBalance) : 0;
+
+      await tx.arLedger.create({
+        data: {
+          customerId: input.customerId,
+          salesOrderId: order.id,
+          paymentId: payment.id,
+          entryType: "CREDIT",
+          amount: deposit,
+          runningBalance: lastBalance - deposit,
+          fiscalYear: input.fiscalYear,
+          bsDate: input.bsDate,
+          entryDate: new Date(),
+          narration: "Initial deposit",
+        },
+      });
+
+      // Sync customer outstanding balance
+      const latestEntry = await tx.arLedger.findFirst({
+        where: { customerId: input.customerId },
+        orderBy: [{ entryDate: "desc" }, { id: "desc" }],
+      });
+      if (latestEntry) {
+        await tx.customer.update({
+          where: { id: input.customerId },
+          data: { outstandingBalance: latestEntry.runningBalance },
+        });
+      }
     }
 
     // 6. Post GL journal (Placeholder)

@@ -107,7 +107,8 @@ salesOrdersRouter.post(
       fiscalYear: getCurrentFiscalYear(),
       assignedWarehouseId: body.assignedWarehouseId,
       salespersonId: body.salespersonId ?? request.user?.id,
-      isCustomOrder: (body as any).isCustomOrder,
+      isCustomOrder: body.isCustomOrder,
+      expectedReadyDate: body.expectedReadyDate,
     });
 
     response.status(201).json(order);

@@ -1,48 +1,163 @@
-import { useParams, Link } from "react-router-dom";
-import { 
-  useSalesOrdersQuery, 
-  useConfirmSalesOrderMutation, 
+import { useParams, Link, useNavigate } from "react-router-dom";
+import {
+  useSalesOrderQuery,
   useCancelSalesOrderMutation,
-  useRecordSalesOrderDepositMutation,
-  useUpdateSalesOrderStatusMutation
+  useCreateInvoiceMutation,
+  useCreateDeliveryMutation,
 } from "@/hooks/use-queries";
+import { useToast } from "@/components/layout/toast-provider";
+import { useAuth } from "@/components/auth/auth-provider";
+import { API_BASE_URL, getErrorMessage } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { 
-  ArrowLeft, 
-  CheckCircle, 
-  XCircle, 
-  DollarSign, 
-  Truck, 
-  Printer, 
-  FileText 
+import { Skeleton } from "@/components/ui/skeleton";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  ArrowLeft,
+  XCircle,
+  Truck,
+  FileText,
+  Printer,
+  Receipt,
+  Download,
 } from "lucide-react";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency, formatDate, toNumber } from "@/lib/utils";
 import { useState } from "react";
-import { Input } from "@/components/ui/input";
 import { RecordDepositModal } from "@/components/sales/record-deposit-modal";
 
 export function SalesOrderDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const { data: orders, isLoading } = useSalesOrdersQuery();
-  const order = orders?.items.find((o) => o.id === id);
+  const navigate = useNavigate();
+  const { data: order, isLoading } = useSalesOrderQuery(id);
+  const { token } = useAuth();
+  const { push } = useToast();
 
-  const confirmMutation = useConfirmSalesOrderMutation();
   const cancelMutation = useCancelSalesOrderMutation();
-  const depositMutation = useRecordSalesOrderDepositMutation();
-  const statusMutation = useUpdateSalesOrderStatusMutation();
+  const createInvoiceMutation = useCreateInvoiceMutation();
+  const createDeliveryMutation = useCreateDeliveryMutation();
 
   const [depositModalOpen, setDepositModalOpen] = useState(false);
 
-  if (isLoading) return <div className="p-8">Loading order details...</div>;
+  if (isLoading) {
+    return (
+      <div className="p-6 space-y-6">
+        <Skeleton className="h-10 w-64" />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Skeleton className="h-[400px] md:col-span-2" />
+          <Skeleton className="h-[400px]" />
+        </div>
+      </div>
+    );
+  }
+
   if (!order) return <div className="p-8 text-destructive">Order not found.</div>;
 
-  const handleConfirm = () => confirmMutation.mutate(order.id);
-  const handleCancel = () => cancelMutation.mutate(order.id);
+  // Derived data
+  const customer = order.customer;
+  const lineItems = order.lineItems ?? [];
+  const payments = order.payments ?? [];
+  const taxInvoice = order.taxInvoice;
+  const delivery = order.delivery;
+  
+  const computedTotal = lineItems.reduce((sum: number, li: any) => {
+    const q = toNumber(li.quantity);
+    const p = toNumber(li.unitPrice);
+    const d = toNumber(li.discountPct);
+    return sum + q * p * (1 - d / 100);
+  }, 0);
+  
+  const computedPaid = payments.reduce((sum: number, p: any) => sum + toNumber(p.amount), 0);
+  const computedBalance = Math.max(0, computedTotal - computedPaid);
+
+  const total = computedTotal;
+  const paid = computedPaid;
+  const balance = computedBalance;
+
+  const statusTone = (status: string) => {
+    switch (status) {
+      case "CANCELLED": return "red" as const;
+      case "DELIVERED": return "green" as const;
+      case "DEPOSIT_PAID":
+      case "PAID":
+        return "green" as const;
+      case "CONFIRMED": return "amber" as const;
+      default: return "amber" as const;
+    }
+  };
+
+  const handleVoidOrder = () => {
+    if (!id) return;
+    cancelMutation.mutate(id, {
+      onSuccess: () => {
+        push("Order voided", "The order has been cancelled successfully.");
+        navigate("/sales");
+      },
+      onError: (error) => push("Failed to void", getErrorMessage(error)),
+    });
+  };
+
+  const handleCreateInvoice = (type: "TAX_INVOICE" | "ESTIMATE") => {
+    if (!id || lineItems.length === 0) return;
+    createInvoiceMutation.mutate(
+      {
+        soId: id,
+        status: "ISSUED",
+        invoiceType: type === "TAX_INVOICE" ? "VAT" : "NONE",
+        lineItems: lineItems.map((li: any) => ({
+          productVariantId: li.productVariantId,
+          quantity: li.quantity,
+          unitPrice: toNumber(li.unitPrice),
+          discountPct: toNumber(li.discountPct),
+        })),
+      },
+      {
+        onSuccess: () => {
+          const label = type === "ESTIMATE" ? "Estimate bill" : "Tax invoice";
+          push(`${label} created`, `${label} has been generated successfully.`);
+        },
+        onError: (error) => push("Invoice failed", getErrorMessage(error)),
+      }
+    );
+  };
+
+  const handleScheduleDelivery = () => {
+    if (!id || !customer) return;
+    createDeliveryMutation.mutate(
+      {
+        soId: id,
+        status: "SCHEDULED",
+        scheduledDate: new Date().toISOString(),
+        deliveryAddress: customer.address ?? "Customer address",
+      },
+      {
+        onSuccess: () => {
+          push("Delivery scheduled", "A delivery has been scheduled for this order.");
+        },
+        onError: (error) => push("Delivery failed", getErrorMessage(error)),
+      }
+    );
+  };
+
+  const handleDownloadPdf = async (invoiceId: string, type: "invoice" | "estimate") => {
+    try {
+      const baseUrl = API_BASE_URL.replace(/\/$/, "");
+      const response = await fetch(`${baseUrl}/auth/download-token`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) throw new Error("Failed to get download token");
+      const { token: downloadToken } = await response.json();
+      const url = `${baseUrl}/tax-invoices/${invoiceId}/pdf?token=${downloadToken}&type=${type}`;
+      window.open(url, "_blank");
+    } catch {
+      push("Download failed", "Could not generate the PDF download link.");
+    }
+  };
 
   return (
     <div className="p-6 space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" asChild>
@@ -52,135 +167,317 @@ export function SalesOrderDetailPage() {
           </Button>
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Order {order.id}</h1>
-            <p className="text-muted-foreground">{order.customer}</p>
+            <p className="text-muted-foreground">{customer?.name}</p>
           </div>
         </div>
-        <div className="flex gap-2">
-          {order.rawStatus === "DRAFT" && (
-            <>
-              <Button variant="outline" onClick={handleCancel} disabled={cancelMutation.isPending}>
-                <XCircle className="mr-2 h-4 w-4" /> Cancel
-              </Button>
-              <Button onClick={handleConfirm} disabled={confirmMutation.isPending}>
-                <CheckCircle className="mr-2 h-4 w-4" /> Confirm Order
-              </Button>
-            </>
-          )}
-          <Button variant="outline">
-            <Printer className="mr-2 h-4 w-4" /> Print
-          </Button>
-        </div>
+        <Button variant="outline" onClick={() => window.print()}>
+          <Printer className="mr-2 h-4 w-4" /> Print
+        </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="md:col-span-2">
-          <CardHeader>
-            <CardTitle>Order Information</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Status</p>
-                <Badge tone={order.rawStatus === "CANCELLED" ? "red" : "amber"}>
-                  {order.status}
-                </Badge>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Delivery Date</p>
-                <p>{order.deliveryDate}</p>
-              </div>
-            </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* ─── Left Column (2/3) ─── */}
+        <div className="lg:col-span-2 space-y-6">
 
-            {order.isCustomOrder && (
-              <div className="p-4 bg-primary/5 rounded-lg border border-primary/20">
-                <h3 className="font-semibold text-primary mb-2 flex items-center">
-                  <FileText className="mr-2 h-4 w-4" /> Custom Furniture Order
-                </h3>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <p className="font-medium text-muted-foreground">Expected Ready Date</p>
-                    <p>{order.expectedReadyDate ?? "Not set"}</p>
-                  </div>
-                  <div>
-                    <p className="font-medium text-muted-foreground">Floor</p>
-                    <p>{order.deliveryFloor ?? "Ground"}</p>
-                  </div>
+          {/* Order Info */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Order Information</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+                <div>
+                  <p className="text-muted-foreground">Status</p>
+                  <Badge tone={statusTone(order.status)}>{order.status.replace(/_/g, " ")}</Badge>
                 </div>
-                {order.assemblyNotes && (
-                  <div className="mt-2 text-sm">
-                    <p className="font-medium text-muted-foreground">Assembly Notes</p>
-                    <p>{order.assemblyNotes}</p>
-                  </div>
-                )}
+                <div>
+                  <p className="text-muted-foreground">Order Date</p>
+                  <p className="font-medium">{formatDate(order.orderDate)}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Delivery Date</p>
+                  <p className="font-medium">{order.deliveryDate ? formatDate(order.deliveryDate) : "—"}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Custom Order</p>
+                  <p className="font-medium">{order.isCustomOrder ? "Yes" : "No"}</p>
+                </div>
               </div>
-            )}
+              {order.notes && (
+                <div className="mt-4 text-sm">
+                  <p className="text-muted-foreground">Notes</p>
+                  <p>{order.notes}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
-            <div className="pt-4 border-t">
-              <h3 className="font-semibold mb-4 text-lg">Financial Summary</h3>
+          {/* Line Items */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Line Items</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {lineItems.length === 0 ? (
+                <p className="text-muted-foreground text-sm italic">No line items.</p>
+              ) : (
+                <div className="rounded-xl border overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Product</TableHead>
+                        <TableHead>SKU</TableHead>
+                        <TableHead className="text-right">Qty</TableHead>
+                        <TableHead className="text-right">Unit Price</TableHead>
+                        <TableHead className="text-right">Disc %</TableHead>
+                        <TableHead className="text-right">Total</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {lineItems.map((li: any) => {
+                        const qty = toNumber(li.quantity);
+                        const price = toNumber(li.unitPrice);
+                        const disc = toNumber(li.discountPct);
+                        const lineTotal = qty * price * (1 - disc / 100);
+                        const product = li.productVariant?.product;
+                        const variant = li.productVariant;
+
+                        return (
+                          <TableRow key={li.id}>
+                            <TableCell>
+                              <p className="font-medium">{product?.name ?? "Unknown"}</p>
+                              {variant?.variantName && variant.variantName !== "Default" && (
+                                <p className="text-xs text-muted-foreground">{variant.variantName}</p>
+                              )}
+                              {li.isCustom && (
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                  {li.fabricColor && <span className="text-xs bg-muted px-1.5 py-0.5 rounded">{li.fabricColor}</span>}
+                                  {li.woodFinish && <span className="text-xs bg-muted px-1.5 py-0.5 rounded">{li.woodFinish}</span>}
+                                </div>
+                              )}
+                            </TableCell>
+                            <TableCell className="font-mono text-xs">{variant?.sku ?? product?.sku ?? "—"}</TableCell>
+                            <TableCell className="text-right">{qty}</TableCell>
+                            <TableCell className="text-right">{formatCurrency(price)}</TableCell>
+                            <TableCell className="text-right">{disc > 0 ? `${disc}%` : "—"}</TableCell>
+                            <TableCell className="text-right font-semibold">{formatCurrency(lineTotal)}</TableCell>
+                          </TableRow>
+                        );
+                      })}
+                      <TableRow className="bg-muted/40 font-bold border-t-2">
+                        <TableCell colSpan={5} className="text-right">Order Total</TableCell>
+                        <TableCell className="text-right">{formatCurrency(total)}</TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Financial Summary */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Financial Summary</CardTitle>
+            </CardHeader>
+            <CardContent>
               <div className="grid grid-cols-3 gap-4">
-                <div className="p-3 bg-muted rounded-md text-center">
-                  <p className="text-xs text-muted-foreground uppercase">Total Amount</p>
-                  <p className="text-xl font-bold">{formatCurrency(order.total)}</p>
+                <div className="p-3 bg-muted rounded-lg text-center">
+                  <p className="text-xs text-muted-foreground uppercase">Total</p>
+                  <p className="text-xl font-bold">{formatCurrency(total)}</p>
                 </div>
-                <div className="p-3 bg-green-50 rounded-md text-center">
-                  <p className="text-xs text-green-600 uppercase">Paid Amount</p>
-                  <p className="text-xl font-bold text-green-700">{formatCurrency(order.paidAmount)}</p>
+                <div className="p-3 bg-green-50 rounded-lg text-center">
+                  <p className="text-xs text-green-600 uppercase">Paid</p>
+                  <p className="text-xl font-bold text-green-700">{formatCurrency(paid)}</p>
                 </div>
-                <div className="p-3 bg-red-50 rounded-md text-center">
+                <div className="p-3 bg-red-50 rounded-lg text-center">
                   <p className="text-xs text-red-600 uppercase">Balance Due</p>
-                  <p className="text-xl font-bold text-red-700">{formatCurrency(order.balanceDue)}</p>
+                  <p className="text-xl font-bold text-red-700">{formatCurrency(balance)}</p>
                 </div>
               </div>
 
-              {order.balanceDue > 0 && (
-                <div className="mt-6 flex items-center justify-between p-4 border rounded-lg bg-card shadow-sm">
-                  <div>
-                    <p className="text-sm font-medium">Capture Payment</p>
-                    <p className="text-xs text-muted-foreground italic">Record deposits or full payments against balance.</p>
-                  </div>
+              {balance > 0 && (
+                <div className="mt-4 flex justify-end">
                   <Button onClick={() => setDepositModalOpen(true)}>
-                    <DollarSign className="mr-2 h-4 w-4" /> Record Deposit
+                    Record Payment
                   </Button>
                 </div>
               )}
-            </div>
-          </CardContent>
-        </Card>
 
+              {/* Payment History */}
+              {payments.length > 0 && (
+                <div className="mt-6">
+                  <h4 className="text-sm font-semibold mb-2">Payment History</h4>
+                  <div className="rounded-xl border overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Method</TableHead>
+                          <TableHead>Reference</TableHead>
+                          <TableHead className="text-right">Amount</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {payments.map((p: any) => (
+                          <TableRow key={p.id}>
+                            <TableCell>{formatDate(p.paymentDate ?? p.createdAt)}</TableCell>
+                            <TableCell>{(p.method ?? "").replace(/_/g, " ")}</TableCell>
+                            <TableCell className="font-mono text-xs">{p.reference ?? "—"}</TableCell>
+                            <TableCell className="text-right font-semibold">{formatCurrency(toNumber(p.amount))}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* ─── Right Column (1/3) ─── */}
         <div className="space-y-6">
+
+          {/* Customer Details */}
           <Card>
             <CardHeader>
               <CardTitle>Customer</CardTitle>
             </CardHeader>
-            <CardContent>
-              <p className="font-semibold text-lg">{order.customer}</p>
-              <Button variant="link" className="px-0 h-auto" asChild>
-                <Link to={`/sales`}>View Customer History</Link>
-              </Button>
+            <CardContent className="space-y-2 text-sm">
+              <p className="font-semibold text-lg">{customer?.name}</p>
+              {customer?.type && (
+                <p className="text-muted-foreground">{customer.type.replace(/_/g, " ")}</p>
+              )}
+              {customer?.email && (
+                <div>
+                  <p className="text-muted-foreground">Email</p>
+                  <p>{customer.email}</p>
+                </div>
+              )}
+              {customer?.phone && (
+                <div>
+                  <p className="text-muted-foreground">Phone</p>
+                  <p>{customer.phone}</p>
+                </div>
+              )}
+              {customer?.address && (
+                <div>
+                  <p className="text-muted-foreground">Address</p>
+                  <p>{customer.address}</p>
+                </div>
+              )}
+              {customer?.panNo && (
+                <div>
+                  <p className="text-muted-foreground">PAN No.</p>
+                  <p className="font-mono">{customer.panNo}</p>
+                </div>
+              )}
+              {customer?.vatNo && (
+                <div>
+                  <p className="text-muted-foreground">VAT No.</p>
+                  <p className="font-mono">{customer.vatNo}</p>
+                </div>
+              )}
+              {customer?.creditLimit && (
+                <div>
+                  <p className="text-muted-foreground">Credit Limit</p>
+                  <p className="font-semibold">{formatCurrency(toNumber(customer.creditLimit))}</p>
+                </div>
+              )}
             </CardContent>
           </Card>
 
+          {/* Quick Actions */}
           <Card>
             <CardHeader>
               <CardTitle>Quick Actions</CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col gap-2">
-              <Button variant="outline" className="justify-start">
-                <Truck className="mr-2 h-4 w-4" /> Schedule Delivery
-              </Button>
-              <Button variant="outline" className="justify-start">
-                <FileText className="mr-2 h-4 w-4" /> Create Tax Invoice
-              </Button>
-              <Button variant="outline" className="justify-start text-destructive hover:bg-destructive/10 hover:text-destructive">
-                <XCircle className="mr-2 h-4 w-4" /> Void Order
-              </Button>
+              {!delivery && order.status !== "CANCELLED" && order.status !== "QUOTE" && (
+                <Button
+                  variant="outline"
+                  className="justify-start"
+                  onClick={handleScheduleDelivery}
+                  disabled={createDeliveryMutation.isPending}
+                >
+                  <Truck className="mr-2 h-4 w-4" />
+                  {createDeliveryMutation.isPending ? "Scheduling..." : "Schedule Delivery"}
+                </Button>
+              )}
+              {delivery && (
+                <div className="flex flex-col gap-1 rounded-md border p-3 bg-muted/20">
+                  <span className="text-xs font-semibold text-muted-foreground uppercase">Delivery</span>
+                  <div className="text-sm font-medium flex items-center gap-2">
+                    <Truck className="h-4 w-4 text-primary" /> {delivery.status?.replace(/_/g, " ")} — {formatDate(delivery.scheduledDate)}
+                  </div>
+                  {delivery.vehicle && <span className="text-xs text-muted-foreground ml-6">Vehicle: {delivery.vehicle}</span>}
+                </div>
+              )}
+
+              {!taxInvoice && order.status !== "CANCELLED" && order.status !== "QUOTE" && (
+                <>
+                  <Button
+                    variant="outline"
+                    className="justify-start"
+                    onClick={() => handleCreateInvoice("TAX_INVOICE")}
+                    disabled={createInvoiceMutation.isPending}
+                  >
+                    <FileText className="mr-2 h-4 w-4" />
+                    {createInvoiceMutation.isPending ? "Creating..." : "Create Tax Invoice"}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="justify-start"
+                    onClick={() => handleCreateInvoice("ESTIMATE")}
+                    disabled={createInvoiceMutation.isPending}
+                  >
+                    <Receipt className="mr-2 h-4 w-4" />
+                    {createInvoiceMutation.isPending ? "Creating..." : "Create Estimate Bill"}
+                  </Button>
+                </>
+              )}
+              {taxInvoice && (
+                <div className="flex flex-col gap-2 rounded-md border p-3 bg-muted/20">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-muted-foreground uppercase">Invoice</span>
+                    <Badge tone="slate">{taxInvoice.status}</Badge>
+                  </div>
+                  <Button
+                    variant="outline"
+                    className="justify-start w-full bg-background"
+                    onClick={() => handleDownloadPdf(taxInvoice.id, "invoice")}
+                  >
+                    <Download className="mr-2 h-4 w-4" /> Download Invoice
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="justify-start w-full bg-background"
+                    onClick={() => handleDownloadPdf(taxInvoice.id, "estimate")}
+                  >
+                    <Receipt className="mr-2 h-4 w-4" /> Download Estimate
+                  </Button>
+                </div>
+              )}
+
+              {order.status !== "CANCELLED" && (
+                <Button
+                  variant="outline"
+                  className="justify-start text-destructive hover:bg-destructive/10 hover:text-destructive mt-2"
+                  onClick={handleVoidOrder}
+                  disabled={cancelMutation.isPending}
+                >
+                  <XCircle className="mr-2 h-4 w-4" />
+                  {cancelMutation.isPending ? "Voiding..." : "Void Order"}
+                </Button>
+              )}
             </CardContent>
           </Card>
         </div>
       </div>
 
       {depositModalOpen && (
-        <RecordDepositModal 
+        <RecordDepositModal
           orderId={order.id}
           orderNumber={order.id}
           onClose={() => setDepositModalOpen(false)}

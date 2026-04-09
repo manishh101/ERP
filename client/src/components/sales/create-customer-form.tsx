@@ -77,8 +77,7 @@ export function CreateCustomerForm({ onClose }: CreateCustomerFormProps) {
               onChange={(e) => setFormData({ ...formData, type: e.target.value })}
             >
               <option value="RETAIL">RETAIL</option>
-              <option value="TRADE">TRADE</option>
-              <option value="CONTRACTOR">CONTRACTOR</option>
+              <option value="SHOWROOM">SHOWROOM</option>
             </select>
           </div>
           <Input 

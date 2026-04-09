@@ -52,8 +52,7 @@ enum GoodsReceiptStatus {
 
 enum CustomerType {
   RETAIL
-  TRADE
-  CONTRACTOR
+  SHOWROOM
 }
 
 enum SalesOrderStatus {
@@ -383,16 +382,20 @@ model SalesOrder {
 }
 
 model SalesOrderLineItem {
-  id               String         @id @default(cuid())
-  soId             String         @map("so_id")
-  productVariantId String         @map("product_variant_id")
-  quantity         Int
-  unitPrice        Decimal        @map("unit_price") @db.Decimal(14, 2)
-  discountPct      Decimal        @default(0) @map("discount_pct") @db.Decimal(5, 2)
-  createdAt        DateTime       @default(now()) @map("created_at")
-  updatedAt        DateTime       @updatedAt @map("updated_at")
-  salesOrder       SalesOrder     @relation(fields: [soId], references: [id], onDelete: Cascade)
-  productVariant   ProductVariant @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
+  id                 String         @id @default(cuid())
+  soId               String         @map("so_id")
+  productVariantId   String         @map("product_variant_id")
+  quantity           Int
+  unitPrice          Decimal        @map("unit_price") @db.Decimal(14, 2)
+  discountPct        Decimal        @default(0) @map("discount_pct") @db.Decimal(5, 2)
+  isCustom           Boolean        @default(false) @map("is_custom")
+  fabricColor        String?        @map("fabric_color")
+  woodFinish         String?        @map("wood_finish")
+  customizationNotes String?        @map("customization_notes")
+  createdAt          DateTime       @default(now()) @map("created_at")
+  updatedAt          DateTime       @updatedAt @map("updated_at")
+  salesOrder         SalesOrder     @relation(fields: [soId], references: [id], onDelete: Cascade)
+  productVariant     ProductVariant @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
 
   @@index([soId])
   @@map("so_line_items")

@@ -29,9 +29,9 @@ paymentsRouter.get(
     const where: any = {
       reference: query.search
         ? {
-            contains: query.search,
-            mode: "insensitive" as const,
-          }
+          contains: query.search,
+          mode: "insensitive" as const,
+        }
         : undefined,
     };
 
@@ -107,17 +107,17 @@ paymentsRouter.post(
 
     if (body.salesOrderId) {
       await postCustomerPaymentJournalEntry({
-        paymentId: payment.id,
+        paymentId: payment.id!,
         amount: body.amount,
-        createdById: request.user?.id,
+        createdById: request.user!.id,
       });
     }
 
     if (body.purchaseOrderId || body.supplierInvoiceId) {
       await postSupplierPaymentJournalEntry({
-        paymentId: payment.id,
+        paymentId: payment.id!,
         amount: body.amount,
-        createdById: request.user?.id,
+        createdById: request.user!.id,
       });
     }
 
@@ -129,7 +129,7 @@ paymentsRouter.get("/:id/receipt", asyncHandler(async (request, response) => {
   // Check if authenticated or has a valid download token
   let userId = request.user?.id;
   const token = request.query.token as string;
-  
+
   if (!userId && token) {
     try {
       const decoded = verifyToken(token);

@@ -318,11 +318,11 @@ async function main() {
 
   const customersInput: any[] = [
     { name: "Ram Kumar", email: "ram@example.com", phone: "+977-9810001101", type: "RETAIL", creditLimit: 0, address: "Tinkune, Biratnagar", panNo: "100123456", invoicePref: "PAN", district: "Morang", ward: "3" },
-    { name: "Birat Medical College", email: "procurement@biratmedical.local", phone: "+977-21-444111", type: "TRADE", creditLimit: 50000, address: "Tankisinuwari, Morang", vatNo: "300123456", invoicePref: "VAT", district: "Morang", ward: "2" },
-    { name: "Nobel Hospital", email: "ap@nobel.local", phone: "+977-21-555222", type: "TRADE", creditLimit: 100000, address: "Kanchanbari, Biratnagar", vatNo: "300234567", invoicePref: "VAT", district: "Morang", ward: "4" },
+    { name: "Birat Medical College", email: "procurement@biratmedical.local", phone: "+977-21-444111", type: "SHOWROOM", creditLimit: 50000, address: "Tankisinuwari, Morang", vatNo: "300123456", invoicePref: "VAT", district: "Morang", ward: "2" },
+    { name: "Nobel Hospital", email: "ap@nobel.local", phone: "+977-21-555222", type: "SHOWROOM", creditLimit: 100000, address: "Kanchanbari, Biratnagar", vatNo: "300234567", invoicePref: "VAT", district: "Morang", ward: "4" },
     { name: "Sita Poudel", email: "sita@example.com", phone: "+977-9842001102", type: "RETAIL", creditLimit: 0, address: "Puspalal Chowk, Biratnagar", invoicePref: "PAN", district: "Morang", ward: "2" },
     { name: "Bikash Thapa", email: "bikash@example.com", phone: "+977-9800001103", type: "RETAIL", creditLimit: 0, address: "Bhanu Chowk, Dharan", invoicePref: "NONE", district: "Sunsari", ward: "1" },
-    { name: "Itahari Business Center", email: "office@itahari.biz", phone: "+977-25-580101", type: "TRADE", creditLimit: 35000, address: "Main Road, Itahari", vatNo: "300456789", invoicePref: "VAT", district: "Sunsari", ward: "4" },
+    { name: "Itahari Business Center", email: "office@itahari.biz", phone: "+977-25-580101", type: "SHOWROOM", creditLimit: 35000, address: "Main Road, Itahari", vatNo: "300456789", invoicePref: "VAT", district: "Sunsari", ward: "4" },
   ];
 
   const customers = await Promise.all(customersInput.map((customer) => prisma.customer.create({ data: customer })));
