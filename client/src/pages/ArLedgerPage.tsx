@@ -41,28 +41,21 @@ export default function ArLedgerPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Financial Truth"
+        eyebrow="Receivables"
         title="Account Receivable Ledger"
-        description="Detailed transaction history and outstanding balances for each customer. This reflects the commercial reality of your business."
+        description="Transaction history and outstanding balances by customer."
       />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Select Customer</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <select 
-            className="flex h-11 w-full max-w-md rounded-2xl border border-border bg-white/90 px-4 text-sm"
-            value={selectedCustomerId}
-            onChange={(e) => setSelectedCustomerId(e.target.value)}
-          >
-            <option value="">Select a customer</option>
-            {customers.data?.items.map(c => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
-        </CardContent>
-      </Card>
+      <select 
+        className="flex h-11 w-full max-w-sm rounded-2xl border border-border bg-white/90 px-4 text-sm"
+        value={selectedCustomerId}
+        onChange={(e) => setSelectedCustomerId(e.target.value)}
+      >
+        <option value="">Select a customer</option>
+        {customers.data?.items.map(c => (
+          <option key={c.id} value={c.id}>{c.name}</option>
+        ))}
+      </select>
 
       {selectedCustomerId && (
         <Card>

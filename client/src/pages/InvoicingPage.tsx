@@ -68,9 +68,9 @@ export function InvoicingPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Module 5"
+        eyebrow="Billing"
         title="Invoicing & Payments"
-        description="Generate sequenced invoices from confirmed sales orders, capture partial payments, manage overdue alerts, and prepare invoice and receipt PDFs."
+        description="Create invoices, record payments, and download PDFs."
         actions={[
           {
             label: createInvoiceOpen ? "Close Form" : "Create Invoice",
@@ -87,92 +87,66 @@ export function InvoicingPage() {
               setCreateInvoiceOpen(false);
             }
           },
-          { label: "Bulk Send", variant: "outline" },
         ]}
       />
 
       {createInvoiceOpen ? <CreateInvoiceForm onClose={() => setCreateInvoiceOpen(false)} /> : null}
       {recordPaymentOpen ? <RecordPaymentForm onClose={() => setRecordPaymentOpen(false)} /> : null}
 
-      <div className="grid gap-6 xl:grid-cols-[1.25fr_1fr]">
-        <Card>
-          <CardHeader>
-            <div>
-              <CardTitle>Invoice Register</CardTitle>
-              <CardDescription>Auto-generated numbering, payment status, and balance tracking.</CardDescription>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <DataTable
-              rows={data.items}
-              detailHref={() => "/invoicing"}
-              columns={[
-                { key: "invoiceNumber", header: "Invoice" },
-                { key: "bsDate", header: "Date (BS)" },
-                { key: "customer", header: "Customer" },
-                { key: "status", header: "Status", render: (row) => <StatusBadge value={row.status} /> },
-                { key: "dueDate", header: "Due Date", render: (row) => formatDate(row.dueDate) },
-                { key: "amount", header: "Total", className: "text-right", render: (row) => formatCurrency(row.amount) },
-                { key: "balance", header: "Balance", className: "text-right", render: (row) => formatCurrency(row.balance) },
-                { 
-                  key: "actions", 
-                  header: "", 
-                  className: "text-right",
-                  render: (row) => (
-                    <div className="flex justify-end gap-1">
-                      <Button 
-                        variant="ghost" 
-                        title="Download Tax Invoice PDF"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDownloadPdf(row.id, "invoice");
-                        }}
-                        className="h-8 w-8 p-0 hover:text-green-600"
-                      >
-                        <Download className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        title="Download Estimate Bill PDF"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDownloadPdf(row.id, "estimate");
-                        }}
-                        className="h-8 w-8 p-0 hover:text-blue-600 text-muted-foreground"
-                      >
-                        <FileText className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  )
-                },
-              ]}
-            />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <div>
-              <CardTitle>Billing Controls</CardTitle>
-              <CardDescription>Payment terms, overdue thresholds, bank details, and PDF output scaffolding.</CardDescription>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {[
-              ["Invoice numbering", "INV-2026-0001 sequence pattern"],
-              ["Partial payments", "Cash, card, bank transfer, and installment plan supported"],
-              ["Overdue alerts", "7, 14, and 30 day notifications configurable"],
-              ["Receipt PDFs", "React-PDF output prepared for receipts and customer invoices"],
-            ].map(([label, detail]) => (
-              <div key={label} className="rounded-2xl border border-border bg-white p-4">
-                <p className="font-semibold">{label}</p>
-                <p className="mt-1 text-sm text-muted-foreground">{detail}</p>
-              </div>
-            ))}
-            <Button className="w-full">Preview Invoice PDF</Button>
-          </CardContent>
-        </Card>
-      </div>
+      <Card>
+        <CardHeader>
+          <div>
+            <CardTitle>Invoice Register</CardTitle>
+            <CardDescription>All invoices with payment status and balances.</CardDescription>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <DataTable
+            rows={data.items}
+            detailHref={() => "/invoicing"}
+            columns={[
+              { key: "invoiceNumber", header: "Invoice" },
+              { key: "bsDate", header: "Date (BS)" },
+              { key: "customer", header: "Customer" },
+              { key: "status", header: "Status", render: (row) => <StatusBadge value={row.status} /> },
+              { key: "dueDate", header: "Due Date", render: (row) => formatDate(row.dueDate) },
+              { key: "amount", header: "Total", className: "text-right", render: (row) => formatCurrency(row.amount) },
+              { key: "balance", header: "Balance", className: "text-right", render: (row) => formatCurrency(row.balance) },
+              { 
+                key: "actions", 
+                header: "", 
+                className: "text-right",
+                render: (row) => (
+                  <div className="flex justify-end gap-1">
+                    <Button 
+                      variant="ghost" 
+                      title="Download Tax Invoice PDF"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDownloadPdf(row.id, "invoice");
+                      }}
+                      className="h-8 w-8 p-0 hover:text-green-600"
+                    >
+                      <Download className="h-4 w-4" />
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      title="Download Estimate Bill PDF"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDownloadPdf(row.id, "estimate");
+                      }}
+                      className="h-8 w-8 p-0 hover:text-blue-600 text-muted-foreground"
+                    >
+                      <FileText className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )
+              },
+            ]}
+          />
+        </CardContent>
+      </Card>
     </div>
   );
 }

@@ -54,9 +54,9 @@ export function SalesPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Module 4"
+        eyebrow="Sales"
         title="Sales & CRM"
-        description="Move furniture quotes into confirmed orders, capture deposits, manage customer credit exposure, and monitor delivery readiness."
+        description="Manage orders, deposits, and customer credit."
         actions={[
           {
             label: createCustomerOpen ? "Close Customer Form" : "New Customer",
@@ -79,12 +79,12 @@ export function SalesPage() {
       {createCustomerOpen ? <CreateCustomerForm onClose={() => setCreateCustomerOpen(false)} /> : null}
       {createSalesOrderOpen ? <CreateSalesOrderForm onClose={() => setCreateSalesOrderOpen(false)} /> : null}
 
-      <div className="grid gap-6 xl:grid-cols-[1.2fr_1fr]">
+      <div className="space-y-6">
         <Card>
           <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between space-y-0">
             <div>
               <CardTitle>Order Pipeline</CardTitle>
-              <CardDescription>Quote → Confirmed → Deposit Paid → In Warehouse → Out for Delivery → Delivered.</CardDescription>
+              <CardDescription>Track orders from quote to delivery.</CardDescription>
             </div>
             {selectedOrderId && (
               <div className="flex gap-2">
@@ -156,7 +156,7 @@ export function SalesPage() {
           <CardHeader>
             <div>
               <CardTitle>Customer Credit & Statements</CardTitle>
-              <CardDescription>Trade and contractor balances, credit limits, AR aging, and statement generation.</CardDescription>
+              <CardDescription>Balances, credit limits, and statements.</CardDescription>
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
