@@ -13,12 +13,12 @@ import { postEntry } from "../vat-register/vat-register.service";
 export async function createTaxInvoice(input: {
   salesOrderId: string;
   lineItems: { productVariantId: string; quantity: number; unitPrice: number; discountPct: number }[];
-  invoiceType: "VAT" | "PAN";
+  invoiceType: "VAT" | "PAN" | "ESTIMATE";
   bsDate: string;
   fiscalYear: string;
   notes?: string;
-}) {
-  return prisma.$transaction(async (tx) => {
+}, existingTx?: Prisma.TransactionClient) {
+  const execute = async (tx: Prisma.TransactionClient) => {
     // 1. Check if invoice already exists
     const existing = await tx.taxInvoice.findUnique({
       where: { soId: input.salesOrderId }
@@ -64,19 +64,27 @@ export async function createTaxInvoice(input: {
       }
     });
 
-    // 4. Post VatRegister entry
-    await postEntry(tx, {
-      taxInvoiceId: taxInvoice.id,
-      customerId: order.customerId,
-      taxableAmount: subtotal,
-      outputVat: taxAmount,
-      bsDate: input.bsDate,
-      fiscalYear: input.fiscalYear
-    });
+    // 4. Post VatRegister entry - ONLY if NOT an estimate
+    if (input.invoiceType !== "ESTIMATE") {
+      await postEntry(tx, {
+        taxInvoiceId: taxInvoice.id,
+        customerId: order.customerId,
+        taxableAmount: subtotal,
+        outputVat: taxAmount,
+        bsDate: input.bsDate,
+        fiscalYear: input.fiscalYear
+      });
+    }
 
     // 5. Post GL (Placeholder)
     // Dr Accounts Receivable (1100) / Cr VAT Payable (2100) / Cr Sales Revenue (4000)
 
     return taxInvoice;
-  });
+  };
+
+  if (existingTx) {
+    return execute(existingTx);
+  } else {
+    return prisma.$transaction(execute);
+  }
 }

@@ -166,12 +166,15 @@ export function CreateInvoiceForm({ onClose }: CreateInvoiceFormProps) {
               value={formData.invoiceType}
               onChange={(e) => setFormData({ ...formData, invoiceType: e.target.value })}
             >
-              <option value="VAT">VAT Invoice (कर बिजक)</option>
-              <option value="PAN">PAN Invoice (बिजक)</option>
-            </select>
-            <p className="text-xs text-muted-foreground">
-              {formData.invoiceType === "VAT" ? "13% VAT will be shown on the bill" : "No VAT line — PAN number only"}
-            </p>
+                <option value="VAT">VAT Invoice (कर बिजक)</option>
+                <option value="PAN">PAN Invoice (बिजक)</option>
+                <option value="ESTIMATE">Estimate Bill (अनुमानित बिल)</option>
+              </select>
+              <p className="text-xs text-muted-foreground">
+                {formData.invoiceType === "VAT" ? "13% VAT will be shown on the bill" : 
+                 formData.invoiceType === "ESTIMATE" ? "Non-tax estimate for customer reference" : 
+                 "No VAT line — PAN number only"}
+              </p>
           </div>
           <div className="space-y-2">
             <label className="text-sm font-medium">Status</label>

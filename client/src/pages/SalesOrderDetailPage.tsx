@@ -102,8 +102,8 @@ export function SalesOrderDetailPage() {
     createInvoiceMutation.mutate(
       {
         soId: id,
-        status: "ISSUED",
-        invoiceType: type === "TAX_INVOICE" ? "VAT" : "NONE",
+        status: "SENT",
+        invoiceType: type === "TAX_INVOICE" ? "VAT" : "ESTIMATE",
         lineItems: lineItems.map((li: any) => ({
           productVariantId: li.productVariantId,
           quantity: li.quantity,

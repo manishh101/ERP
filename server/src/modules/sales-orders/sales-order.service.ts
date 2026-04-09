@@ -2,6 +2,7 @@ import { prisma } from "../../config/prisma";
 import { Prisma, SalesOrderStatus } from "@prisma/client";
 import { ApiError } from "../../utils/api-error";
 import { postDebit } from "../ar-ledger/ar-ledger.service";
+import { createTaxInvoice } from "../tax-invoices/tax-invoice.service";
 
 /**
  * Sales Order Service
@@ -164,6 +165,22 @@ export async function createOrder(input: {
 
     // 6. Post GL journal (Placeholder)
     // Dr Accounts Receivable (1100) / Cr Sales Revenue (4000)
+
+    // 7. AUTOMATIC ESTIMATE CREATION
+    // Ensure every new order has an Estimate Bill (non-tax invoice) created automatically
+    await createTaxInvoice({
+      salesOrderId: order.id,
+      lineItems: input.lineItems.map(item => ({
+        productVariantId: item.productVariantId,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        discountPct: item.discountPct ?? 0,
+      })),
+      invoiceType: "ESTIMATE",
+      bsDate: input.bsDate,
+      fiscalYear: input.fiscalYear,
+      notes: "Auto-generated estimate"
+    }, tx);
 
     return order;
   });
