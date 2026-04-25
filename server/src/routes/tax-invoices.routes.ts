@@ -10,12 +10,13 @@ import {
   taxInvoiceUpdateSchema,
   listQuerySchema,
 } from "../schemas/domain";
-import { createTaxInvoice } from "../modules/tax-invoices/tax-invoice.service";
+import { buildCbmsPayload, createTaxInvoice } from "../modules/tax-invoices/tax-invoice.service";
 import { renderInvoicePdfBuffer } from "../lib/pdf/vat-invoice.pdf";
 import { ApiError } from "../utils/api-error";
 import { getPagination } from "../utils/pagination";
 import { verifyToken } from "../utils/jwt";
 import { getBsDate, getCurrentFiscalYear } from "../shared/fiscal-year.util";
+import { logAudit } from "../services/audit.service";
 
 export const taxInvoicesRouter = Router();
 
@@ -89,10 +90,22 @@ taxInvoicesRouter.post(
     const invoice = await createTaxInvoice({
       salesOrderId: body.soId,
       lineItems: body.lineItems,
-      invoiceType: body.invoiceType as "VAT" | "PAN",
+      invoiceType: body.invoiceType as "VAT" | "PAN" | "ESTIMATE",
       bsDate: body.bsDate || getBsDate(),
       fiscalYear: body.fiscalYear || getCurrentFiscalYear(),
-      notes: body.notes
+      notes: body.notes,
+      // PRD Golden Rule #3: pass user-entered amounts through directly
+      invoiceAmount: body.invoiceAmount,
+      vatAmount: body.vatAmount,
+    });
+
+    // Audit log — immutable record of who generated this invoice
+    await logAudit({
+      userId: request.user!.id,
+      action: "CREATE_INVOICE",
+      entityType: "TaxInvoice",
+      entityId: invoice.id,
+      newState: { invoiceNumber: invoice.invoiceNumber, invoiceType: invoice.invoiceType, invoiceAmount: invoice.invoiceAmount },
     });
 
     response.status(201).json(invoice);
@@ -279,5 +292,24 @@ taxInvoicesRouter.get(
     response.setHeader("Content-Type", "application/pdf");
     response.setHeader("Content-Disposition", `inline; filename=${isEstimate ? 'estimate' : 'tax-invoice'}-${invoice.invoiceNumber}.pdf`);
     response.send(buffer);
+  }),
+);
+
+// ---------------------------------------------------------------------------
+// CBMS Readiness — §5.4 (IRD Nepal — future phase HTTP push)
+// ---------------------------------------------------------------------------
+taxInvoicesRouter.get(
+  "/:id/cbms-payload",
+  requireRole(["ADMIN", "ACCOUNTANT"]),
+  validate(idParamSchema, "params"),
+  asyncHandler(async (request, response) => {
+    const params = request.validated?.params as { id: string };
+    const payload = await buildCbmsPayload(params.id);
+    // In future phase: POST payload to IRD CBMS API endpoint
+    response.json({
+      status: "ready",
+      message: "CBMS payload built. HTTP push to IRD is deferred to a future phase.",
+      payload,
+    });
   }),
 );

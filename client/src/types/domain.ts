@@ -41,6 +41,28 @@ export type DashboardLowStockItem = {
   quantity: number;
 };
 
+export type AgingBuckets = {
+  "0-30": number;
+  "31-60": number;
+  "61-90": number;
+  "90+": number;
+  totalOutstanding: number;
+  customerCount: number;
+};
+
+export type ShowroomPeriodMetrics = {
+  units: number;
+  value: number;
+};
+
+export type ShowroomAnalytics = {
+  customerId: string;
+  customerName: string;
+  currentMonth: ShowroomPeriodMetrics;
+  previousMonth: ShowroomPeriodMetrics;
+  yearToDate: ShowroomPeriodMetrics;
+};
+
 export type DashboardPayload = {
   kpis: Kpi[];
   revenueVsCogs: Array<{ month: string; revenue: number; cogs: number }>;
@@ -48,6 +70,7 @@ export type DashboardPayload = {
   topProducts: Array<{ name: string; quantity: number }>;
   recentSalesOrders: DashboardRecentSalesOrder[];
   lowStockItems: DashboardLowStockItem[];
+  arAging?: AgingBuckets; // AR Aging buckets (PRD §5.1)
 };
 
 export type TableColumn<T> = {

@@ -4,14 +4,22 @@ import { QuickActions } from "@/components/dashboard/quick-actions";
 import { RecentSalesTable } from "@/components/dashboard/recent-sales-table";
 import { RevenueCogsChart } from "@/components/dashboard/revenue-cogs-chart";
 import { TopProductsChart } from "@/components/dashboard/top-products-chart";
+import { ArAgingWidget } from "@/components/dashboard/ar-aging-widget";
+import { ShowroomAnalyticsWidget } from "@/components/dashboard/showroom-analytics-widget";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useDashboardQuery } from "@/hooks/use-queries";
+import { useDashboardQuery, useCustomersQuery } from "@/hooks/use-queries";
 import { getErrorMessage } from "@/lib/api";
 
 export function DashboardPage() {
   const { data, error, isLoading } = useDashboardQuery();
+  const { data: customersData } = useCustomersQuery();
+
+  // Filter only SHOWROOM type customers for the analytics widget
+  const showrooms = (customersData?.items ?? [])
+    .filter((c) => c.type === "SHOWROOM")
+    .map((c) => ({ id: c.id, name: c.name }));
 
   if (isLoading) {
     return (
@@ -48,6 +56,9 @@ export function DashboardPage() {
 
       <KpiGrid items={data.kpis} />
 
+      {/* AR Aging Report — PRD §5.1 */}
+      {data.arAging && <ArAgingWidget data={data.arAging} />}
+
       <div className="grid gap-6 xl:grid-cols-[1.6fr_1fr]">
         <RevenueCogsChart data={data.revenueVsCogs} />
         <QuickActions />
@@ -80,6 +91,11 @@ export function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Showroom Analytics — PRD §5.1 */}
+      {showrooms.length > 0 && (
+        <ShowroomAnalyticsWidget showrooms={showrooms} />
+      )}
 
       <div className="grid gap-6 xl:grid-cols-[1.2fr_1fr]">
         <Card>

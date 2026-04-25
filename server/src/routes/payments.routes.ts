@@ -15,6 +15,7 @@ import { getPagination } from "../utils/pagination";
 import { toNumber } from "../utils/number";
 import { getBsDate, getCurrentFiscalYear } from "../shared/fiscal-year.util";
 import { recordPayment } from "../modules/payments/payment.service";
+import { logAudit } from "../services/audit.service";
 
 export const paymentsRouter = Router();
 
@@ -74,6 +75,21 @@ paymentsRouter.post(
         paymentDate: body.paymentDate,
         bsDate: getBsDate(body.paymentDate),
         fiscalYear: getCurrentFiscalYear(body.paymentDate),
+      });
+
+      // Audit log — immutable record of payment (PRD §7)
+      await logAudit({
+        userId: request.user!.id,
+        action: "RECORD_PAYMENT",
+        entityType: "Payment",
+        entityId: payment.id,
+        newState: {
+          salesOrderId: body.salesOrderId,
+          amount: body.amount,
+          method: body.method,
+          reference: body.reference ?? null,
+        },
+        ipAddress: request.ip,
       });
     } else {
       payment = await prisma.$transaction(async (tx: import("@prisma/client").Prisma.TransactionClient) => {

@@ -207,11 +207,15 @@ export const taxInvoiceSchema = z.object({
   issueDate: z.coerce.date().default(new Date()),
   dueDate: optionalDate,
   status: z.nativeEnum(InvoiceStatus).default(InvoiceStatus.DRAFT),
-  invoiceType: z.enum(["VAT", "PAN", "NONE"]).default("NONE"),
+  invoiceType: z.enum(["VAT", "PAN", "NONE", "ESTIMATE"]).default("NONE"),
   fiscalYear: z.string().optional(),
   bsDate: z.string().optional(),
   printed: z.boolean().default(false),
   notes: z.string().optional(),
+  // PRD Golden Rule #3: invoiceAmount and vatAmount MUST be manually entered by the user.
+  // They must NEVER be auto-computed from line items. Line items are for display/print only.
+  invoiceAmount: decimalNumber.optional(), // user-entered taxable amount (excl. VAT)
+  vatAmount: decimalNumber.optional(),     // user-entered VAT amount (13% for VAT invoices)
   lineItems: z.array(taxInvoiceLineItemSchema).min(1),
 });
 

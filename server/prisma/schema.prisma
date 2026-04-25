@@ -673,6 +673,7 @@ model User {
   deliveries            Delivery[]
   stockMovements        StockMovement[]
   goodsReceipts         GoodsReceipt[]
+  auditLogs             AuditLog[]
 
   @@map("users")
 }
@@ -730,4 +731,25 @@ model ReceiptCounter {
   lastSeq    Int    @default(0) @map("last_seq")
 
   @@map("receipt_counters")
+}
+
+/// Immutable audit trail for sensitive financial actions (PRD §7).
+/// Rows must NEVER be updated or deleted — insert-only.
+model AuditLog {
+  id            String   @id @default(cuid())
+  userId        String   @map("user_id")
+  action        String   // e.g. CREATE_INVOICE | RECORD_PAYMENT | CREATE_SALES_ORDER | UPDATE_INVOICE
+  entityType    String   @map("entity_type") // e.g. TaxInvoice | Payment | SalesOrder
+  entityId      String   @map("entity_id")
+  previousState Json?    @map("previous_state") // snapshot before mutation (null for creates)
+  newState      Json?    @map("new_state")      // snapshot after mutation (null for deletes)
+  timestamp     DateTime @default(now())
+  ipAddress     String?  @map("ip_address")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([entityType, entityId])
+  @@index([userId, timestamp])
+  @@index([action, timestamp])
+  @@map("audit_logs")
 }
