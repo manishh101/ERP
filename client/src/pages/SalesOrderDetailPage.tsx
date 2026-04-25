@@ -25,6 +25,8 @@ import {
 import { formatCurrency, formatDate, toNumber } from "@/lib/utils";
 import { useState } from "react";
 import { RecordDepositModal } from "@/components/sales/record-deposit-modal";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { CreateInvoiceForm } from "@/components/invoicing/create-invoice-form";
 
 export function SalesOrderDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -38,6 +40,8 @@ export function SalesOrderDetailPage() {
   const createDeliveryMutation = useCreateDeliveryMutation();
 
   const [depositModalOpen, setDepositModalOpen] = useState(false);
+  const [createInvoiceOpen, setCreateInvoiceOpen] = useState(false);
+  const [invoiceTypeToCreate, setInvoiceTypeToCreate] = useState<"VAT" | "ESTIMATE">("VAT");
 
   if (isLoading) {
     return (
@@ -57,8 +61,11 @@ export function SalesOrderDetailPage() {
   const customer = order.customer;
   const lineItems = order.lineItems ?? [];
   const payments = order.payments ?? [];
-  const taxInvoice = order.taxInvoice;
+  const taxInvoices = order.taxInvoices ?? [];
   const delivery = order.delivery;
+  
+  const existingVatPan = taxInvoices.find((i: any) => i.invoiceType === "VAT" || i.invoiceType === "PAN");
+  const existingEstimate = taxInvoices.find((i: any) => i.invoiceType === "ESTIMATE");
   
   const computedTotal = lineItems.reduce((sum: number, li: any) => {
     const q = toNumber(li.quantity);
@@ -97,28 +104,9 @@ export function SalesOrderDetailPage() {
     });
   };
 
-  const handleCreateInvoice = (type: "TAX_INVOICE" | "ESTIMATE") => {
-    if (!id || lineItems.length === 0) return;
-    createInvoiceMutation.mutate(
-      {
-        soId: id,
-        status: "SENT",
-        invoiceType: type === "TAX_INVOICE" ? "VAT" : "ESTIMATE",
-        lineItems: lineItems.map((li: any) => ({
-          productVariantId: li.productVariantId,
-          quantity: li.quantity,
-          unitPrice: toNumber(li.unitPrice),
-          discountPct: toNumber(li.discountPct),
-        })),
-      },
-      {
-        onSuccess: () => {
-          const label = type === "ESTIMATE" ? "Estimate bill" : "Tax invoice";
-          toast(`${label} created`, { description: `${label} has been generated successfully.` });
-        },
-        onError: (error) => toast("Invoice failed", { description: getErrorMessage(error) }),
-      }
-    );
+  const handleCreateInvoice = (type: "VAT" | "ESTIMATE") => {
+    setInvoiceTypeToCreate(type);
+    setCreateInvoiceOpen(true);
   };
 
   const handleScheduleDelivery = () => {
@@ -415,50 +403,50 @@ export function SalesOrderDetailPage() {
                 </div>
               )}
 
-              {!taxInvoice && order.status !== "CANCELLED" && order.status !== "QUOTE" && (
+              {order.status !== "CANCELLED" && order.status !== "QUOTE" && (
                 <>
-                  <Button
-                    variant="outline"
-                    className="justify-start"
-                    onClick={() => handleCreateInvoice("TAX_INVOICE")}
-                    disabled={createInvoiceMutation.isPending}
-                  >
-                    <FileText className="mr-2 h-4 w-4" />
-                    {createInvoiceMutation.isPending ? "Creating..." : "Create Tax Invoice"}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="justify-start"
-                    onClick={() => handleCreateInvoice("ESTIMATE")}
-                    disabled={createInvoiceMutation.isPending}
-                  >
-                    <Receipt className="mr-2 h-4 w-4" />
-                    {createInvoiceMutation.isPending ? "Creating..." : "Create Estimate Bill"}
-                  </Button>
+                  {!existingVatPan && (
+                    <Button
+                      variant="outline"
+                      className="justify-start"
+                      onClick={() => handleCreateInvoice("VAT")}
+                    >
+                      <FileText className="mr-2 h-4 w-4" />
+                      Create Tax Invoice
+                    </Button>
+                  )}
+                  {!existingEstimate && (
+                    <Button
+                      variant="outline"
+                      className="justify-start"
+                      onClick={() => handleCreateInvoice("ESTIMATE")}
+                    >
+                      <Receipt className="mr-2 h-4 w-4" />
+                      Create Estimate Bill
+                    </Button>
+                  )}
                 </>
               )}
-              {taxInvoice && (
-                <div className="flex flex-col gap-2 rounded-md border p-3 bg-muted/20">
+
+              {taxInvoices.map((inv: any) => (
+                <div key={inv.id} className="flex flex-col gap-2 rounded-md border p-3 bg-muted/20">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-muted-foreground uppercase">Invoice</span>
-                    <Badge variant="secondary">{taxInvoice.status}</Badge>
+                    <span className="text-xs font-semibold text-muted-foreground uppercase">{inv.invoiceType} INVOICE</span>
+                    <Badge variant="secondary">{inv.status}</Badge>
                   </div>
                   <Button
                     variant="outline"
                     className="justify-start w-full bg-background"
-                    onClick={() => handleDownloadPdf(taxInvoice.id, "invoice")}
+                    onClick={() => handleDownloadPdf(inv.id, inv.invoiceType === "ESTIMATE" ? "estimate" : "invoice")}
                   >
-                    <Download className="mr-2 h-4 w-4" /> Download Invoice
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="justify-start w-full bg-background"
-                    onClick={() => handleDownloadPdf(taxInvoice.id, "estimate")}
-                  >
-                    <Receipt className="mr-2 h-4 w-4" /> Download Estimate
+                    {inv.invoiceType === "ESTIMATE" ? (
+                      <><Receipt className="mr-2 h-4 w-4" /> Download Estimate</>
+                    ) : (
+                      <><Download className="mr-2 h-4 w-4" /> Download Invoice</>
+                    )}
                   </Button>
                 </div>
-              )}
+              ))}
 
               {order.status !== "CANCELLED" && (
                 <Button
@@ -481,8 +469,19 @@ export function SalesOrderDetailPage() {
           orderId={order.id}
           orderNumber={order.id}
           onClose={() => setDepositModalOpen(false)}
+          defaultAmount={order.total - order.depositAmount}
         />
       )}
+
+      <Dialog open={createInvoiceOpen} onOpenChange={setCreateInvoiceOpen}>
+        <DialogContent className="max-w-5xl p-0 overflow-y-auto max-h-[90vh]">
+          <CreateInvoiceForm 
+            onClose={() => setCreateInvoiceOpen(false)} 
+            defaultSoId={id} 
+            defaultInvoiceType={invoiceTypeToCreate} 
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

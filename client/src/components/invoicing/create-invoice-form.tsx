@@ -10,19 +10,21 @@ import { NepaliDatePickerInput } from "@/components/ui/nepali-date-picker-input"
 
 type CreateInvoiceFormProps = {
   onClose: () => void;
+  defaultSoId?: string;
+  defaultInvoiceType?: string;
 };
 
-export function CreateInvoiceForm({ onClose }: CreateInvoiceFormProps) {
+export function CreateInvoiceForm({ onClose, defaultSoId = "", defaultInvoiceType = "VAT" }: CreateInvoiceFormProps) {
   
   const createInvoice = useCreateInvoiceMutation();
   const salesOrders = useSalesOrdersQuery();
   
   const [formData, setFormData] = useState({
-    soId: "",
+    soId: defaultSoId,
     issueDate: new Date().toISOString().split("T")[0],
     dueDate: "",
     status: "DRAFT",
-    invoiceType: "VAT",
+    invoiceType: defaultInvoiceType,
     notes: "",
     bsDate: "",
     fiscalYear: "",
@@ -66,8 +68,20 @@ export function CreateInvoiceForm({ onClose }: CreateInvoiceFormProps) {
     return { subtotal: st };
   }, [lineItems]);
 
-  const vatAmount = formData.invoiceType === "VAT" ? subtotal * 0.13 : 0;
-  const totalAmount = subtotal + vatAmount;
+  const autoVatAmount = formData.invoiceType === "VAT" ? subtotal * 0.13 : 0;
+  
+  // Golden Rule 3: Allow manual override
+  const [manualInvoiceAmount, setManualInvoiceAmount] = useState<string>("");
+  const [manualVatAmount, setManualVatAmount] = useState<string>("");
+
+  useEffect(() => {
+    setManualInvoiceAmount(subtotal.toString());
+    setManualVatAmount(autoVatAmount.toString());
+  }, [subtotal, autoVatAmount]);
+
+  const finalInvoiceAmount = manualInvoiceAmount ? Number(manualInvoiceAmount) : subtotal;
+  const finalVatAmount = manualVatAmount ? Number(manualVatAmount) : autoVatAmount;
+  const totalAmount = finalInvoiceAmount + finalVatAmount;
 
   // Find the selected sales order to show reference amount
   const selectedOrder = useMemo(() => {
@@ -99,6 +113,8 @@ export function CreateInvoiceForm({ onClose }: CreateInvoiceFormProps) {
         dueDate: formData.dueDate ? new Date(formData.dueDate).toISOString() : undefined,
         status: formData.status,
         invoiceType: formData.invoiceType,
+        invoiceAmount: Number(manualInvoiceAmount),
+        vatAmount: Number(manualVatAmount),
         notes: formData.notes || undefined,
         bsDate: formData.bsDate || undefined,
         fiscalYear: formData.fiscalYear || undefined,
@@ -297,21 +313,58 @@ export function CreateInvoiceForm({ onClose }: CreateInvoiceFormProps) {
               );
             })}
             
-            {/* Auto-calculated Invoice Totals */}
-            <div className="flex justify-end pt-4 border-t mt-4">
-              <div className="w-full md:w-1/2 lg:w-1/3 space-y-2 text-sm bg-white p-4 rounded-xl border border-primary/20 shadow-sm">
+            {/* Auto-calculated Invoice Totals vs Manual Entry */}
+            <div className="flex flex-col md:flex-row justify-between items-start pt-4 border-t mt-4 gap-6">
+              
+              <div className="w-full md:w-1/2 space-y-4">
+                 <h4 className="font-semibold text-primary">Final Invoice Amounts</h4>
+                 <p className="text-xs text-muted-foreground">Required by PRD Golden Rule #3. You must verify these amounts.</p>
+                 <div className="space-y-4 border p-4 rounded-xl bg-slate-50 shadow-sm">
+                   <div className="flex flex-col space-y-1">
+                     <label className="text-sm font-medium">Taxable Amount (excluding VAT)</label>
+                     <Input 
+                        type="number"
+                        step="0.01"
+                        value={manualInvoiceAmount}
+                        onChange={(e) => setManualInvoiceAmount(e.target.value)}
+                     />
+                   </div>
+                   {formData.invoiceType === "VAT" && (
+                     <div className="flex flex-col space-y-1">
+                       <label className="text-sm font-medium">VAT Amount (13%)</label>
+                       <Input 
+                          type="number"
+                          step="0.01"
+                          value={manualVatAmount}
+                          onChange={(e) => setManualVatAmount(e.target.value)}
+                       />
+                     </div>
+                   )}
+                 </div>
+              </div>
+
+              <div className="w-full md:w-1/3 flex-shrink-0 space-y-2 text-sm bg-white p-4 rounded-xl border border-primary/20 shadow-sm">
+                <h4 className="font-semibold border-b pb-2 mb-2">Calculated Summary</h4>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground font-medium">Subtotal</span>
+                  <span className="text-muted-foreground font-medium">Line Subtotal</span>
                   <span className="font-semibold">{formatCurrency(subtotal)}</span>
                 </div>
                 {formData.invoiceType === "VAT" && (
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground font-medium">VAT (13%)</span>
-                    <span className="font-semibold">{formatCurrency(vatAmount)}</span>
+                    <span className="text-muted-foreground font-medium">Auto VAT (13%)</span>
+                    <span className="font-semibold">{formatCurrency(autoVatAmount)}</span>
                   </div>
                 )}
+                <div className="flex justify-between pt-2 mt-2">
+                  <span className="text-muted-foreground font-bold">Manual Subtotal</span>
+                  <span className="font-bold">{formatCurrency(finalInvoiceAmount)}</span>
+                </div>
+                <div className="flex justify-between pt-1">
+                  <span className="text-muted-foreground font-bold">Manual VAT</span>
+                  <span className="font-bold">{formatCurrency(finalVatAmount)}</span>
+                </div>
                 <div className="flex justify-between font-bold text-base pt-2 border-t mt-2 text-primary">
-                  <span>Total Due</span>
+                  <span>Grand Total Due</span>
                   <span>{formatCurrency(totalAmount)}</span>
                 </div>
               </div>

@@ -1484,6 +1484,8 @@ export type InvoiceCreatePayload = {
   // Nepal specifics
   bsDate?: string;
   fiscalYear?: string;
+  invoiceAmount?: number;
+  vatAmount?: number;
 };
 
 export function useCreateInvoiceMutation() {

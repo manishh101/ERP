@@ -17,12 +17,13 @@ type RecordDepositModalProps = {
   orderId: string;
   orderNumber: string;
   onClose: () => void;
+  defaultAmount?: number;
 };
 
-export function RecordDepositModal({ orderId, orderNumber, onClose }: RecordDepositModalProps) {
+export function RecordDepositModal({ orderId, orderNumber, onClose, defaultAmount }: RecordDepositModalProps) {
 
   const recordDeposit = useRecordSalesOrderDepositMutation();
-  const [amount, setAmount] = useState("");
+  const [amount, setAmount] = useState(defaultAmount ? String(defaultAmount) : "");
   const [method, setMethod] = useState("CASH");
   const [reference, setReference] = useState("");
 
