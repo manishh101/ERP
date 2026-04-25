@@ -5,8 +5,12 @@ import type { DashboardRecentSalesOrder } from "@/types/domain";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
 const columns: ColumnDef<DashboardRecentSalesOrder, unknown>[] = [
-  { accessorKey: "id", header: "Order" },
-  { accessorKey: "customer", header: "Party" },
+  { accessorKey: "id", header: "Order", cell: ({ row }) => <span className="text-muted-foreground">{row.getValue("id") as string}</span> },
+  { 
+    accessorKey: "customer", 
+    header: "Party",
+    cell: ({ row }) => <span className="font-medium text-foreground">{row.getValue("customer") as string}</span>
+  },
   {
     accessorKey: "status",
     header: "Status",
@@ -15,13 +19,13 @@ const columns: ColumnDef<DashboardRecentSalesOrder, unknown>[] = [
   {
     accessorKey: "deliveryDate",
     header: "Delivery",
-    cell: ({ row }) => formatDate(row.getValue("deliveryDate")),
+    cell: ({ row }) => <span className="text-sm">{formatDate(row.getValue("deliveryDate"))}</span>,
   },
   {
     accessorKey: "total",
     header: () => <div className="text-right">Total</div>,
     cell: ({ row }) => (
-      <div className="text-right tabular-nums">{formatCurrency(row.getValue("total") as number)}</div>
+      <div className="text-right tabular-nums font-bold text-foreground">{formatCurrency(row.getValue("total") as number)}</div>
     ),
   },
 ];

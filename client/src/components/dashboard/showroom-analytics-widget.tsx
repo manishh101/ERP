@@ -25,20 +25,25 @@ function MetricCell({
   label,
   units,
   value,
+  colorClass,
 }: {
   label: string;
   units: number;
   value: number;
+  colorClass: string;
 }) {
   return (
-    <div className="flex flex-col gap-1 rounded-xl bg-secondary/60 p-3 text-center">
-      <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+    <div className={`flex flex-col relative overflow-hidden gap-1 rounded-2xl p-5 text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg backdrop-blur-md border border-white/20 shadow-sm ${colorClass}`}>
+      <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-transparent pointer-events-none" />
+      <span className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground relative z-10">
         {label}
       </span>
-      <span className="text-base font-bold text-foreground">
+      <span className="text-2xl font-black bg-clip-text text-foreground relative z-10 mt-1">
         {formatCurrency(value)}
       </span>
-      <span className="text-xs text-muted-foreground">{units} units</span>
+      <span className="text-xs font-semibold text-muted-foreground mix-blend-multiply opacity-80 relative z-10 mt-2">
+        {units} Units
+      </span>
     </div>
   );
 }
@@ -55,9 +60,9 @@ export function ShowroomAnalyticsWidget({ showrooms }: ShowroomAnalyticsWidgetPr
   });
 
   return (
-    <Card>
+    <Card className="h-full bg-white/50 backdrop-blur-sm border-white/20 shadow-sm hover:shadow-md transition-shadow">
       <CardHeader>
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
             <CardTitle>Showroom Analytics</CardTitle>
             <CardDescription>
@@ -67,7 +72,7 @@ export function ShowroomAnalyticsWidget({ showrooms }: ShowroomAnalyticsWidgetPr
           <select
             value={selectedId}
             onChange={(e) => setSelectedId(e.target.value)}
-            className="flex h-11 w-44 shrink-0 rounded-2xl border border-border bg-white/90 px-4 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="flex h-10 w-full sm:w-56 shrink-0 rounded-xl border border-white/30 shadow-sm bg-white/60 backdrop-blur-md px-4 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary transition-all font-medium"
           >
             {showrooms.map((s) => (
               <option key={s.id} value={s.id}>
@@ -80,27 +85,30 @@ export function ShowroomAnalyticsWidget({ showrooms }: ShowroomAnalyticsWidgetPr
 
       <CardContent>
         {isLoading || !data ? (
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="h-20 animate-pulse rounded-xl bg-secondary/60" />
+              <div key={i} className="h-32 animate-pulse rounded-2xl bg-secondary/40 border border-white/20" />
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <MetricCell
               label="This Month"
               units={data.currentMonth.units}
               value={data.currentMonth.value}
+              colorClass="bg-indigo-500/10"
             />
             <MetricCell
               label="Prev Month"
               units={data.previousMonth.units}
               value={data.previousMonth.value}
+              colorClass="bg-violet-500/10"
             />
             <MetricCell
               label="YTD"
               units={data.yearToDate.units}
               value={data.yearToDate.value}
+              colorClass="bg-fuchsia-500/10"
             />
           </div>
         )}

@@ -12,6 +12,51 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useDashboardQuery, useCustomersQuery } from "@/hooks/use-queries";
 import { getErrorMessage } from "@/lib/api";
 
+function LowStockCard({ items }: { items: any[] }) {
+  return (
+    <Card className="flex-1 bg-white/50 backdrop-blur-sm border-white/20 shadow-sm hover:shadow-md transition-shadow">
+      <CardHeader>
+        <div>
+          <CardTitle>Low Stock Watchlist</CardTitle>
+          <CardDescription>Configurable alerts for fast-moving lines.</CardDescription>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3 overflow-y-auto max-h-[320px]">
+        {items.length > 0 ? (
+          items.map((item) => (
+            <div key={item.id} className="rounded-2xl bg-secondary/40 p-4 border border-white/40">
+              <p className="font-semibold text-sm">
+                {item.product} <span className="text-muted-foreground font-normal">/ {item.variant}</span>
+              </p>
+              <p className="mt-1 text-xs font-medium text-amber-600">{item.quantity} units remaining</p>
+            </div>
+          ))
+        ) : (
+          <div className="rounded-2xl bg-emerald-50/50 p-4 text-sm text-emerald-600 border border-emerald-100">
+            Stock levels are healthy.
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function RecentSalesOrdersCard({ rows }: { rows: any[] }) {
+  return (
+    <Card className="h-full bg-white/50 backdrop-blur-sm border-white/20 shadow-sm hover:shadow-md transition-shadow">
+      <CardHeader>
+        <div>
+          <CardTitle>Recent Sales Orders</CardTitle>
+          <CardDescription>Latest transactions with live pipeline status badges.</CardDescription>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <RecentSalesTable rows={rows} />
+      </CardContent>
+    </Card>
+  );
+}
+
 export function DashboardPage() {
   const { data, error, isLoading } = useDashboardQuery();
   const { data: customersData } = useCustomersQuery();
@@ -23,9 +68,9 @@ export function DashboardPage() {
 
   if (isLoading) {
     return (
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {Array.from({ length: 6 }).map((_, index) => (
-          <Skeleton key={index} className="h-36" />
+      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+        {Array.from({ length: 8 }).map((_, index) => (
+          <Skeleton key={index} className="h-32 rounded-3xl" />
         ))}
       </div>
     );
@@ -35,7 +80,7 @@ export function DashboardPage() {
     return (
       <Card>
         <CardContent className="py-10">
-          <p className="font-semibold">Dashboard data could not be loaded.</p>
+          <p className="font-semibold text-destructive">Dashboard data could not be loaded.</p>
           <p className="mt-2 text-sm text-muted-foreground">{getErrorMessage(error)}</p>
         </CardContent>
       </Card>
@@ -47,67 +92,38 @@ export function DashboardPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Command Dashboard"
-      />
+    <div className="space-y-8 relative pb-10">
+      {/* Ambient glowing background for the page */}
+      <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary/10 via-background to-background rounded-3xl" />
+      
+      <PageHeader title="Command Dashboard" />
 
+      {/* TOP ROW: KPIs */}
       <KpiGrid items={data.kpis} />
 
-      {/* AR Aging Report — PRD §5.1 */}
-      {data.arAging && <ArAgingWidget data={data.arAging} />}
-
-      <div className="grid gap-6 xl:grid-cols-[1.6fr_1fr]">
-        <RevenueCogsChart data={data.revenueVsCogs} />
-        <QuickActions />
+      {/* MIDDLE ROW: Main Metric Charts & Quick Operations */}
+      <div className="grid gap-6 grid-cols-1 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="lg:col-span-2 xl:col-span-3">
+          <RevenueCogsChart data={data.revenueVsCogs} />
+        </div>
+        <div className="flex flex-col gap-6 lg:col-span-1">
+          <QuickActions />
+          <LowStockCard items={data.lowStockItems} />
+        </div>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[1.2fr_1fr]">
+      {/* FINANCIALS ROW: Aging & Showroom Overview */}
+      <div className="grid gap-6 grid-cols-1 xl:grid-cols-2">
+        {data.arAging && <ArAgingWidget data={data.arAging} />}
+        {showrooms.length > 0 && <ShowroomAnalyticsWidget showrooms={showrooms} />}
+      </div>
+
+      <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
         <TopProductsChart data={data.topProducts} />
-        <Card>
-          <CardHeader>
-            <div>
-              <CardTitle>Low Stock Watchlist</CardTitle>
-              <CardDescription>Configurable alerts for fast-moving lines.</CardDescription>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {data.lowStockItems.length > 0 ? (
-              data.lowStockItems.map((item) => (
-                <div key={item.id} className="rounded-2xl bg-secondary/60 p-4">
-                  <p className="font-semibold">
-                    {item.product} / {item.variant}
-                  </p>
-                  <p className="mt-1 text-sm text-muted-foreground">{item.quantity} units remaining</p>
-                </div>
-              ))
-            ) : (
-              <div className="rounded-2xl bg-secondary/60 p-4 text-sm text-muted-foreground">
-                No products are currently below their low-stock threshold.
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Showroom Analytics — PRD §5.1 */}
-      {showrooms.length > 0 && (
-        <ShowroomAnalyticsWidget showrooms={showrooms} />
-      )}
-
-      <div className="grid gap-6 xl:grid-cols-[1.2fr_1fr]">
-        <Card>
-          <CardHeader>
-            <div>
-              <CardTitle>Recent Sales Orders</CardTitle>
-              <CardDescription>Latest transactions with live pipeline status badges.</CardDescription>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <RecentSalesTable rows={data.recentSalesOrders} />
-          </CardContent>
-        </Card>
         <CashFlowChart data={data.cashFlow} />
+        <div className="lg:col-span-2">
+          <RecentSalesOrdersCard rows={data.recentSalesOrders} />
+        </div>
       </div>
     </div>
   );
