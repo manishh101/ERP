@@ -9,6 +9,7 @@ import {
   getShowroomAnalytics,
 } from "../services/dashboard.service";
 import { ApiError } from "../utils/api-error";
+import { withCache, CACHE_KEYS } from "../config/redis";
 
 export const dashboardRouter = Router();
 
@@ -36,7 +37,13 @@ dashboardRouter.get(
     if (!["today", "month", "year"].includes(period)) {
       throw new ApiError(400, "period must be one of: today, month, year");
     }
-    response.json(await getFinancialSummary(period));
+    const cacheKey = 
+      period === "today" ? CACHE_KEYS.FINANCIAL_SUMMARY_TODAY :
+      period === "month" ? CACHE_KEYS.FINANCIAL_SUMMARY_MONTH : 
+      CACHE_KEYS.FINANCIAL_SUMMARY_YEAR;
+    
+    const data = await withCache(cacheKey, 900, () => getFinancialSummary(period));
+    response.json(data);
   })
 );
 
@@ -48,7 +55,8 @@ dashboardRouter.get(
 dashboardRouter.get(
   "/ar-aging",
   asyncHandler(async (_request, response) => {
-    response.json(await getArAgingBuckets());
+    const data = await withCache(CACHE_KEYS.AR_AGING, 900, () => getArAgingBuckets());
+    response.json(data);
   })
 );
 
@@ -60,7 +68,8 @@ dashboardRouter.get(
 dashboardRouter.get(
   "/top-entities",
   asyncHandler(async (_request, response) => {
-    response.json(await getTopEntities());
+    const data = await withCache(CACHE_KEYS.TOP_ENTITIES, 900, () => getTopEntities());
+    response.json(data);
   })
 );
 
@@ -76,7 +85,8 @@ dashboardRouter.get(
     const { customerId } = request.params;
     if (!customerId) throw new ApiError(400, "customerId is required");
     try {
-      response.json(await getShowroomAnalytics(customerId));
+      const data = await withCache(CACHE_KEYS.SHOWROOM_ANALYTICS(customerId), 900, () => getShowroomAnalytics(customerId));
+      response.json(data);
     } catch (err: any) {
       if (err.message?.includes("not found")) {
         throw new ApiError(404, err.message);

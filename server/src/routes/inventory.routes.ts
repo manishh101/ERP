@@ -6,7 +6,7 @@ import { validate } from "../middleware/validate";
 import { listQuerySchema, stockAdjustmentSchema } from "../schemas/domain";
 import { getPagination } from "../utils/pagination";
 import { toNumber } from "../utils/number";
-
+import { logAudit } from "../services/audit.service";
 export const inventoryRouter = Router();
 
 inventoryRouter.use(requireAuth);
@@ -268,6 +268,23 @@ inventoryRouter.post(
         movement,
       };
     });
+
+    if (request.user) {
+      await logAudit({
+        userId: request.user.id,
+        action: "STOCK_ADJUSTMENT",
+        entityType: "STOCK_MOVEMENT",
+        entityId: updated.movement.id,
+        previousState: {
+          stockQuantity: Math.max(0, updated.variant.stockQuantity - body.quantityDelta),
+        },
+        newState: {
+          stockQuantity: updated.variant.stockQuantity,
+          delta: body.quantityDelta,
+          reason: body.reason,
+        },
+      });
+    }
 
     response.status(201).json(updated);
   }),

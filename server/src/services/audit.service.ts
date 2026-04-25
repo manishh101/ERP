@@ -19,7 +19,8 @@ export type AuditAction =
   | "RECORD_PAYMENT"
   | "CREATE_SALES_ORDER"
   | "UPDATE_SALES_ORDER"
-  | "CANCEL_SALES_ORDER";
+  | "CANCEL_SALES_ORDER"
+  | "STOCK_ADJUSTMENT";
 
 export interface LogAuditInput {
   userId: string;

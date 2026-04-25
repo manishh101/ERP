@@ -1,12 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import type { ColumnDef } from "@tanstack/react-table";
 import { useAuth } from "@/components/auth/auth-provider";
 import { toast } from "sonner";
 import { FilterBar } from "@/components/shared/filter-bar";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
+import { DataTable } from "@/components/shared/data-table";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -20,12 +28,22 @@ import {
 import { getErrorMessage } from "@/lib/api";
 import { queryClient } from "@/lib/query-client";
 import { formatCurrency, formatDate, formatNumber } from "@/lib/utils";
-import type { InventoryRecordRow, StockAdjustmentReason } from "@/types/domain";
+import type {
+  InventoryMovementRow,
+  InventoryRecordRow,
+  ProductRow,
+  StockAdjustmentReason,
+} from "@/types/domain";
 import { CreateProductForm } from "@/components/inventory/create-product-form";
 
+// Helper components & types
 const quickFilters = ["All", "Low Stock", "Active", "Discontinued"] as const;
-const adjustmentReasons: StockAdjustmentReason[] = ["CORRECTION", "DAMAGE", "RETURNED", "FOUND"];
-
+const adjustmentReasons: StockAdjustmentReason[] = [
+  "CORRECTION",
+  "DAMAGE",
+  "RETURNED",
+  "FOUND",
+];
 type QuickFilter = (typeof quickFilters)[number];
 
 const initialAdjustmentForm = {
@@ -39,15 +57,44 @@ function formatInventoryRecordLabel(record: InventoryRecordRow) {
   return `${record.product} · ${record.variant} · ${record.warehouse} (qty ${formatNumber(record.quantity)})`;
 }
 
+// Data Table Columns
+const movementColumns: ColumnDef<InventoryMovementRow>[] = [
+  {
+    accessorKey: "date",
+    header: "Date",
+    cell: ({ row }) => formatDate(row.getValue("date")),
+  },
+  { accessorKey: "product", header: "Product" },
+  { accessorKey: "variant", header: "Variant" },
+  { accessorKey: "warehouse", header: "Warehouse" },
+  { accessorKey: "type", header: "Type" },
+  {
+    accessorKey: "quantity",
+    header: () => <div className="text-right">Quantity</div>,
+    cell: ({ row }) => {
+      const q = row.getValue("quantity") as number;
+      return (
+        <div
+          className={`text-right tabular-nums ${q > 0 ? "text-emerald-600" : q < 0 ? "text-red-500" : ""}`}
+        >
+          {q > 0 ? `+${q}` : q}
+        </div>
+      );
+    },
+  },
+  { accessorKey: "source", header: "Source" },
+];
+
 export function InventoryPage() {
   const { user } = useAuth();
-  
+
   const { data, error, isLoading } = useProductsQuery();
   const inventoryRecords = useInventoryRecordsQuery();
   const inventoryValuation = useInventoryValuationQuery();
   const inventoryMovements = useInventoryMovementsQuery();
   const lowStock = useLowStockQuery();
   const adjustInventory = useInventoryAdjustmentMutation();
+
   const [adjustmentOpen, setAdjustmentOpen] = useState(false);
   const [createProductOpen, setCreateProductOpen] = useState(false);
   const [catalogSearch, setCatalogSearch] = useState("");
@@ -60,63 +107,50 @@ export function InventoryPage() {
     () => new Set(lowStockItems.map((item) => item.productId)),
     [lowStockItems],
   );
-  const lowStockVariantIds = useMemo(
-    () => new Set(lowStockItems.map((item) => item.id)),
-    [lowStockItems],
-  );
+
   const filteredProducts = useMemo(() => {
-    if (!data) {
-      return [];
-    }
-
+    if (!data) return [];
     const normalizedSearch = catalogSearch.trim().toLowerCase();
-
     return data.items.filter((product) => {
       const matchesSearch =
         normalizedSearch.length === 0 ||
-        [product.name, product.sku, product.category, product.material, product.status]
+        [
+          product.name,
+          product.sku,
+          product.category,
+          product.material,
+          product.status,
+        ]
           .join(" ")
           .toLowerCase()
           .includes(normalizedSearch);
-
-      if (!matchesSearch) {
-        return false;
-      }
-
-      if (activeFilter === "Low Stock") {
+      if (!matchesSearch) return false;
+      if (activeFilter === "Low Stock")
         return lowStockProductIds.has(product.id);
-      }
-
-      if (activeFilter === "Active" || activeFilter === "Discontinued") {
+      if (activeFilter === "Active" || activeFilter === "Discontinued")
         return product.status === activeFilter;
-      }
-
       return true;
     });
   }, [activeFilter, catalogSearch, data, lowStockProductIds]);
-  const featuredValuationItems = useMemo(() => {
-    if (!inventoryValuation.data) {
-      return [];
-    }
 
+  const featuredValuationItems = useMemo(() => {
+    if (!inventoryValuation.data) return [];
     return [...inventoryValuation.data.items]
       .sort((left, right) => right.totalValue - left.totalValue)
       .slice(0, 4);
   }, [inventoryValuation.data]);
+
   const selectedInventoryRecord =
-    inventoryRecords.data?.items.find((record) => record.id === adjustmentForm.inventoryRecordId) ?? null;
+    inventoryRecords.data?.items.find(
+      (record) => record.id === adjustmentForm.inventoryRecordId,
+    ) ?? null;
 
   useEffect(() => {
     const firstRecordId = inventoryRecords.data?.items[0]?.id;
-
-    if (!firstRecordId) {
-      return;
-    }
-
+    if (!firstRecordId) return;
     const hasSelectedRecord = inventoryRecords.data?.items.some(
       (record) => record.id === adjustmentForm.inventoryRecordId,
     );
-
     if (!hasSelectedRecord) {
       setAdjustmentForm((current) => ({
         ...current,
@@ -125,29 +159,90 @@ export function InventoryPage() {
     }
   }, [adjustmentForm.inventoryRecordId, inventoryRecords.data]);
 
-  if (isLoading) {
-    return <Skeleton className="h-[420px]" />;
-  }
+  const productColumns: ColumnDef<ProductRow>[] = useMemo(
+    () => [
+      {
+        accessorKey: "name",
+        header: "Product / SKU",
+        cell: ({ row }) => (
+          <div>
+            <Link
+              to={`/inventory/products/${row.original.id}`}
+              className="font-semibold hover:underline"
+            >
+              {row.original.name}
+            </Link>
+            <div className="text-xs text-muted-foreground">
+              {row.original.sku}
+            </div>
+          </div>
+        ),
+      },
+      { accessorKey: "category", header: "Category" },
+      {
+        accessorKey: "status",
+        header: "Status",
+        cell: ({ row }) => <StatusBadge value={row.getValue("status")} />,
+      },
+      {
+        accessorKey: "stock",
+        header: () => <div className="text-right">Stock</div>,
+        cell: ({ row }) => {
+          const stock = row.getValue("stock") as number;
+          const isLow = lowStockProductIds.has(row.original.id);
+          return (
+            <div
+              className={`text-right tabular-nums ${isLow ? "text-amber-600 font-bold" : ""}`}
+            >
+              {formatNumber(stock)} {isLow && "⚠"}
+            </div>
+          );
+        },
+      },
+      {
+        accessorKey: "valuation",
+        header: () => <div className="text-right">Valuation</div>,
+        cell: ({ row }) => (
+          <div className="text-right tabular-nums">
+            {formatCurrency(row.getValue("valuation") as number)}
+          </div>
+        ),
+      },
+      {
+        id: "actions",
+        cell: ({ row }) => (
+          <div className="text-right">
+            <Link to={`/inventory/products/${row.original.id}`}>
+              <Button variant="ghost" size="sm">
+                View
+              </Button>
+            </Link>
+          </div>
+        ),
+      },
+    ],
+    [lowStockProductIds],
+  );
 
+  if (isLoading) return <Skeleton className="h-[420px]" />;
   if (error) {
     return (
       <Card>
         <CardContent className="py-10">
           <p className="font-semibold">Inventory data could not be loaded.</p>
-          <p className="mt-2 text-sm text-muted-foreground">{getErrorMessage(error)}</p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {getErrorMessage(error)}
+          </p>
         </CardContent>
       </Card>
     );
   }
-
-  if (!data) {
-    return null;
-  }
+  if (!data) return null;
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Inventory Management"
+        title="Stock & Inventory"
         actions={[
           {
             label: "Refresh Data",
@@ -155,9 +250,15 @@ export function InventoryPage() {
             onClick: async () => {
               await Promise.all([
                 queryClient.invalidateQueries({ queryKey: ["products"] }),
-                queryClient.invalidateQueries({ queryKey: ["inventory-records"] }),
-                queryClient.invalidateQueries({ queryKey: ["inventory-valuation"] }),
-                queryClient.invalidateQueries({ queryKey: ["inventory-movements"] }),
+                queryClient.invalidateQueries({
+                  queryKey: ["inventory-records"],
+                }),
+                queryClient.invalidateQueries({
+                  queryKey: ["inventory-valuation"],
+                }),
+                queryClient.invalidateQueries({
+                  queryKey: ["inventory-movements"],
+                }),
                 queryClient.invalidateQueries({ queryKey: ["low-stock"] }),
               ]);
               toast.success("Inventory data refreshed");
@@ -165,6 +266,7 @@ export function InventoryPage() {
           },
           {
             label: adjustmentOpen ? "Close Adjustment" : "Stock Adjustment",
+            variant: "outline",
             onClick: () => {
               setAdjustmentOpen((current) => !current);
               setCreateProductOpen(false);
@@ -180,39 +282,41 @@ export function InventoryPage() {
         ]}
       />
 
-      {createProductOpen ? (
+      {createProductOpen && (
         <CreateProductForm onClose={() => setCreateProductOpen(false)} />
-      ) : null}
+      )}
 
-      {adjustmentOpen ? (
+      {adjustmentOpen && (
         <Card>
           <CardHeader>
-            <div>
-              <CardTitle>Stock Adjustment</CardTitle>
-              <CardDescription>
-                Post a manual stock adjustment to the live inventory endpoint with an audit reason and source.
-              </CardDescription>
-            </div>
+            <CardTitle>Post Stock Adjustment</CardTitle>
+            <CardDescription>
+              Manual stock correction. This creates an immutable audit trail.
+            </CardDescription>
           </CardHeader>
+          {/* adjustment form content removed for brevity, will map exactly as is */}
           <CardContent className="grid gap-3 md:grid-cols-2">
             {inventoryRecords.isLoading ? (
               <Skeleton className="h-28 md:col-span-2" />
             ) : inventoryRecords.error ? (
               <div className="rounded-2xl border border-border bg-white p-4 md:col-span-2">
-                <p className="font-semibold">Inventory records could not be loaded.</p>
+                <p className="font-semibold">
+                  Inventory records could not be loaded.
+                </p>
                 <p className="mt-2 text-sm text-muted-foreground">
                   {getErrorMessage(inventoryRecords.error)}
                 </p>
               </div>
-            ) : inventoryRecords.data && inventoryRecords.data.items.length > 0 ? (
+            ) : inventoryRecords.data &&
+              inventoryRecords.data.items.length > 0 ? (
               <>
                 <select
                   className="flex h-11 w-full rounded-2xl border border-border bg-white/90 px-4 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   value={adjustmentForm.inventoryRecordId}
-                  onChange={(event) =>
-                    setAdjustmentForm((current) => ({
-                      ...current,
-                      inventoryRecordId: event.target.value,
+                  onChange={(e) =>
+                    setAdjustmentForm((curr) => ({
+                      ...curr,
+                      inventoryRecordId: e.target.value,
                     }))
                   }
                 >
@@ -224,10 +328,10 @@ export function InventoryPage() {
                 </select>
                 <Input
                   value={adjustmentForm.quantityDelta}
-                  onChange={(event) =>
-                    setAdjustmentForm((current) => ({
-                      ...current,
-                      quantityDelta: event.target.value,
+                  onChange={(e) =>
+                    setAdjustmentForm((curr) => ({
+                      ...curr,
+                      quantityDelta: e.target.value,
                     }))
                   }
                   placeholder="Quantity delta, e.g. -2 or 5"
@@ -237,25 +341,25 @@ export function InventoryPage() {
                 <select
                   className="flex h-11 w-full rounded-2xl border border-border bg-white/90 px-4 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   value={adjustmentForm.reason}
-                  onChange={(event) =>
-                    setAdjustmentForm((current) => ({
-                      ...current,
-                      reason: event.target.value as StockAdjustmentReason,
+                  onChange={(e) =>
+                    setAdjustmentForm((curr) => ({
+                      ...curr,
+                      reason: e.target.value as StockAdjustmentReason,
                     }))
                   }
                 >
-                  {adjustmentReasons.map((reasonOption) => (
-                    <option key={reasonOption} value={reasonOption}>
-                      {reasonOption}
+                  {adjustmentReasons.map((r) => (
+                    <option key={r} value={r}>
+                      {r}
                     </option>
                   ))}
                 </select>
                 <Input
                   value={adjustmentForm.source}
-                  onChange={(event) =>
-                    setAdjustmentForm((current) => ({
-                      ...current,
-                      source: event.target.value,
+                  onChange={(e) =>
+                    setAdjustmentForm((curr) => ({
+                      ...curr,
+                      source: e.target.value,
                     }))
                   }
                   placeholder="Source or audit note"
@@ -263,8 +367,12 @@ export function InventoryPage() {
                 <div className="rounded-2xl border border-border bg-secondary/40 p-4 text-sm text-muted-foreground md:col-span-2">
                   {selectedInventoryRecord ? (
                     <>
-                      Adjusting <span className="font-semibold text-foreground">{selectedInventoryRecord.product}</span>{" "}
-                      / {selectedInventoryRecord.variant} in {selectedInventoryRecord.warehouse}. Current quantity:{" "}
+                      Adjusting{" "}
+                      <span className="font-semibold text-foreground">
+                        {selectedInventoryRecord.product}
+                      </span>{" "}
+                      / {selectedInventoryRecord.variant} in{" "}
+                      {selectedInventoryRecord.warehouse}. Current qty:{" "}
                       {formatNumber(selectedInventoryRecord.quantity)}.
                     </>
                   ) : (
@@ -275,46 +383,46 @@ export function InventoryPage() {
                   <Button
                     disabled={!canAdjust || adjustInventory.isPending}
                     onClick={async () => {
-                      const quantityDelta = Number(adjustmentForm.quantityDelta);
-
-                      if (!selectedInventoryRecord) {
-                        toast("Adjustment failed", { description: "Select an inventory record first." });
-                        return;
-                      }
-
-                      if (!Number.isInteger(quantityDelta) || quantityDelta === 0) {
-                        toast("Adjustment failed", { description: "Enter a whole-number quantity delta that is not zero." });
-                        return;
-                      }
-
-                      if (adjustmentForm.source.trim().length < 2) {
-                        toast("Adjustment failed", { description: "Provide a short source or audit note." });
-                        return;
-                      }
-
+                      const quantityDelta = Number(
+                        adjustmentForm.quantityDelta,
+                      );
+                      if (!selectedInventoryRecord)
+                        return toast.error("Select an inventory record first.");
+                      if (
+                        !Number.isInteger(quantityDelta) ||
+                        quantityDelta === 0
+                      )
+                        return toast.error("Enter a non-zero whole number.");
+                      if (adjustmentForm.source.trim().length < 2)
+                        return toast.error("Provide an audit note.");
                       try {
                         await adjustInventory.mutateAsync({
-                          productVariantId: selectedInventoryRecord.productVariantId,
+                          productVariantId:
+                            selectedInventoryRecord.productVariantId,
                           warehouseId: selectedInventoryRecord.warehouseId,
                           quantityDelta,
                           reason: adjustmentForm.reason,
                           source: adjustmentForm.source.trim(),
                         });
-                        setAdjustmentForm((current) => ({
-                          ...current,
+                        setAdjustmentForm((curr) => ({
+                          ...curr,
                           quantityDelta: "",
                           source: "Cycle count",
                         }));
                         setAdjustmentOpen(false);
                         toast.success("Adjustment saved", {
-                          description: `${selectedInventoryRecord.product} / ${selectedInventoryRecord.variant} adjusted by ${quantityDelta}.`,
+                          description: `${selectedInventoryRecord.product} adjusted by ${quantityDelta}.`,
                         });
-                      } catch (requestError) {
-                        toast.error("Adjustment failed", { description: getErrorMessage(requestError) });
+                      } catch (e) {
+                        toast.error("Adjustment failed", {
+                          description: getErrorMessage(e),
+                        });
                       }
                     }}
                   >
-                    {adjustInventory.isPending ? "Saving..." : "Post Adjustment"}
+                    {adjustInventory.isPending
+                      ? "Saving..."
+                      : "Post Adjustment"}
                   </Button>
                   <Button
                     variant="outline"
@@ -324,166 +432,86 @@ export function InventoryPage() {
                     Reset
                   </Button>
                 </div>
-                {!canAdjust ? (
-                  <p className="text-sm text-muted-foreground md:col-span-2">
-                    Only admin and warehouse users can post stock adjustments.
-                  </p>
-                ) : null}
               </>
             ) : (
               <div className="rounded-2xl border border-border bg-white p-4 md:col-span-2">
-                <p className="font-semibold">No inventory records are available yet.</p>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Inventory adjustments will be available once stock exists in at least one warehouse.
+                <p className="font-semibold">
+                  No inventory records are available yet.
                 </p>
               </div>
             )}
           </CardContent>
         </Card>
-      ) : null}
+      )}
 
       <Card>
         <CardHeader>
-          <div>
-            <CardTitle>Product Catalog</CardTitle>
-            <CardDescription>Search, filter, and drill into the live product catalog.</CardDescription>
-          </div>
+          <CardTitle>Product Catalog</CardTitle>
+          <CardDescription>
+            Search, filter, and drill into the live product catalog.
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <FilterBar
-            placeholder="Search by product, SKU, material, or status"
-            filters={[...quickFilters]}
-            value={catalogSearch}
-            onValueChange={setCatalogSearch}
-            activeFilter={activeFilter}
-            onFilterSelect={(filter) => setActiveFilter(filter as QuickFilter)}
-          />
-
-          {lowStock.error ? (
-            <div className="mb-4 rounded-2xl border border-border bg-white p-4">
-              <p className="font-semibold">Low stock status could not be loaded.</p>
-              <p className="mt-2 text-sm text-muted-foreground">{getErrorMessage(lowStock.error)}</p>
-            </div>
-          ) : lowStockItems.length > 0 ? (
-            <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
-              <p className="font-semibold text-amber-900">
-                {formatNumber(lowStockItems.length)} low-stock variants need attention
-              </p>
-              <p className="mt-1 text-sm text-amber-900/80">
-                {lowStockItems
-                  .slice(0, 3)
-                  .map((item) => `${item.product} / ${item.variant} (${item.quantity}/${item.threshold})`)
-                  .join(" · ")}
-              </p>
-            </div>
-          ) : null}
-
-          <div className="grid gap-4">
-            {filteredProducts.length > 0 ? (
-              filteredProducts.map((product) => (
-                <div
-                  key={product.id}
-                  className="grid gap-4 rounded-3xl border border-border bg-white/90 p-5 lg:grid-cols-[1.6fr_0.8fr_0.8fr_0.8fr_0.8fr_auto]"
-                >
-                  <div>
-                    <Link to={`/inventory/products/${product.id}`} className="font-display text-2xl text-primary">
-                      {product.name}
-                    </Link>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {product.sku} · {product.category} · {product.material}
-                    </p>
-                    {lowStockProductIds.has(product.id) ? (
-                      <p className="mt-2 text-sm font-medium text-amber-700">Low stock alert is active for this SKU.</p>
-                    ) : null}
-                  </div>
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Stock</p>
-                    <p className="mt-2 text-2xl font-semibold">{formatNumber(product.stock)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Gross Margin</p>
-                    <p className="mt-2 text-2xl font-semibold">{product.margin}%</p>
-                  </div>
-                  <div className="flex items-start">
-                    <StatusBadge value={product.status} />
-                  </div>
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Valuation</p>
-                    <p className="mt-2 font-semibold">{formatCurrency(product.valuation)}</p>
-                  </div>
-                  <div className="flex justify-end">
-                    <Link to={`/inventory/products/${product.id}`}>
-                      <Button variant="outline">View Detail</Button>
-                    </Link>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="rounded-3xl border border-border bg-white p-6 text-sm text-muted-foreground">
-                No products matched the current search and filter combination.
-              </div>
-            )}
+          <div className="mb-4">
+            <FilterBar
+              placeholder="Search catalog..."
+              filters={[...quickFilters]}
+              value={catalogSearch}
+              onValueChange={setCatalogSearch}
+              activeFilter={activeFilter}
+              onFilterSelect={(f) => setActiveFilter(f as QuickFilter)}
+            />
           </div>
+          {lowStockItems.length > 0 && (
+            <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
+              <p className="font-semibold text-amber-900">
+                {formatNumber(lowStockItems.length)} low-stock variants need
+                attention
+              </p>
+            </div>
+          )}
+          <DataTable
+            columns={productColumns}
+            data={filteredProducts}
+            pageSize={10}
+            emptyMessage="No products matched your search."
+          />
         </CardContent>
       </Card>
 
       <div className="grid gap-6 xl:grid-cols-[1.2fr_1fr]">
         <Card>
           <CardHeader>
-            <div>
-              <CardTitle>Multi-Location Stock View</CardTitle>
-              <CardDescription>Live warehouse balances and product-level stock coverage.</CardDescription>
-            </div>
+            <CardTitle>Inventory Valuation by Category</CardTitle>
+            <CardDescription>
+              Total cost basis of items currently in stock.
+            </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent>
             {inventoryValuation.isLoading ? (
-              <>
-                <Skeleton className="h-24 rounded-2xl" />
-                <Skeleton className="h-24 rounded-2xl" />
-              </>
+              <Skeleton className="h-64" />
             ) : inventoryValuation.error ? (
-              <div className="rounded-2xl border border-border bg-white p-4">
-                <p className="font-semibold">Inventory valuation could not be loaded.</p>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  {getErrorMessage(inventoryValuation.error)}
-                </p>
+              <div className="p-4">
+                <p>{getErrorMessage(inventoryValuation.error)}</p>
               </div>
-            ) : featuredValuationItems.length > 0 ? (
-              featuredValuationItems.map((item) => (
-                <div key={item.id} className="rounded-2xl border border-border bg-white p-4">
-                  <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                    <div>
-                      <p className="font-semibold">{item.product}</p>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        {item.variant} · {formatNumber(item.stockQuantity)} units ·{" "}
+            ) : (
+              <div className="space-y-4">
+                {featuredValuationItems.map((item) => (
+                  <div
+                    key={item.category}
+                    className="flex items-center justify-between p-4 bg-secondary/30 rounded-xl"
+                  >
+                    <span className="font-medium">{item.category}</span>
+                    <div className="text-right">
+                      <p className="font-bold tabular-nums">
                         {formatCurrency(item.totalValue)}
                       </p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatNumber(item.quantity)} units
+                      </p>
                     </div>
-                    <StatusBadge value={lowStockVariantIds.has(item.id) ? "Low Stock" : "In Stock"} />
                   </div>
-
-                  <div className="mt-4 grid gap-3 md:grid-cols-2">
-                    {item.byWarehouse.length > 0 ? (
-                      item.byWarehouse.map((warehouse) => (
-                        <div key={`${item.id}-${warehouse.warehouse}`} className="rounded-2xl bg-secondary/60 p-4">
-                          <p className="font-semibold">{warehouse.warehouse}</p>
-                          <p className="mt-1 text-sm">
-                            {formatNumber(warehouse.quantity)} units · {warehouse.status}
-                          </p>
-                          <p className="text-sm text-muted-foreground">{formatCurrency(warehouse.value)}</p>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="rounded-2xl bg-secondary/60 p-4 text-sm text-muted-foreground">
-                        No warehouse allocations were returned for this variant.
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="rounded-2xl border border-border bg-white p-4 text-sm text-muted-foreground">
-                No valuation records are available yet.
+                ))}
               </div>
             )}
           </CardContent>
@@ -491,62 +519,25 @@ export function InventoryPage() {
 
         <Card>
           <CardHeader>
-            <div>
-              <CardTitle>Movement & Valuation</CardTitle>
-              <CardDescription>Recent stock movements and the latest portfolio-level valuation snapshot.</CardDescription>
-            </div>
+            <CardTitle>Recent Stock Movements</CardTitle>
+            <CardDescription>
+              Latest inbound receipts and deliveries.
+            </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-3 md:grid-cols-3">
-              <div className="rounded-2xl bg-secondary/60 p-4">
-                <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Portfolio Value</p>
-                <p className="mt-2 font-semibold">
-                  {inventoryValuation.data ? formatCurrency(inventoryValuation.data.totalValue) : "Loading..."}
-                </p>
-              </div>
-              <div className="rounded-2xl bg-secondary/60 p-4">
-                <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Low Stock Variants</p>
-                <p className="mt-2 font-semibold">
-                  {lowStock.isLoading ? "Loading..." : formatNumber(lowStockItems.length)}
-                </p>
-              </div>
-              <div className="rounded-2xl bg-secondary/60 p-4">
-                <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Movement Logs</p>
-                <p className="mt-2 font-semibold">
-                  {inventoryMovements.data ? formatNumber(inventoryMovements.data.total) : "Loading..."}
-                </p>
-              </div>
-            </div>
-
+          <CardContent>
             {inventoryMovements.isLoading ? (
-              <>
-                <Skeleton className="h-16 rounded-2xl" />
-                <Skeleton className="h-16 rounded-2xl" />
-                <Skeleton className="h-16 rounded-2xl" />
-              </>
+              <Skeleton className="h-64" />
             ) : inventoryMovements.error ? (
-              <div className="rounded-2xl border border-border bg-white p-4">
-                <p className="font-semibold">Movement history could not be loaded.</p>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  {getErrorMessage(inventoryMovements.error)}
-                </p>
+              <div className="p-4">
+                <p>{getErrorMessage(inventoryMovements.error)}</p>
               </div>
-            ) : inventoryMovements.data && inventoryMovements.data.items.length > 0 ? (
-              inventoryMovements.data.items.map((movement) => (
-                <div key={movement.id} className="rounded-2xl border border-border bg-white p-4 text-sm">
-                  <p className="font-semibold">
-                    {movement.type} {Math.abs(movement.quantity)} units for {movement.product} / {movement.variant}
-                  </p>
-                  <p className="mt-1 text-muted-foreground">
-                    {movement.warehouse} · {formatDate(movement.occurredAt)} · {movement.source}
-                  </p>
-                  <p className="text-muted-foreground">Updated by {movement.user}</p>
-                </div>
-              ))
             ) : (
-              <div className="rounded-2xl border border-border bg-white p-4 text-sm text-muted-foreground">
-                No stock movements have been recorded yet.
-              </div>
+              <DataTable
+                columns={movementColumns}
+                data={inventoryMovements.data?.items || []}
+                pageSize={5}
+                emptyMessage="No recent movements."
+              />
             )}
           </CardContent>
         </Card>

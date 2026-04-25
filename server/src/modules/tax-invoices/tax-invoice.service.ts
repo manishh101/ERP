@@ -69,18 +69,15 @@ export async function createTaxInvoice(
       taxAmount = input.vatAmount;
       totalInvoiceAmount = subtotal + taxAmount;
     } else {
-      // Fallback: auto-compute from line items (acceptable for ESTIMATE, logged as warning for others)
+      // Fallback: auto-compute from line items (acceptable ONLY for ESTIMATE)
       if (input.invoiceType !== "ESTIMATE") {
-        console.warn(
-          `[TaxInvoice] invoiceAmount not provided for ${input.invoiceType} invoice on order ${input.salesOrderId}. ` +
-          `Falling back to line-item computation. This violates PRD Golden Rule #3 for production invoices.`
-        );
+        throw new ApiError(400, `PRD Golden Rule #3: invoiceAmount and vatAmount must be explicitly provided for ${input.invoiceType} invoice on order ${input.salesOrderId}. Auto-computation from line items is forbidden.`);
       }
       subtotal = input.lineItems.reduce(
         (acc, item) => acc + item.quantity * item.unitPrice * (1 - item.discountPct / 100),
         0
       );
-      taxAmount = input.invoiceType === "VAT" ? subtotal * 0.13 : 0;
+      taxAmount = 0; // Since input.invoiceType is guaranteed to be 'ESTIMATE' here
       totalInvoiceAmount = subtotal + taxAmount;
     }
 
