@@ -531,7 +531,7 @@ reportsRouter.get("/customer-ledger/:id/pdf", asyncHandler(async (request, respo
     const pdfStream = await renderLedgerPdf({
       customer,
       ledger: ledger.entries,
-
+      openingBalance: ledger.openingBalance,
       company: company || {
         name: process.env.COMPANY_NAME || "ERP System",
         address: "",

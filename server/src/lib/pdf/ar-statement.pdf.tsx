@@ -1,86 +1,208 @@
 import React from "react";
-import { Document, Page, Text, View, StyleSheet, renderToStream, Font } from "@react-pdf/renderer";
-import path from "path";
+import {
+  Document,
+  Page,
+  Text,
+  View,
+  StyleSheet,
+  renderToStream,
+} from "@react-pdf/renderer";
 
-// Using standard PDF fonts for better reliability
+// ─── Helpers ────────────────────────────────────────────────────────────────
+const fmt = (n: number) =>
+  n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-
-const formatDate = (date: Date) => {
-  return date.toISOString().split("T")[0];
+const fmtDate = (d: Date) => {
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const yyyy = d.getFullYear();
+  return `${yyyy}-${mm}-${dd}`;
 };
 
-const styles = StyleSheet.create({
-  page: {
-    padding: 30,
-    fontSize: 10,
-    fontFamily: "Helvetica",
+const humanType = (t: string) =>
+  t.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
 
-    color: "#333",
+// ─── Styles ──────────────────────────────────────────────────────────────────
+const S = StyleSheet.create({
+  page: {
+    paddingTop: 40,
+    paddingBottom: 60, // room for fixed footer
+    paddingHorizontal: 44,
+    fontSize: 9,
+    fontFamily: "Helvetica",
+    color: "#111111",
+    backgroundColor: "#ffffff",
   },
-  header: {
-    marginBottom: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-    paddingBottom: 10,
-    display: "flex",
+
+  // ── Fixed page header (repeats on every page) ─────────────────────────
+  pageHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 2,
+    borderBottomColor: "#111111",
   },
-  title: {
-    fontSize: 20,
-    marginBottom: 10,
-    color: "#000",
-    fontWeight: "bold",
-  },
-  companyInfo: {
-    marginBottom: 20,
-  },
-  customerInfo: {
-    marginBottom: 20,
-  },
-  sectionTitle: {
+  companyName: {
     fontSize: 12,
-    fontWeight: "bold",
-    marginBottom: 5,
-    backgroundColor: "#f9f9f9",
-    padding: 5,
+    fontFamily: "Helvetica-Bold",
+    color: "#111111",
+    marginBottom: 2,
   },
-  table: {
-    display: "flex",
-    width: "auto",
-    marginTop: 10,
+  companyMeta: {
+    fontSize: 8,
+    color: "#555555",
+    lineHeight: 1.5,
   },
-  tableRow: {
+  docTitle: {
+    fontSize: 20,
+    fontFamily: "Helvetica-Bold",
+    color: "#111111",
+    textTransform: "uppercase",
+    letterSpacing: 1,
+    textAlign: "right",
+  },
+  docMeta: {
+    fontSize: 8,
+    color: "#555555",
+    textAlign: "right",
+    marginTop: 3,
+    lineHeight: 1.6,
+  },
+
+  // ── Bill-to (first page only, not fixed) ─────────────────────────────
+  billToBlock: {
+    marginBottom: 20,
+  },
+  billToLabel: {
+    fontSize: 7,
+    fontFamily: "Helvetica-Bold",
+    color: "#777777",
+    letterSpacing: 1,
+    textTransform: "uppercase",
+    marginBottom: 4,
+  },
+  billToName: {
+    fontSize: 11,
+    fontFamily: "Helvetica-Bold",
+    color: "#111111",
+    marginBottom: 2,
+  },
+  billToMeta: {
+    fontSize: 8.5,
+    color: "#444444",
+    lineHeight: 1.6,
+  },
+
+  // ── Table ─────────────────────────────────────────────────────────────
+  // Table column header repeats on every page via fixed prop
+  tableHeaderRow: {
+    flexDirection: "row",
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: "#111111",
+    paddingVertical: 6,
+    backgroundColor: "#ffffff",
+  },
+  thText: {
+    fontSize: 7.5,
+    fontFamily: "Helvetica-Bold",
+    color: "#111111",
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+  },
+
+  // Regular data rows
+  dataRow: {
     flexDirection: "row",
     borderBottomWidth: 1,
-    borderBottomColor: "#eee",
+    borderBottomColor: "#e0e0e0",
     paddingVertical: 5,
     alignItems: "center",
   },
-  tableHeader: {
-    backgroundColor: "#f5f5f5",
-    fontWeight: "bold",
+  dataRowAlt: {
+    backgroundColor: "#fafafa",
   },
-  col1: { width: "15%" }, // Date
-  col2: { width: "15%" }, // Type
-  col3: { width: "25%" }, // Reference
-  col4: { width: "15%", textAlign: "right" }, // Debit
-  col5: { width: "15%", textAlign: "right" }, // Credit
-  col6: { width: "15%", textAlign: "right" }, // Balance
+  openingRow: {
+    flexDirection: "row",
+    borderBottomWidth: 1,
+    borderBottomColor: "#bbbbbb",
+    paddingVertical: 5,
+    alignItems: "center",
+    backgroundColor: "#f5f5f5",
+  },
+  tdText: { fontSize: 8.5, color: "#111111" },
+  tdBold: { fontSize: 8.5, color: "#111111", fontFamily: "Helvetica-Bold" },
+  tdMuted: { fontSize: 8, color: "#666666" },
+
+  // Column widths
+  cDate: { width: "13%" },
+  cType: { width: "20%" },
+  cRef:  { width: "25%" },
+  cDr:   { width: "14%", textAlign: "right" },
+  cCr:   { width: "14%", textAlign: "right" },
+  cBal:  { width: "14%", textAlign: "right" },
+
+  // ── Totals row ────────────────────────────────────────────────────────
+  totalsRow: {
+    flexDirection: "row",
+    paddingVertical: 6,
+    borderTopWidth: 1.5,
+    borderTopColor: "#111111",
+    marginTop: 2,
+  },
+  totalsLabel: {
+    width: "58%",
+    textAlign: "right",
+    paddingRight: 8,
+    fontSize: 8.5,
+    fontFamily: "Helvetica-Bold",
+  },
+  totalsAmt: {
+    width: "14%",
+    textAlign: "right",
+    fontSize: 8.5,
+    fontFamily: "Helvetica-Bold",
+  },
+
+  // ── Closing balance ───────────────────────────────────────────────────
+  closingRow: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    alignItems: "center",
+    marginTop: 18,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: "#cccccc",
+  },
+  closingLabel: {
+    fontSize: 8.5,
+    color: "#555555",
+    marginRight: 12,
+  },
+  closingAmount: {
+    fontSize: 16,
+    fontFamily: "Helvetica-Bold",
+    color: "#111111",
+  },
+
+  // ── Fixed page footer (repeats on every page) ─────────────────────────
   footer: {
     position: "absolute",
-    bottom: 30,
-    left: 30,
-    right: 30,
-    textAlign: "center",
-    fontSize: 8,
-    color: "#999",
+    bottom: 24,
+    left: 44,
+    right: 44,
     borderTopWidth: 1,
-    borderTopColor: "#eee",
-    paddingTop: 10,
+    borderTopColor: "#cccccc",
+    paddingTop: 7,
+    flexDirection: "row",
+    justifyContent: "space-between",
   },
+  footerText: { fontSize: 7.5, color: "#888888" },
 });
 
+// ─── Types ────────────────────────────────────────────────────────────────────
 interface LedgerItem {
   entryDate: Date;
   entryType: string;
@@ -91,88 +213,138 @@ interface LedgerItem {
   runningBalance: number;
 }
 
-
 interface LedgerPdfProps {
   customer: any;
   ledger: LedgerItem[];
   company: any;
-  period: {
-    start?: Date;
-    end?: Date;
-  };
+  period: { start?: Date; end?: Date };
+  openingBalance?: number; // carry-forward balance before period start
 }
 
-const LedgerDocument = ({ customer, ledger, company, period }: LedgerPdfProps) => {
-  const totalDebit = ledger.reduce((sum, item) => sum + item.debit, 0);
-  const totalCredit = ledger.reduce((sum, item) => sum + item.credit, 0);
-  const closingBalance = ledger.length > 0 ? ledger[ledger.length - 1].runningBalance : 0;
+// ─── Document ─────────────────────────────────────────────────────────────────
+const LedgerDocument = ({
+  customer,
+  ledger,
+  company,
+  period,
+  openingBalance = 0,
+}: LedgerPdfProps) => {
+  const totalDebit    = ledger.reduce((s, r) => s + r.debit,  0);
+  const totalCredit   = ledger.reduce((s, r) => s + r.credit, 0);
+  const closingBalance =
+    ledger.length > 0 ? ledger[ledger.length - 1].runningBalance : openingBalance;
+
+  const hasPeriod = Boolean(period.start || period.end);
+  const periodLabel = hasPeriod
+    ? `${period.start ? fmtDate(period.start) : "—"} to ${period.end ? fmtDate(period.end) : "—"}`
+    : "All dates";
+
+  const TableHeader = () => (
+    <View style={S.tableHeaderRow} fixed>
+      <Text style={[S.thText, S.cDate]}>Date</Text>
+      <Text style={[S.thText, S.cType]}>Particulars</Text>
+      <Text style={[S.thText, S.cRef]}>Reference</Text>
+      <Text style={[S.thText, S.cDr]}>Debit</Text>
+      <Text style={[S.thText, S.cCr]}>Credit</Text>
+      <Text style={[S.thText, S.cBal]}>Balance</Text>
+    </View>
+  );
 
   return (
     <Document>
-      <Page size="A4" style={styles.page}>
-        <View style={styles.header}>
+      <Page size="A4" style={S.page} wrap>
+
+        {/* ── Fixed page header — repeats on every page ─────────────── */}
+        <View style={S.pageHeader} fixed>
           <View>
-            <Text style={styles.title}>Customer Statement</Text>
-            <Text>{company.name}</Text>
-            <Text>{company.address}</Text>
-            {company.panNo && <Text>PAN: {company.panNo}</Text>}
-            {company.vatNo && <Text>VAT: {company.vatNo}</Text>}
+            <Text style={S.companyName}>{company.name}</Text>
+            <Text style={S.companyMeta}>{company.address}</Text>
+            {company.panNo ? <Text style={S.companyMeta}>PAN: {company.panNo}</Text> : null}
+            {company.phone ? <Text style={S.companyMeta}>Tel: {company.phone}</Text> : null}
           </View>
-          <View style={{ textAlign: "right" }}>
-            <Text>Date: {formatDate(new Date())}</Text>
-            {period.start && period.end && (
-              <Text>Period: {formatDate(period.start)} to {formatDate(period.end)}</Text>
-            )}
-            <Text style={{ marginTop: 4, fontSize: 8 }}>All amounts in NPR</Text>
+          <View>
+            <Text style={S.docTitle}>Statement</Text>
+            <Text style={S.docMeta}>Date: {fmtDate(new Date())}</Text>
+            <Text style={S.docMeta}>Period: {periodLabel}</Text>
+            <Text style={S.docMeta}>Currency: NPR</Text>
           </View>
         </View>
 
-        <View style={styles.customerInfo}>
-          <Text style={styles.sectionTitle}>Bill To:</Text>
-          <Text style={{ fontWeight: "bold" }}>{customer.name}</Text>
-          <Text>{customer.address}</Text>
-          <Text>Email: {customer.email || "N/A"}</Text>
-          <Text>Phone: {customer.phone || "N/A"}</Text>
+        {/* ── Bill To — first page only ─────────────────────────────── */}
+        <View style={S.billToBlock}>
+          <Text style={S.billToLabel}>Bill To</Text>
+          <Text style={S.billToName}>{customer.name}</Text>
+          {customer.address ? <Text style={S.billToMeta}>{customer.address}</Text> : null}
+          {customer.email   ? <Text style={S.billToMeta}>{customer.email}</Text>   : null}
+          {customer.phone   ? <Text style={S.billToMeta}>{customer.phone}</Text>   : null}
+          {customer.panNo   ? <Text style={S.billToMeta}>PAN: {customer.panNo}</Text> : null}
         </View>
 
-        <View style={styles.table}>
-          <View style={[styles.tableRow, styles.tableHeader]}>
-            <Text style={styles.col1}>Date</Text>
-            <Text style={styles.col2}>Particulars</Text>
-            <Text style={styles.col3}>Payment Reference</Text>
-            <Text style={styles.col4}>Debit (Sales)</Text>
-            <Text style={styles.col5}>Credit (Payment)</Text>
-            <Text style={styles.col6}>Balance (NPR)</Text>
-          </View>
+        {/* ── Table ─────────────────────────────────────────────────── */}
+        <View>
+          {/* Column headers — fixed so they repeat on each page */}
+          <TableHeader />
 
-          {ledger.map((item, index) => (
-            <View key={index} style={styles.tableRow}>
-              <Text style={styles.col1}>{formatDate(item.entryDate)}</Text>
-              <Text style={styles.col2}>{item.narration || item.entryType.replace(/_/g, " ")}</Text>
-              <Text style={styles.col3}>{item.referenceId}</Text>
-              <Text style={styles.col4}>{item.debit.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</Text>
-              <Text style={styles.col5}>{item.credit.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</Text>
-              <Text style={styles.col6}>{item.runningBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</Text>
+          {/* Opening balance carry-forward row (only when filtering by date) */}
+          {hasPeriod && (
+            <View style={S.openingRow}>
+              <Text style={[S.tdMuted, S.cDate]}>
+                {period.start ? fmtDate(period.start) : "—"}
+              </Text>
+              <Text style={[S.tdBold, S.cType]}>Opening Balance</Text>
+              <Text style={[S.tdMuted, S.cRef]}>B/F</Text>
+              <Text style={[S.tdMuted, S.cDr]}>—</Text>
+              <Text style={[S.tdMuted, S.cCr]}>—</Text>
+              <Text style={[S.tdBold, S.cBal]}>{fmt(openingBalance)}</Text>
+            </View>
+          )}
+
+          {/* Data rows */}
+          {ledger.map((item, i) => (
+            <View key={i} style={[S.dataRow, i % 2 === 1 ? S.dataRowAlt : {}]}>
+              <Text style={[S.tdMuted, S.cDate]}>{fmtDate(item.entryDate)}</Text>
+              <Text style={[S.tdText, S.cType]}>
+                {humanType(item.narration || item.entryType)}
+              </Text>
+              <Text style={[S.tdMuted, S.cRef]}>{item.referenceId || "—"}</Text>
+              <Text style={[S.tdText, S.cDr]}>
+                {item.debit > 0 ? fmt(item.debit) : "—"}
+              </Text>
+              <Text style={[S.tdText, S.cCr]}>
+                {item.credit > 0 ? fmt(item.credit) : "—"}
+              </Text>
+              <Text style={[S.tdBold, S.cBal]}>{fmt(item.runningBalance)}</Text>
             </View>
           ))}
 
-          <View style={[styles.tableRow, { borderTopWidth: 1.5, borderTopColor: "#333", backgroundColor: "#f9f9f9", fontWeight: "bold" }]}>
-            <Text style={{ width: "55%", textAlign: "right", paddingRight: 10 }}>Total:</Text>
-            <Text style={styles.col4}>{totalDebit.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</Text>
-            <Text style={styles.col5}>{totalCredit.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</Text>
-            <Text style={styles.col6}>{closingBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</Text>
+          {/* Totals */}
+          <View style={S.totalsRow}>
+            <Text style={S.totalsLabel}>Total</Text>
+            <Text style={S.totalsAmt}>{fmt(totalDebit)}</Text>
+            <Text style={S.totalsAmt}>{fmt(totalCredit)}</Text>
+            <Text style={S.totalsAmt}>{fmt(closingBalance)}</Text>
           </View>
         </View>
 
-        <View style={{ marginTop: 20, textAlign: "right" }}>
-          <Text style={{ fontSize: 14, fontWeight: "bold" }}>
-            Closing Balance: NPR {closingBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-          </Text>
+        {/* ── Closing balance ───────────────────────────────────────── */}
+        <View style={S.closingRow}>
+          <Text style={S.closingLabel}>Closing Balance Due</Text>
+          <Text style={S.closingAmount}>NPR {fmt(closingBalance)}</Text>
         </View>
 
-        <Text style={styles.footer}>
-          This is a computer generated statement. For any queries, please contact {company.name}.
-        </Text>
+        {/* ── Fixed footer with page numbers — repeats on every page ── */}
+        <View style={S.footer} fixed>
+          <Text style={S.footerText}>
+            Computer-generated statement. No signature required.
+          </Text>
+          <Text
+            style={S.footerText}
+            render={({ pageNumber, totalPages }) =>
+              `${company.name}  ·  Page ${pageNumber} of ${totalPages}`
+            }
+          />
+        </View>
+
       </Page>
     </Document>
   );
