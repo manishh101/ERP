@@ -56,3 +56,22 @@
     @apply rounded-lg border border-border bg-card shadow-panel;
   }
 }
+
+/* ── Nepali Date Picker overrides ─────────────────────────────────────── */
+.nepali-picker-wrapper {
+  position: relative;
+  z-index: 10;
+}
+
+/* The calendar popup rendered by @sbmdkl/nepali-datepicker-reactjs */
+.nepali-picker-wrapper .ndp-calendar,
+.nepali-picker-wrapper > div > div:not(:first-child) {
+  position: absolute !important;
+  z-index: 9999 !important;
+  background: white;
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.75rem;
+  box-shadow: 0 10px 25px -5px rgb(0 0 0 / 0.1), 0 4px 6px -2px rgb(0 0 0 / 0.05);
+  margin-top: 4px;
+}
+

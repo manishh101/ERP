@@ -105,11 +105,12 @@ export function CreateSalesOrderForm({ onClose }: CreateSalesOrderFormProps) {
           <CardDescription>Draft a new quote or sales order for a customer.</CardDescription>
         </div>
       </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <CardContent className="space-y-8 pt-2 pb-8">
+        {/* ── Row 1: Customer + Status ── */}
+        <div className="grid gap-5 md:grid-cols-2">
           <div className="space-y-2">
             <div className="flex justify-between items-center">
-              <label className="text-sm font-medium">Customer *</label>
+              <label className="text-sm font-semibold">Customer *</label>
               <Button 
                 variant="link" 
                 className="h-auto p-0 text-xs text-primary" 
@@ -122,7 +123,7 @@ export function CreateSalesOrderForm({ onClose }: CreateSalesOrderFormProps) {
               </Button>
             </div>
             <select 
-              className="flex h-11 w-full rounded-2xl border border-border bg-white/90 px-4 text-sm"
+              className="flex h-12 w-full rounded-xl border border-border bg-white px-4 text-sm"
               value={formData.customerId}
               onChange={(e) => setFormData({ ...formData, customerId: e.target.value })}
             >
@@ -133,9 +134,9 @@ export function CreateSalesOrderForm({ onClose }: CreateSalesOrderFormProps) {
             </select>
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium">Status</label>
+            <label className="text-sm font-semibold">Status</label>
             <select 
-              className="flex h-11 w-full rounded-2xl border border-border bg-white/90 px-4 text-sm"
+              className="flex h-12 w-full rounded-xl border border-border bg-white px-4 text-sm"
               value={formData.status}
               onChange={(e) => setFormData({ ...formData, status: e.target.value })}
             >
@@ -143,63 +144,79 @@ export function CreateSalesOrderForm({ onClose }: CreateSalesOrderFormProps) {
               <option value="CONFIRMED">CONFIRMED</option>
             </select>
           </div>
+        </div>
+
+        {/* ── Row 2: Delivery Date + Deposit + Custom Project ── */}
+        <div className="grid gap-5 md:grid-cols-3">
           <div className="space-y-2">
-            <label className="text-sm font-medium">Delivery Date</label>
+            <label className="text-sm font-semibold">Delivery Date</label>
             <NepaliDatePickerInput 
               value={formData.deliveryDate} 
               onChange={(date) => setFormData({ ...formData, deliveryDate: date.toISOString().split("T")[0] })} 
             />
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium">Deposit Amount</label>
+            <label className="text-sm font-semibold">Deposit Amount</label>
             <Input 
               type="number"
               step="0.01"
+              className="h-12"
               value={formData.depositAmount} 
               onChange={(e) => setFormData({ ...formData, depositAmount: e.target.value })} 
             />
           </div>
-          <div className="flex items-center gap-2 px-4 h-11 border border-border bg-white/90 rounded-2xl">
-            <input 
-              type="checkbox" 
-              id="isCustomOrder"
-              checked={formData.isCustomOrder} 
-              onChange={(e) => setFormData({ ...formData, isCustomOrder: e.target.checked })} 
-            />
-            <label htmlFor="isCustomOrder" className="text-sm">Custom Project <span className="text-xs text-muted-foreground">(bespoke order)</span></label>
+          <div className="space-y-2">
+            <label className="text-sm font-semibold">Project Type</label>
+            <div className="flex items-center gap-3 h-12 border border-border bg-white px-4 rounded-xl">
+              <input 
+                type="checkbox" 
+                id="isCustomOrder"
+                className="w-4 h-4"
+                checked={formData.isCustomOrder} 
+                onChange={(e) => setFormData({ ...formData, isCustomOrder: e.target.checked })} 
+              />
+              <label htmlFor="isCustomOrder" className="text-sm cursor-pointer">Custom <span className="text-xs text-muted-foreground">(bespoke)</span></label>
+            </div>
           </div>
-          {formData.isCustomOrder && (
-            <>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Expected Ready Date</label>
-                <NepaliDatePickerInput 
-                  value={formData.expectedReadyDate} 
-                  onChange={(date) => setFormData({ ...formData, expectedReadyDate: date.toISOString().split("T")[0] })} 
-                />
-              </div>
+        </div>
+
+        {/* ── Custom project extra fields ── */}
+        {formData.isCustomOrder && (
+          <div className="grid gap-5 md:grid-cols-2">
+            <div className="space-y-2">
+              <label className="text-sm font-semibold">Expected Ready Date</label>
+              <NepaliDatePickerInput 
+                value={formData.expectedReadyDate} 
+                onChange={(date) => setFormData({ ...formData, expectedReadyDate: date.toISOString().split("T")[0] })} 
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-semibold">Notes</label>
               <Input 
-                className="md:col-span-1 lg:col-span-1"
-                placeholder="Internal or Customer Notes" 
+                className="h-12"
+                placeholder="Internal or customer notes" 
                 value={formData.notes} 
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })} 
               />
-            </>
-          )}
-        </div>
+            </div>
+          </div>
+        )}
 
-        <div className="space-y-3">
+        {/* ── Line Items ── */}
+        <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h4 className="font-semibold">Line Items</h4>
+            <h4 className="text-sm font-semibold">Line Items</h4>
             <div className="flex gap-2">
               <Button 
                 variant="link" 
-                className="h-9 px-2 text-primary"
+                className="h-9 px-2 text-primary text-xs"
                 onClick={() => setCreateProductOpen(true)}
               >
                 + New Product
               </Button>
               <Button 
-                variant="outline" 
+                variant="outline"
+                size="sm"
                 onClick={() => setLineItems([...lineItems, { 
                   productVariantId: "", 
                   quantity: "", 
@@ -219,8 +236,8 @@ export function CreateSalesOrderForm({ onClose }: CreateSalesOrderFormProps) {
             const rowTotal = toNumber(item.quantity) * toNumber(item.unitPrice) * (1 - (toNumber(item.discountPct) / 100));
             
             return (
-              <div key={index} className="grid gap-3 md:grid-cols-12 items-center bg-white p-3 rounded-xl border border-border">
-                <div className="md:col-span-4">
+              <div key={index} className="grid gap-3 md:grid-cols-12 items-center bg-white p-4 rounded-xl border border-border">
+                <div className="md:col-span-3">
                   <select 
                     className="flex h-11 w-full rounded-2xl border border-border bg-white/90 px-4 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     value={products.data?.items.find(p => p.defaultVariantId === item.productVariantId)?.id || ""}
@@ -246,7 +263,7 @@ export function CreateSalesOrderForm({ onClose }: CreateSalesOrderFormProps) {
                     ))}
                   </select>
                 </div>
-                <div className="md:col-span-1">
+                <div className="md:col-span-2">
                   <Input 
                     placeholder="Qty" 
                     type="number"
@@ -369,11 +386,12 @@ export function CreateSalesOrderForm({ onClose }: CreateSalesOrderFormProps) {
           )}
         </div>
 
-        <div className="flex gap-3 justify-end mt-4">
-          <Button variant="outline" onClick={onClose} disabled={createSO.isPending}>
+        {/* ── Footer ── */}
+        <div className="flex gap-3 justify-end pt-2 border-t">
+          <Button variant="outline" size="lg" onClick={onClose} disabled={createSO.isPending}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={createSO.isPending}>
+          <Button size="lg" onClick={handleSubmit} disabled={createSO.isPending}>
             {createSO.isPending ? "Creating..." : "Save Sales Order"}
           </Button>
         </div>

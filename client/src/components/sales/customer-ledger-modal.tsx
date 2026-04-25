@@ -90,7 +90,7 @@ export function CustomerLedgerModal({ customerId, customerName, onClose }: Custo
 
   return (
     <Sheet open onOpenChange={(open) => !open && onClose()}>
-      <SheetContent className="sm:max-w-3xl overflow-y-auto">
+      <SheetContent className="sm:max-w-6xl overflow-y-auto">
         <SheetHeader>
           <SheetTitle>Khata (Ledger)</SheetTitle>
           <SheetDescription>{customerName}</SheetDescription>

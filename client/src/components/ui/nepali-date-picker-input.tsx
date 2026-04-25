@@ -42,7 +42,7 @@ export function NepaliDatePickerInput({ value, onChange, className, placeholder 
   return (
     <div className={cn("relative w-full nepali-picker-wrapper", className)}>
       <NepaliDatePicker
-        inputClassName="flex h-11 w-full rounded-2xl border border-border bg-white/90 px-4 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+        inputClassName="flex h-12 w-full rounded-xl border border-border bg-white px-4 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
         value={bsDateStr}
         onChange={handleDateChange}
         options={{ calenderLocale: "en", valueLocale: "en" }}
