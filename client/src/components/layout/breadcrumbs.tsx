@@ -3,7 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 
 /** Map URL segments to Nepali business module labels */
 const labelMap: Record<string, string> = {
-  parties: "Parties",
+  parties: "Showrooms",
   sales: "Sales & Dispatch",
   delivery: "Challans",
   invoicing: "VAT/PAN Bills",

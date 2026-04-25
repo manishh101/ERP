@@ -11,10 +11,14 @@ import {
   Receipt,
   Edit,
   FileText,
+  Plus,
+  Banknote,
 } from "lucide-react";
 import { DataTable } from "@/components/shared/data-table";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
+import { PartyKpiCards } from "@/components/sales/party-kpi-cards";
+import { KhataAnalyticsTable } from "@/components/sales/khata-analytics-table";
 import {
   Card,
   CardContent,
@@ -24,11 +28,25 @@ import {
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { useCustomerQuery } from "@/hooks/use-queries";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { useCustomerQuery, useCustomerLedgerQuery } from "@/hooks/use-queries";
 import { getErrorMessage } from "@/lib/api";
 import { formatCurrency, formatDate, toNumber } from "@/lib/utils";
 import { CreateCustomerForm } from "@/components/sales/create-customer-form";
+import { CreateSalesOrderForm } from "@/components/sales/create-sales-order-form";
 import { CustomerLedgerModal } from "@/components/sales/customer-ledger-modal";
+import { RecordDepositModal } from "@/components/sales/record-deposit-modal";
 
 const salesOrderColumns: ColumnDef<any, unknown>[] = [
   { accessorKey: "id", header: "Order ID" },
@@ -46,7 +64,7 @@ const salesOrderColumns: ColumnDef<any, unknown>[] = [
     accessorKey: "grandTotal",
     header: () => <div className="text-right">Total</div>,
     cell: ({ row }) => (
-      <div className="text-right font-medium">
+      <div className="text-right font-medium tabular-nums">
         {formatCurrency(toNumber(row.getValue("grandTotal")))}
       </div>
     ),
@@ -62,7 +80,7 @@ const salesOrderColumns: ColumnDef<any, unknown>[] = [
       const balance = toNumber(row.getValue("balanceDue"));
       return (
         <div
-          className={`text-right tabular-nums ${balance > 0 ? "font-bold text-amber-600" : "font-medium text-muted-foreground"}`}
+          className={`text-right tabular-nums ${balance > 0 ? "font-bold text-amber-700" : "font-medium text-muted-foreground"}`}
         >
           {formatCurrency(balance)}
         </div>
@@ -87,11 +105,24 @@ const salesOrderColumns: ColumnDef<any, unknown>[] = [
 export function PartyProfilePage() {
   const { id } = useParams<{ id: string }>();
   const { data: customer, error, isLoading } = useCustomerQuery(id!);
+  const { data: ledgerData } = useCustomerLedgerQuery(id!);
   const [isEditing, setIsEditing] = useState(false);
   const [isLedgerOpen, setIsLedgerOpen] = useState(false);
+  const [isNewOrderOpen, setIsNewOrderOpen] = useState(false);
+  const [isPaymentOpen, setIsPaymentOpen] = useState(false);
 
   if (isLoading) {
-    return <Skeleton className="h-[500px]" />;
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-10 w-64" />
+        <div className="grid gap-4 md:grid-cols-3">
+          <Skeleton className="h-28" />
+          <Skeleton className="h-28" />
+          <Skeleton className="h-28" />
+        </div>
+        <Skeleton className="h-[400px]" />
+      </div>
+    );
   }
 
   if (error) {
@@ -115,9 +146,21 @@ export function PartyProfilePage() {
   const creditLimit = toNumber(customer.creditLimit || 0);
   const creditUsedPct = creditLimit > 0 ? (outBalance / creditLimit) * 100 : 0;
 
+  // Compute lifetime volume/value from sales orders
+  const orders = customer.salesOrders || [];
+  const lifetimeQty = orders.reduce((sum: number, o: any) => {
+    const lineItems = o.lineItems ?? [];
+    return sum + lineItems.reduce((qs: number, li: any) => qs + toNumber(li.quantity), 0);
+  }, 0);
+  const lifetimeValue = orders.reduce(
+    (sum: number, o: any) => sum + toNumber(o.grandTotal || o.orderAmount),
+    0,
+  );
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      {/* Header with navigation and action buttons */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-4">
           <Button variant="outline" size="icon" className="h-8 w-8" asChild>
             <Link to="/parties">
@@ -126,33 +169,62 @@ export function PartyProfilePage() {
           </Button>
           <PageHeader title={customer.name} />
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" className="gap-2" onClick={() => setIsLedgerOpen(true)}>
-            <FileText className="h-4 w-4" />
-            View Khata (Ledger)
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="default"
+            className="gap-2"
+            onClick={() => setIsNewOrderOpen(true)}
+          >
+            <Plus className="h-4 w-4" />
+            New Order
           </Button>
-          <Button variant="default" className="gap-2" onClick={() => setIsEditing(!isEditing)}>
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={() => setIsPaymentOpen(true)}
+          >
+            <Banknote className="h-4 w-4" />
+            Record Payment
+          </Button>
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={() => setIsLedgerOpen(true)}
+          >
+            <FileText className="h-4 w-4" />
+            View Full Ledger
+          </Button>
+          <Button
+            variant="ghost"
+            className="gap-2"
+            onClick={() => setIsEditing(!isEditing)}
+          >
             <Edit className="h-4 w-4" />
-            {isEditing ? "Cancel Edit" : "Edit Profile"}
+            {isEditing ? "Cancel" : "Edit"}
           </Button>
         </div>
       </div>
 
+      {/* Edit Form (inline) */}
       {isEditing && (
-        <CreateCustomerForm 
-          onClose={() => setIsEditing(false)} 
+        <CreateCustomerForm
+          onClose={() => setIsEditing(false)}
           initialData={customer}
         />
       )}
 
-      {isLedgerOpen && (
-        <CustomerLedgerModal 
-          customerId={customer.id} 
-          customerName={customer.name} 
-          onClose={() => setIsLedgerOpen(false)} 
-        />
-      )}
+      {/* ═══════════════════════════════════════════════════════
+          LIFETIME KPI CARDS
+          ═══════════════════════════════════════════════════════ */}
+      <PartyKpiCards
+        lifetimeQty={lifetimeQty}
+        lifetimeValue={lifetimeValue}
+        currentArBalance={outBalance}
+      />
 
+      {/* ═══════════════════════════════════════════════════════
+          PROFILE + FINANCIALS
+          ═══════════════════════════════════════════════════════ */}
       <div className="grid gap-6 md:grid-cols-3">
         {/* Profile Card */}
         <Card className="md:col-span-2">
@@ -227,7 +299,7 @@ export function PartyProfilePage() {
               <CreditCard className="h-5 w-5 text-muted-foreground" />
               Financials
             </CardTitle>
-            <CardDescription>Ledger summary & bounds.</CardDescription>
+            <CardDescription>Ledger summary &amp; bounds.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div>
@@ -235,7 +307,7 @@ export function PartyProfilePage() {
                 Outstanding Balance
               </p>
               <p
-                className={`mt-1 text-3xl font-bold tracking-tight ${outBalance > 0 ? "text-amber-600" : "text-green-600"}`}
+                className={`mt-1 text-3xl font-bold tracking-tight ${outBalance > 0 ? "text-amber-700" : "text-green-700"}`}
               >
                 {formatCurrency(outBalance)}
               </p>
@@ -267,26 +339,68 @@ export function PartyProfilePage() {
         </Card>
       </div>
 
-      <div className="grid gap-6">
-        {/* Sales Orders Sub-Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Orders Pipeline</CardTitle>
-            <CardDescription>
-              The active transaction history for this party.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="p-0">
-            <DataTable
-              columns={salesOrderColumns}
-              data={customer.salesOrders || []}
-              pageSize={10}
-              searchKey="id"
-              emptyMessage="No sales orders found for this party."
-            />
-          </CardContent>
-        </Card>
-      </div>
+      {/* ═══════════════════════════════════════════════════════
+          KHATA ANALYTICS (Month-by-Month)
+          ═══════════════════════════════════════════════════════ */}
+      <KhataAnalyticsTable
+        ledgerEntries={ledgerData ?? []}
+        salesOrders={orders}
+      />
+
+      {/* ═══════════════════════════════════════════════════════
+          RECENT ORDERS PIPELINE
+          ═══════════════════════════════════════════════════════ */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Recent Orders Pipeline</CardTitle>
+          <CardDescription>
+            The active transaction history for this party.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="p-0">
+          <DataTable
+            columns={salesOrderColumns}
+            data={orders}
+            pageSize={10}
+            searchPlaceholder="Search orders..."
+            emptyMessage="No sales orders found for this party."
+          />
+        </CardContent>
+      </Card>
+
+      {/* ═══════════════════════════════════════════════════════
+          MODALS & SHEETS
+          ═══════════════════════════════════════════════════════ */}
+
+      {/* Ledger Sheet */}
+      {isLedgerOpen && (
+        <CustomerLedgerModal
+          customerId={customer.id}
+          customerName={customer.name}
+          onClose={() => setIsLedgerOpen(false)}
+        />
+      )}
+
+      {/* New Order Sheet */}
+      <Sheet open={isNewOrderOpen} onOpenChange={setIsNewOrderOpen}>
+        <SheetContent className="sm:max-w-2xl overflow-y-auto p-0">
+          <SheetHeader className="px-6 pt-6">
+            <SheetTitle>Create Sales Order</SheetTitle>
+          </SheetHeader>
+          <div className="px-6 pb-6">
+            <CreateSalesOrderForm onClose={() => setIsNewOrderOpen(false)} />
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* Record Payment Dialog */}
+      {isPaymentOpen && orders.length > 0 && (
+        <RecordDepositModal
+          orderId={orders[0]?.id ?? ""}
+          orderNumber={orders[0]?.id ?? ""}
+          onClose={() => setIsPaymentOpen(false)}
+        />
+      )}
     </div>
   );
 }

@@ -1,7 +1,14 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { useRecordSalesOrderDepositMutation } from "@/hooks/use-queries";
 import { getErrorMessage } from "@/lib/api";
@@ -13,7 +20,7 @@ type RecordDepositModalProps = {
 };
 
 export function RecordDepositModal({ orderId, orderNumber, onClose }: RecordDepositModalProps) {
-  
+
   const recordDeposit = useRecordSalesOrderDepositMutation();
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState("CASH");
@@ -32,7 +39,7 @@ export function RecordDepositModal({ orderId, orderNumber, onClose }: RecordDepo
         method,
         reference: reference || undefined,
       });
-      
+
       toast("Deposit recorded", { description: `The deposit for order ${orderNumber} has been successfully recorded.` });
       onClose();
     } catch (error) {
@@ -41,23 +48,24 @@ export function RecordDepositModal({ orderId, orderNumber, onClose }: RecordDepo
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-950/30 p-6">
-      <Card className="w-full max-w-md shadow-2xl">
-        <CardHeader>
-          <div>
-            <CardTitle>Record Deposit</CardTitle>
-            <CardDescription className="mt-2">Enter the deposit amount received for order <strong>{orderNumber}</strong>.</CardDescription>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Record Payment</DialogTitle>
+          <DialogDescription>
+            Enter the deposit amount received for order <strong>{orderNumber}</strong>.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 py-2">
           <div className="space-y-2">
             <label className="text-sm font-medium">Deposit Amount *</label>
-            <Input 
+            <Input
               type="number"
               step="0.01"
               autoFocus
               placeholder="0.00"
-              value={amount} 
+              value={amount}
               onChange={(e) => setAmount(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") handleSubmit();
@@ -68,8 +76,8 @@ export function RecordDepositModal({ orderId, orderNumber, onClose }: RecordDepo
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Payment Method *</label>
-              <select 
-                className="flex h-11 w-full rounded-2xl border border-border bg-white/90 px-4 text-sm"
+              <select
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 value={method}
                 onChange={(e) => setMethod(e.target.value)}
               >
@@ -81,24 +89,24 @@ export function RecordDepositModal({ orderId, orderNumber, onClose }: RecordDepo
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Reference</label>
-              <Input 
+              <Input
                 placeholder="Ref # / Note"
-                value={reference} 
+                value={reference}
                 onChange={(e) => setReference(e.target.value)}
               />
             </div>
           </div>
+        </div>
 
-          <div className="flex gap-3 justify-end mt-6">
-            <Button variant="outline" onClick={onClose} disabled={recordDeposit.isPending}>
-              Cancel
-            </Button>
-            <Button onClick={handleSubmit} disabled={recordDeposit.isPending}>
-              {recordDeposit.isPending ? "Recording..." : "Confirm Deposit"}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={recordDeposit.isPending}>
+            Cancel
+          </Button>
+          <Button onClick={handleSubmit} disabled={recordDeposit.isPending}>
+            {recordDeposit.isPending ? "Recording..." : "Confirm Deposit"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

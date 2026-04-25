@@ -1,21 +1,26 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import type { ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "@/components/shared/data-table";
 import { PageHeader } from "@/components/shared/page-header";
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { useCustomersQuery, type RawCustomer } from "@/hooks/use-queries";
 import { getErrorMessage } from "@/lib/api";
-import { Link } from "react-router-dom";
 import { formatCurrency, toNumber } from "@/lib/utils";
 import { CreateCustomerForm } from "@/components/sales/create-customer-form";
-import { Button } from "@/components/ui/button";
+import { CustomerLedgerModal } from "@/components/sales/customer-ledger-modal";
+import { Eye, FileText, ShoppingCart } from "lucide-react";
 
 const partyColumns: ColumnDef<RawCustomer, unknown>[] = [
   {
@@ -54,6 +59,18 @@ const partyColumns: ColumnDef<RawCustomer, unknown>[] = [
     },
   },
   {
+    accessorKey: "outstandingBalance",
+    header: () => <div className="text-right">Outstanding</div>,
+    cell: ({ row }) => {
+      const balance = toNumber((row.original as any).outstandingBalance || 0);
+      return (
+        <div className={`text-right font-medium tabular-nums ${balance > 0 ? "text-amber-700" : "text-green-700"}`}>
+          {formatCurrency(balance)}
+        </div>
+      );
+    },
+  },
+  {
     accessorKey: "creditLimit",
     header: () => <div className="text-right">Credit Limit</div>,
     cell: ({ row }) => (
@@ -63,23 +80,12 @@ const partyColumns: ColumnDef<RawCustomer, unknown>[] = [
     ),
   },
   { accessorKey: "address", header: "Location" },
-  {
-    id: "actions",
-    cell: ({ row }) => {
-      return (
-        <div className="flex justify-end">
-          <Button variant="ghost" size="sm" asChild>
-            <Link to={`/parties/${row.original.id}`}>View Profile</Link>
-          </Button>
-        </div>
-      );
-    },
-  },
 ];
 
 export function PartiesPage() {
   const { data, error, isLoading } = useCustomersQuery();
   const [createCustomerOpen, setCreateCustomerOpen] = useState(false);
+  const [ledgerCustomer, setLedgerCustomer] = useState<{ id: string; name: string } | null>(null);
   const [typeFilter, setTypeFilter] = useState<"ALL" | "SHOWROOM" | "RETAIL">(
     "ALL",
   );
@@ -113,24 +119,23 @@ export function PartiesPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Parties & Showrooms"
+        title="Showrooms & Parties"
         actions={[
           {
-            label: createCustomerOpen ? "Close Form" : "New Party",
-            variant: createCustomerOpen ? "outline" : "default",
-            onClick: () => setCreateCustomerOpen((c) => !c),
+            label: "New Party",
+            onClick: () => setCreateCustomerOpen(true),
           },
         ]}
       />
 
-      <div className="flex items-center gap-2 rounded-2xl border border-border bg-white p-1 w-fit shadow-sm">
+      <div className="flex items-center gap-2 rounded-lg border border-border/50 bg-muted/30 p-0.5 w-fit">
         {(["ALL", "SHOWROOM", "RETAIL"] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTypeFilter(t)}
-            className={`px-4 py-2 text-xs font-bold transition-all ${
+            className={`px-4 py-1.5 text-xs font-semibold rounded-md transition-all ${
               typeFilter === t
-                ? "rounded-xl bg-primary text-primary-foreground shadow-sm"
+                ? "bg-white text-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
@@ -139,20 +144,6 @@ export function PartiesPage() {
         ))}
       </div>
 
-      {createCustomerOpen && (
-        <Card className="mb-6 border-primary/20 bg-primary/5">
-          <CardHeader>
-            <CardTitle>Add New Party</CardTitle>
-            <CardDescription>
-              Register a new showroom or retail customer.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <CreateCustomerForm onClose={() => setCreateCustomerOpen(false)} />
-          </CardContent>
-        </Card>
-      )}
-
       <Card>
         <CardContent className="p-0">
           <DataTable
@@ -160,9 +151,47 @@ export function PartiesPage() {
             data={filteredItems}
             pageSize={15}
             searchPlaceholder="Search parties..."
+            actions={(row) => [
+              {
+                label: "View Profile",
+                icon: <Eye className="h-4 w-4" />,
+                href: () => `/parties/${row.id}`,
+              },
+              {
+                label: "View Khata",
+                icon: <FileText className="h-4 w-4" />,
+                onClick: () => setLedgerCustomer({ id: row.id, name: row.name }),
+              },
+              {
+                label: "New Order",
+                icon: <ShoppingCart className="h-4 w-4" />,
+                href: () => `/sales`,
+              },
+            ]}
           />
         </CardContent>
       </Card>
+
+      {/* New Party Sheet */}
+      <Sheet open={createCustomerOpen} onOpenChange={setCreateCustomerOpen}>
+        <SheetContent className="sm:max-w-xl overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>Add New Party</SheetTitle>
+          </SheetHeader>
+          <div className="mt-4">
+            <CreateCustomerForm onClose={() => setCreateCustomerOpen(false)} />
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* Ledger Sheet */}
+      {ledgerCustomer && (
+        <CustomerLedgerModal
+          customerId={ledgerCustomer.id}
+          customerName={ledgerCustomer.name}
+          onClose={() => setLedgerCustomer(null)}
+        />
+      )}
     </div>
   );
 }

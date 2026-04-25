@@ -4,10 +4,15 @@ import { useAuth } from "@/components/auth/auth-provider";
 import { formatCurrency, formatEnumLabel, formatDate } from "@/lib/utils";
 import { API_BASE_URL } from "@/lib/api";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { DataTable } from "@/components/shared/data-table";
 import { Skeleton } from "@/components/ui/skeleton";
-import { X } from "lucide-react";
 import type { ArLedgerEntry } from "@/types/domain";
 
 type CustomerLedgerModalProps = {
@@ -71,7 +76,7 @@ export function CustomerLedgerModal({ customerId, customerName, onClose }: Custo
           'Authorization': `Bearer ${token}`
         }
       });
-      
+
       if (!response.ok) throw new Error('Failed to get download token');
       const { token: downloadToken } = await response.json();
 
@@ -84,19 +89,14 @@ export function CustomerLedgerModal({ customerId, customerName, onClose }: Custo
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-6">
-      <Card className="w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
-        <CardHeader className="flex flex-row items-center justify-between border-b pb-4">
-          <div>
-            <CardTitle>Khata (Ledger)</CardTitle>
-            <CardDescription>{customerName}</CardDescription>
-          </div>
-          <Button variant="ghost" onClick={onClose} className="h-8 w-8 p-0">
-            <X className="h-4 w-4" />
-          </Button>
-        </CardHeader>
-        
-        <CardContent className="flex-1 overflow-y-auto p-6">
+    <Sheet open onOpenChange={(open) => !open && onClose()}>
+      <SheetContent className="sm:max-w-3xl overflow-y-auto">
+        <SheetHeader>
+          <SheetTitle>Khata (Ledger)</SheetTitle>
+          <SheetDescription>{customerName}</SheetDescription>
+        </SheetHeader>
+
+        <div className="mt-6">
           {isLoading ? (
             <div className="space-y-3">
               <Skeleton className="h-10 w-full" />
@@ -106,7 +106,7 @@ export function CustomerLedgerModal({ customerId, customerName, onClose }: Custo
           ) : ledger && ledger.length > 0 ? (
             <div className="space-y-4">
               <DataTable data={ledger} columns={ledgerColumns} pageSize={50} />
-              
+
               <div className="flex justify-end pt-2">
                 <div className="text-right">
                   <p className="text-xs uppercase tracking-wider text-muted-foreground">Closing Balance</p>
@@ -121,9 +121,9 @@ export function CustomerLedgerModal({ customerId, customerName, onClose }: Custo
               No transactions found for this party.
             </div>
           )}
-        </CardContent>
+        </div>
 
-        <div className="flex justify-end gap-2 border-t p-4">
+        <div className="flex justify-end gap-2 border-t pt-4 mt-6">
           <Button variant="outline" onClick={onClose}>
             Close
           </Button>
@@ -131,7 +131,7 @@ export function CustomerLedgerModal({ customerId, customerName, onClose }: Custo
             Download PDF
           </Button>
         </div>
-      </Card>
-    </div>
+      </SheetContent>
+    </Sheet>
   );
 }

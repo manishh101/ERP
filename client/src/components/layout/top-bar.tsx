@@ -1,10 +1,10 @@
-import { useLocation } from "react-router-dom";
-import { Search, Menu } from "lucide-react";
+import { Search, Menu, Calendar, Landmark } from "lucide-react";
 import { useAuth } from "@/components/auth/auth-provider";
 import { Breadcrumbs } from "@/components/layout/breadcrumbs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { formatEnumLabel } from "@/lib/utils";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { formatEnumLabel, getCurrentBsDate, getCurrentFiscalYear } from "@/lib/utils";
 
 export function TopBar({
   onMenuClick,
@@ -14,9 +14,11 @@ export function TopBar({
   onSearchOpen: () => void;
 }) {
   const { user, logout } = useAuth();
+  const bsDate = getCurrentBsDate();
+  const fiscalYear = getCurrentFiscalYear();
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 lg:px-6">
+    <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background/95 backdrop-blur-sm px-4 lg:px-6">
       {/* Mobile menu button */}
       <button
         className="rounded-md p-1.5 text-muted-foreground hover:text-foreground lg:hidden"
@@ -28,6 +30,23 @@ export function TopBar({
       {/* Breadcrumbs */}
       <div className="flex-1 overflow-hidden">
         <Breadcrumbs />
+      </div>
+
+      {/* Header Widgets: BS Date & Fiscal Year */}
+      <div className="hidden items-center gap-2 md:flex">
+        <Tooltip delayDuration={0}>
+          <TooltipTrigger asChild>
+            <div className="flex items-center gap-1.5 rounded-md border border-border/50 bg-muted/50 px-2.5 py-1 text-xs font-medium text-muted-foreground">
+              <Calendar className="h-3 w-3" />
+              <span className="tabular-nums">{bsDate}</span>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent>Bikram Sambat Date</TooltipContent>
+        </Tooltip>
+        <div className="flex items-center gap-1.5 rounded-md border border-border/50 bg-muted/50 px-2.5 py-1 text-xs font-medium text-muted-foreground">
+          <Landmark className="h-3 w-3" />
+          <span>{fiscalYear}</span>
+        </div>
       </div>
 
       {/* Search trigger */}

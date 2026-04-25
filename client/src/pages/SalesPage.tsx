@@ -15,11 +15,16 @@ import {
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import {
   useSalesOrdersQuery,
   useCustomersQuery,
   useCancelSalesOrderMutation,
   useConfirmSalesOrderMutation,
-  useRecordSalesOrderDepositMutation,
   useUpdateSalesOrderStatusMutation,
 } from "@/hooks/use-queries";
 import { getErrorMessage } from "@/lib/api";
@@ -114,41 +119,32 @@ export function SalesPage() {
         title="Orders"
         actions={[
           {
-            label: createCustomerOpen ? "Close Party Form" : "New Party",
+            label: "New Party",
             variant: "outline",
             onClick: () => {
-              setCreateCustomerOpen((c) => !c);
+              setCreateCustomerOpen(true);
               setCreateSalesOrderOpen(false);
             },
           },
           {
-            label: createSalesOrderOpen
-              ? "Close Order Form"
-              : "New Order / Quote",
+            label: "New Order / Quote",
             onClick: () => {
-              setCreateSalesOrderOpen((c) => !c);
+              setCreateSalesOrderOpen(true);
               setCreateCustomerOpen(false);
             },
           },
         ]}
       />
 
-      {createCustomerOpen ? (
-        <CreateCustomerForm onClose={() => setCreateCustomerOpen(false)} />
-      ) : null}
-      {createSalesOrderOpen ? (
-        <CreateSalesOrderForm onClose={() => setCreateSalesOrderOpen(false)} />
-      ) : null}
-
       <div className="space-y-6">
-        <div className="flex items-center gap-2 rounded-2xl border border-border bg-white p-1 w-fit shadow-sm">
+        <div className="flex items-center gap-2 rounded-lg border border-border/50 bg-muted/30 p-0.5 w-fit">
           {(["ALL", "SHOWROOM", "RETAIL"] as const).map((t) => (
             <button
               key={t}
               onClick={() => setTypeFilter(t)}
-              className={`px-4 py-2 text-xs font-bold transition-all ${
+              className={`px-4 py-1.5 text-xs font-semibold rounded-md transition-all ${
                 typeFilter === t
-                  ? "rounded-xl bg-primary text-primary-foreground shadow-sm"
+                  ? "bg-white text-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
@@ -170,7 +166,7 @@ export function SalesPage() {
               </CardDescription>
             </div>
             {selectedOrderId && (
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 {selectedOrder?.rawStatus === "QUOTE" && (
                   <Button
                     variant="default"
@@ -258,7 +254,7 @@ export function SalesPage() {
         <Card>
           <CardHeader>
             <div>
-              <CardTitle>Parties & Khata</CardTitle>
+              <CardTitle>Parties &amp; Khata</CardTitle>
               <CardDescription>
                 Balances, credit limits, and statements.
               </CardDescription>
@@ -337,6 +333,30 @@ export function SalesPage() {
           onClose={() => setDepositModalOpen(false)}
         />
       )}
+
+      {/* New Party Sheet */}
+      <Sheet open={createCustomerOpen} onOpenChange={setCreateCustomerOpen}>
+        <SheetContent className="sm:max-w-xl overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>Add New Party</SheetTitle>
+          </SheetHeader>
+          <div className="mt-4">
+            <CreateCustomerForm onClose={() => setCreateCustomerOpen(false)} />
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* New Order Sheet */}
+      <Sheet open={createSalesOrderOpen} onOpenChange={setCreateSalesOrderOpen}>
+        <SheetContent className="sm:max-w-2xl overflow-y-auto p-0">
+          <SheetHeader className="px-6 pt-6">
+            <SheetTitle>Create Sales Order</SheetTitle>
+          </SheetHeader>
+          <div className="px-6 pb-6">
+            <CreateSalesOrderForm onClose={() => setCreateSalesOrderOpen(false)} />
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

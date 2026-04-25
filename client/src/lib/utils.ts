@@ -74,3 +74,43 @@ export function toNumber(value: number | string | null | undefined) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
 }
+
+/** Nepali month names (0-indexed) */
+export const NEPALI_MONTHS = [
+  "Baisakh", "Jestha", "Ashadh", "Shrawan",
+  "Bhadra", "Ashwin", "Kartik", "Mangsir",
+  "Poush", "Magh", "Falgun", "Chaitra",
+] as const;
+
+/** Get the Nepali month name from a 0-based month index */
+export function getNepaliMonthName(monthIndex: number): string {
+  return NEPALI_MONTHS[monthIndex] ?? "Unknown";
+}
+
+/** Get current Bikram Sambat date as formatted string */
+export function getCurrentBsDate(): string {
+  try {
+    const now = new NepaliDate(new Date());
+    return now.format("YYYY-MM-DD");
+  } catch {
+    return "—";
+  }
+}
+
+/** Get current Nepali fiscal year label (e.g., "FY 2081/82") */
+export function getCurrentFiscalYear(): string {
+  try {
+    const now = new NepaliDate(new Date());
+    const year = now.getYear();
+    const month = now.getMonth(); // 0-indexed: 0=Baisakh ... 11=Chaitra
+    // Nepal fiscal year: Shrawan (month 3) to Ashadh (month 2)
+    // If month >= 3 (Shrawan), we are in FY year/(year+1)
+    // If month < 3, we are in FY (year-1)/year
+    if (month >= 3) {
+      return `FY ${year}/${(year + 1) % 100}`;
+    }
+    return `FY ${year - 1}/${year % 100}`;
+  } catch {
+    return "—";
+  }
+}

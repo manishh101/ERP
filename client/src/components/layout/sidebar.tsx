@@ -41,9 +41,9 @@ const navigation: NavSection[] = [
     ],
   },
   {
-    title: "Parties",
+    title: "Showrooms",
     items: [
-      { label: "Showrooms", href: "/parties", icon: Building2 },
+      { label: "All Parties", href: "/parties", icon: Building2 },
     ],
   },
   {
@@ -63,7 +63,7 @@ const navigation: NavSection[] = [
     ],
   },
   {
-    title: "Stock",
+    title: "Inventory",
     items: [
       { label: "Products", href: "/inventory", icon: Package },
       { label: "Warehouses", href: "/purchasing", icon: Warehouse },
