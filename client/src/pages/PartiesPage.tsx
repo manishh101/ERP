@@ -80,6 +80,9 @@ const partyColumns: ColumnDef<RawCustomer, unknown>[] = [
 export function PartiesPage() {
   const { data, error, isLoading } = useCustomersQuery();
   const [createCustomerOpen, setCreateCustomerOpen] = useState(false);
+  const [typeFilter, setTypeFilter] = useState<"ALL" | "SHOWROOM" | "RETAIL">(
+    "ALL",
+  );
 
   if (isLoading) {
     return <Skeleton className="h-[420px]" />;
@@ -102,6 +105,11 @@ export function PartiesPage() {
     return null;
   }
 
+  const filteredItems = data.items.filter((item) => {
+    if (typeFilter === "ALL") return true;
+    return item.type === typeFilter;
+  });
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -115,6 +123,22 @@ export function PartiesPage() {
         ]}
       />
 
+      <div className="flex items-center gap-2 rounded-2xl border border-border bg-white p-1 w-fit shadow-sm">
+        {(["ALL", "SHOWROOM", "RETAIL"] as const).map((t) => (
+          <button
+            key={t}
+            onClick={() => setTypeFilter(t)}
+            className={`px-4 py-2 text-xs font-bold transition-all ${
+              typeFilter === t
+                ? "rounded-xl bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {t === "ALL" ? "All Parties" : t}
+          </button>
+        ))}
+      </div>
+
       {createCustomerOpen && (
         <Card className="mb-6 border-primary/20 bg-primary/5">
           <CardHeader>
@@ -124,9 +148,7 @@ export function PartiesPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <CreateCustomerForm
-              onSuccess={() => setCreateCustomerOpen(false)}
-            />
+            <CreateCustomerForm onClose={() => setCreateCustomerOpen(false)} />
           </CardContent>
         </Card>
       )}
@@ -135,7 +157,7 @@ export function PartiesPage() {
         <CardContent className="p-0">
           <DataTable
             columns={partyColumns}
-            data={data.items}
+            data={filteredItems}
             pageSize={15}
             searchKey="name"
           />

@@ -3,28 +3,32 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { useCreateCustomerMutation } from "@/hooks/use-queries";
+import { useCreateCustomerMutation, useUpdateCustomerMutation, type RawCustomer } from "@/hooks/use-queries";
 import { getErrorMessage } from "@/lib/api";
 
 type CreateCustomerFormProps = {
   onClose: () => void;
+  initialData?: RawCustomer;
 };
 
-export function CreateCustomerForm({ onClose }: CreateCustomerFormProps) {
+export function CreateCustomerForm({ onClose, initialData }: CreateCustomerFormProps) {
   
   const createCustomer = useCreateCustomerMutation();
+  const updateCustomer = useUpdateCustomerMutation();
+  const isEditing = !!initialData;
+
   const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    type: "RETAIL",
-    creditLimit: "0",
-    address: "",
-    panNo: "",
-    vatNo: "",
-    invoicePref: "NONE",
-    district: "",
-    ward: "",
+    name: initialData?.name || "",
+    email: initialData?.email || "",
+    phone: initialData?.phone || "",
+    type: initialData?.type || "RETAIL",
+    creditLimit: initialData?.creditLimit.toString() || "0",
+    address: initialData?.address || "",
+    panNo: initialData?.panNo || "",
+    vatNo: initialData?.vatNo || "",
+    invoicePref: initialData?.invoicePref || "NONE",
+    district: initialData?.district || "",
+    ward: initialData?.ward || "",
   });
 
   const handleSubmit = async () => {
@@ -33,25 +37,31 @@ export function CreateCustomerForm({ onClose }: CreateCustomerFormProps) {
       return;
     }
 
+    const payload = {
+      name: formData.name,
+      email: formData.email || undefined,
+      phone: formData.phone || undefined,
+      type: formData.type,
+      creditLimit: Number(formData.creditLimit),
+      address: formData.address,
+      panNo: formData.panNo || undefined,
+      vatNo: formData.vatNo || undefined,
+      invoicePref: formData.invoicePref,
+      district: formData.district || undefined,
+      ward: formData.ward || undefined,
+    };
+
     try {
-      await createCustomer.mutateAsync({
-        name: formData.name,
-        email: formData.email || undefined,
-        phone: formData.phone || undefined,
-        type: formData.type,
-        creditLimit: Number(formData.creditLimit),
-        address: formData.address,
-        panNo: formData.panNo || undefined,
-        vatNo: formData.vatNo || undefined,
-        invoicePref: formData.invoicePref,
-        district: formData.district || undefined,
-        ward: formData.ward || undefined,
-      });
-      
-      toast("Customer created", { description: `${formData.name} has been added to the system.` });
+      if (isEditing) {
+        await updateCustomer.mutateAsync({ id: initialData!.id, payload });
+        toast("Customer updated", { description: `${formData.name} has been updated.` });
+      } else {
+        await createCustomer.mutateAsync(payload);
+        toast("Customer created", { description: `${formData.name} has been added to the system.` });
+      }
       onClose();
     } catch (error) {
-      toast.error("Creation failed", { description: getErrorMessage(error) });
+      toast.error(isEditing ? "Update failed" : "Creation failed", { description: getErrorMessage(error) });
     }
   };
 

@@ -182,6 +182,7 @@ export type TaxRateRow = {
 export type SalesOrderRow = {
   id: string;
   customer: string;
+  customerType: string;
   status: string;
   rawStatus: string;
   deliveryDate: string;

@@ -188,6 +188,7 @@ type RawSalesOrder = {
   deliveryFloor?: number | string | null;
   customer: {
     name: string;
+    type: string;
   };
 };
 
@@ -641,6 +642,7 @@ function mapSalesOrder(order: RawSalesOrder): SalesOrderRow {
   return {
     id: order.id,
     customer: order.customer.name,
+    customerType: order.customer.type,
     status: formatEnumLabel(order.status),
     rawStatus: order.status,
     deliveryDate: order.deliveryDate ?? order.orderDate,
@@ -1175,6 +1177,23 @@ export function useCreateCustomerMutation() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["customers"] });
+    },
+  });
+}
+
+export function useUpdateCustomerMutation() {
+  const { token } = useAuth();
+  return useMutation({
+    mutationFn: async ({ id, payload }: { id: string; payload: Partial<CustomerCreatePayload> }) => {
+      return apiRequest<RawCustomer>(`/customers/${id}`, {
+        method: "PATCH",
+        token: token!,
+        body: payload,
+      });
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
+      queryClient.invalidateQueries({ queryKey: ["customer", variables.id] });
     },
   });
 }

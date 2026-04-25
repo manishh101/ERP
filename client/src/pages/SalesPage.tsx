@@ -6,9 +6,22 @@ import { DataTable } from "@/components/shared/data-table";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useSalesOrdersQuery, useCustomersQuery, useCancelSalesOrderMutation, useConfirmSalesOrderMutation, useRecordSalesOrderDepositMutation, useUpdateSalesOrderStatusMutation } from "@/hooks/use-queries";
+import {
+  useSalesOrdersQuery,
+  useCustomersQuery,
+  useCancelSalesOrderMutation,
+  useConfirmSalesOrderMutation,
+  useRecordSalesOrderDepositMutation,
+  useUpdateSalesOrderStatusMutation,
+} from "@/hooks/use-queries";
 import { getErrorMessage } from "@/lib/api";
 import { formatCurrency, formatDate, toNumber } from "@/lib/utils";
 import { CreateCustomerForm } from "@/components/sales/create-customer-form";
@@ -43,18 +56,30 @@ const orderColumns: ColumnDef<SalesOrderRow, unknown>[] = [
 
 export function SalesPage() {
   const { data, error, isLoading } = useSalesOrdersQuery();
-  const { data: customersData, isLoading: customersLoading } = useCustomersQuery();
-  const { mutate: cancelOrder, isPending: isCancelling } = useCancelSalesOrderMutation();
-  
+  const { data: customersData, isLoading: customersLoading } =
+    useCustomersQuery();
+  const { mutate: cancelOrder, isPending: isCancelling } =
+    useCancelSalesOrderMutation();
+
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [depositModalOpen, setDepositModalOpen] = useState(false);
   const [createCustomerOpen, setCreateCustomerOpen] = useState(false);
   const [createSalesOrderOpen, setCreateSalesOrderOpen] = useState(false);
-  const [ledgerCustomer, setLedgerCustomer] = useState<{ id: string; name: string } | null>(null);
-  const [selectedOrderId, setSelectedOrderId] = useState<string | undefined>(undefined);
+  const [ledgerCustomer, setLedgerCustomer] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+  const [selectedOrderId, setSelectedOrderId] = useState<string | undefined>(
+    undefined,
+  );
+  const [typeFilter, setTypeFilter] = useState<"ALL" | "SHOWROOM" | "RETAIL">(
+    "ALL",
+  );
 
-  const { mutate: confirmOrder, isPending: isConfirming } = useConfirmSalesOrderMutation();
-  const { mutate: updateStatus, isPending: isUpdating } = useUpdateSalesOrderStatusMutation();
+  const { mutate: confirmOrder, isPending: isConfirming } =
+    useConfirmSalesOrderMutation();
+  const { mutate: updateStatus, isPending: isUpdating } =
+    useUpdateSalesOrderStatusMutation();
   const selectedOrder = data?.items.find((o) => o.id === selectedOrderId);
 
   if (isLoading || customersLoading) {
@@ -66,7 +91,9 @@ export function SalesPage() {
       <Card>
         <CardContent className="py-10">
           <p className="font-semibold">Sales orders could not be loaded.</p>
-          <p className="mt-2 text-sm text-muted-foreground">{getErrorMessage(error)}</p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {getErrorMessage(error)}
+          </p>
         </CardContent>
       </Card>
     );
@@ -75,6 +102,11 @@ export function SalesPage() {
   if (!data) {
     return null;
   }
+
+  const filteredItems = data.items.filter((item) => {
+    if (typeFilter === "ALL") return true;
+    return item.customerType === typeFilter;
+  });
 
   return (
     <div className="space-y-6">
@@ -90,7 +122,9 @@ export function SalesPage() {
             },
           },
           {
-            label: createSalesOrderOpen ? "Close Order Form" : "New Order / Quote",
+            label: createSalesOrderOpen
+              ? "Close Order Form"
+              : "New Order / Quote",
             onClick: () => {
               setCreateSalesOrderOpen((c) => !c);
               setCreateCustomerOpen(false);
@@ -99,26 +133,55 @@ export function SalesPage() {
         ]}
       />
 
-      {createCustomerOpen ? <CreateCustomerForm onClose={() => setCreateCustomerOpen(false)} /> : null}
-      {createSalesOrderOpen ? <CreateSalesOrderForm onClose={() => setCreateSalesOrderOpen(false)} /> : null}
+      {createCustomerOpen ? (
+        <CreateCustomerForm onClose={() => setCreateCustomerOpen(false)} />
+      ) : null}
+      {createSalesOrderOpen ? (
+        <CreateSalesOrderForm onClose={() => setCreateSalesOrderOpen(false)} />
+      ) : null}
 
       <div className="space-y-6">
+        <div className="flex items-center gap-2 rounded-2xl border border-border bg-white p-1 w-fit shadow-sm">
+          {(["ALL", "SHOWROOM", "RETAIL"] as const).map((t) => (
+            <button
+              key={t}
+              onClick={() => setTypeFilter(t)}
+              className={`px-4 py-2 text-xs font-bold transition-all ${
+                typeFilter === t
+                  ? "rounded-xl bg-primary text-primary-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {t === "ALL"
+                ? "All Orders"
+                : t === "SHOWROOM"
+                  ? "Showroom Orders"
+                  : "Retail Orders"}
+            </button>
+          ))}
+        </div>
+
         <Card>
           <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between space-y-0">
             <div>
               <CardTitle>Order Pipeline</CardTitle>
-              <CardDescription>Track orders from quote to delivery.</CardDescription>
+              <CardDescription>
+                Track orders from quote to delivery.
+              </CardDescription>
             </div>
             {selectedOrderId && (
               <div className="flex gap-2">
                 {selectedOrder?.rawStatus === "QUOTE" && (
-                  <Button 
-                    variant="default" 
+                  <Button
+                    variant="default"
                     size="sm"
                     onClick={() => {
                       confirmOrder(selectedOrderId, {
                         onSuccess: () => toast.success("Order confirmed"),
-                        onError: (error) => toast.error("Confirmation failed", { description: getErrorMessage(error) })
+                        onError: (error) =>
+                          toast.error("Confirmation failed", {
+                            description: getErrorMessage(error),
+                          }),
                       });
                     }}
                     disabled={isConfirming}
@@ -127,7 +190,7 @@ export function SalesPage() {
                   </Button>
                 )}
                 {selectedOrder?.rawStatus === "CONFIRMED" && (
-                  <Button 
+                  <Button
                     variant="default"
                     size="sm"
                     onClick={() => setDepositModalOpen(true)}
@@ -136,22 +199,28 @@ export function SalesPage() {
                   </Button>
                 )}
                 {selectedOrder?.rawStatus === "DEPOSIT_PAID" && (
-                  <Button 
+                  <Button
                     variant="default"
                     size="sm"
                     onClick={() => {
-                      updateStatus({ id: selectedOrderId, status: "IN_WAREHOUSE" }, {
-                        onSuccess: () => toast.success("Moved to warehouse"),
-                        onError: (error) => toast.error("Update failed", { description: getErrorMessage(error) })
-                      });
+                      updateStatus(
+                        { id: selectedOrderId, status: "IN_WAREHOUSE" },
+                        {
+                          onSuccess: () => toast.success("Moved to warehouse"),
+                          onError: (error) =>
+                            toast.error("Update failed", {
+                              description: getErrorMessage(error),
+                            }),
+                        },
+                      );
                     }}
                     disabled={isUpdating}
                   >
                     {isUpdating ? "Updating..." : "Move to Warehouse"}
                   </Button>
                 )}
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   size="sm"
                   className="text-destructive hover:bg-destructive hover:text-white border-destructive/30"
                   onClick={() => setConfirmOpen(true)}
@@ -164,10 +233,14 @@ export function SalesPage() {
           </CardHeader>
           <CardContent>
             <DataTable
-              data={data.items}
+              data={filteredItems}
               columns={orderColumns}
               detailHref={(row) => `/sales/${row.id}`}
-              onRowClick={(row) => setSelectedOrderId(selectedOrderId === row.id ? undefined : row.id)}
+              onRowClick={(row) =>
+                setSelectedOrderId(
+                  selectedOrderId === row.id ? undefined : row.id,
+                )
+              }
               searchPlaceholder="Search orders..."
             />
           </CardContent>
@@ -177,24 +250,35 @@ export function SalesPage() {
           <CardHeader>
             <div>
               <CardTitle>Parties & Khata</CardTitle>
-              <CardDescription>Balances, credit limits, and statements.</CardDescription>
+              <CardDescription>
+                Balances, credit limits, and statements.
+              </CardDescription>
             </div>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="max-h-[400px] overflow-y-auto space-y-3">
               {customersData?.items?.map((customer) => (
-                <div key={customer.id} className="flex items-center justify-between rounded-lg border bg-card p-4">
+                <div
+                  key={customer.id}
+                  className="flex items-center justify-between rounded-lg border bg-card p-4"
+                >
                   <div className="min-w-0">
                     <p className="font-medium">{customer.name}</p>
                     <p className="mt-0.5 text-xs text-muted-foreground">
-                      {customer.type} · Credit: {formatCurrency(toNumber(customer.creditLimit))}
+                      {customer.type} · Credit:{" "}
+                      {formatCurrency(toNumber(customer.creditLimit))}
                       {customer.panNo && ` · PAN: ${customer.panNo}`}
                     </p>
                   </div>
-                  <Button 
+                  <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setLedgerCustomer({ id: customer.id, name: customer.name })}
+                    onClick={() =>
+                      setLedgerCustomer({
+                        id: customer.id,
+                        name: customer.name,
+                      })
+                    }
                   >
                     View Khata
                   </Button>
@@ -220,8 +304,10 @@ export function SalesPage() {
                 toast.success("Order cancelled and stock released");
               },
               onError: (error) => {
-                toast.error("Cancellation failed", { description: getErrorMessage(error) });
-              }
+                toast.error("Cancellation failed", {
+                  description: getErrorMessage(error),
+                });
+              },
             });
           }
         }}

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import type { ColumnDef } from "@tanstack/react-table";
 import {
@@ -8,6 +9,8 @@ import {
   MapPin,
   Phone,
   Receipt,
+  Edit,
+  FileText,
 } from "lucide-react";
 import { DataTable } from "@/components/shared/data-table";
 import { PageHeader } from "@/components/shared/page-header";
@@ -24,6 +27,8 @@ import { Button } from "@/components/ui/button";
 import { useCustomerQuery } from "@/hooks/use-queries";
 import { getErrorMessage } from "@/lib/api";
 import { formatCurrency, formatDate, toNumber } from "@/lib/utils";
+import { CreateCustomerForm } from "@/components/sales/create-customer-form";
+import { CustomerLedgerModal } from "@/components/sales/customer-ledger-modal";
 
 const salesOrderColumns: ColumnDef<any, unknown>[] = [
   { accessorKey: "id", header: "Order ID" },
@@ -82,6 +87,8 @@ const salesOrderColumns: ColumnDef<any, unknown>[] = [
 export function PartyProfilePage() {
   const { id } = useParams<{ id: string }>();
   const { data: customer, error, isLoading } = useCustomerQuery(id!);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isLedgerOpen, setIsLedgerOpen] = useState(false);
 
   if (isLoading) {
     return <Skeleton className="h-[500px]" />;
@@ -110,14 +117,41 @@ export function PartyProfilePage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="outline" size="icon" className="h-8 w-8" asChild>
-          <Link to="/parties">
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
-        </Button>
-        <PageHeader title={customer.name} />
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Button variant="outline" size="icon" className="h-8 w-8" asChild>
+            <Link to="/parties">
+              <ArrowLeft className="h-4 w-4" />
+            </Link>
+          </Button>
+          <PageHeader title={customer.name} />
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" className="gap-2" onClick={() => setIsLedgerOpen(true)}>
+            <FileText className="h-4 w-4" />
+            View Khata (Ledger)
+          </Button>
+          <Button variant="default" className="gap-2" onClick={() => setIsEditing(!isEditing)}>
+            <Edit className="h-4 w-4" />
+            {isEditing ? "Cancel Edit" : "Edit Profile"}
+          </Button>
+        </div>
       </div>
+
+      {isEditing && (
+        <CreateCustomerForm 
+          onClose={() => setIsEditing(false)} 
+          initialData={customer}
+        />
+      )}
+
+      {isLedgerOpen && (
+        <CustomerLedgerModal 
+          customerId={customer.id} 
+          customerName={customer.name} 
+          onClose={() => setIsLedgerOpen(false)} 
+        />
+      )}
 
       <div className="grid gap-6 md:grid-cols-3">
         {/* Profile Card */}
