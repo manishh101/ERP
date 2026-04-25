@@ -159,7 +159,7 @@ export function PartiesPage() {
             columns={partyColumns}
             data={filteredItems}
             pageSize={15}
-            searchKey="name"
+            searchPlaceholder="Search parties..."
           />
         </CardContent>
       </Card>

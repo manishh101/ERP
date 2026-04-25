@@ -83,6 +83,9 @@ type RawProductHistoryResponse = {
   status: string;
   costPrice: number | string;
   sellingPrice: number | string;
+  category: string;
+  material?: string | null;
+  imageUrls: string[];
   variants: Array<{
     id: string;
     variantName: string;
@@ -562,7 +565,8 @@ function mapProductDetail(product: RawProductHistoryResponse): ProductDetailPayl
   );
 
   const variantRows = product.variants.flatMap((variant) => {
-    if (variant.inventoryItems.length === 0) {
+    const inventoryItems = variant.inventoryItems ?? [];
+    if (inventoryItems.length === 0) {
       return [
         {
           id: `${variant.id}-unassigned`,
@@ -573,7 +577,7 @@ function mapProductDetail(product: RawProductHistoryResponse): ProductDetailPayl
       ];
     }
 
-    return variant.inventoryItems.map((item) => ({
+    return inventoryItems.map((item) => ({
       id: item.id,
       variant: variant.variantName,
       warehouse: item.warehouse.name,
@@ -606,6 +610,14 @@ function mapProductDetail(product: RawProductHistoryResponse): ProductDetailPayl
     name: product.name,
     description: product.description ?? "No product description has been added yet.",
     status: formatEnumLabel(product.status),
+    category: product.category,
+    material: product.material ?? "",
+    costPrice,
+    sellingPrice,
+    margin,
+    totalStock: variantRows.reduce((sum, v) => sum + v.quantity, 0),
+    recentSalesQty,
+    imageUrls: product.imageUrls ?? [],
     variantRows,
     metrics: [
       { label: "Average cost", value: formatCurrency(costPrice) },
@@ -985,6 +997,63 @@ export function useCreateProductMutation() {
   });
 }
 
+export function useUpdateProductMutation() {
+  const { token } = useAuth();
+
+  return useMutation({
+    mutationFn: async ({ id, payload }: { id: string; payload: Partial<ProductCreatePayload> }) => {
+      return apiRequest<RawProduct>(`/products/${id}`, {
+        method: "PATCH",
+        token: token!,
+        body: payload,
+      });
+    },
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["product-detail", id] });
+    },
+  });
+}
+
+export function useUploadProductImagesMutation() {
+  const { token } = useAuth();
+
+  return useMutation({
+    mutationFn: async ({ id, files }: { id: string; files: FileList | File[] }) => {
+      const formData = new FormData();
+      Array.from(files).forEach((f) => formData.append("images", f));
+      const baseUrl = (await import("@/lib/api")).API_BASE_URL.replace(/\/$/, "");
+      const response = await fetch(`${baseUrl}/products/${id}/images`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+      if (!response.ok) throw new Error("Image upload failed");
+      return response.json() as Promise<{ imageUrls: string[] }>;
+    },
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ["product-detail", id] });
+    },
+  });
+}
+
+export function useDeleteProductImageMutation() {
+  const { token } = useAuth();
+
+  return useMutation({
+    mutationFn: async ({ id, url }: { id: string; url: string }) => {
+      return apiRequest<{ imageUrls: string[] }>(`/products/${id}/images`, {
+        method: "DELETE",
+        token: token!,
+        body: { url },
+      });
+    },
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ["product-detail", id] });
+    },
+  });
+}
+
 export function useProductDetailQuery(productId?: string) {
   const { token } = useAuth();
 
@@ -1160,6 +1229,8 @@ export type RawCustomer = {
   creditLimit: number | string;
   outstandingBalance: number | string;
   address: string;
+  district?: string | null;
+  ward?: string | null;
   panNo: string | null;
   vatNo: string | null;
   invoicePref: string;

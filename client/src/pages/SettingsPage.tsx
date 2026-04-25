@@ -26,7 +26,8 @@ import { StatusBadge } from "@/components/shared/status-badge";
 const emptyCompanyProfile = {
   name: "",
   address: "",
-  taxNumber: "",
+  panNo: "",
+  vatNo: "",
   bankDetails: "",
   email: "",
   phone: "",
@@ -128,7 +129,8 @@ export function SettingsPage() {
       setCompanyProfile({
         name: data.companyProfile.name,
         address: data.companyProfile.address,
-        taxNumber: data.companyProfile.taxNumber,
+        panNo: data.companyProfile.panNo || "",
+        vatNo: data.companyProfile.vatNo || "",
         bankDetails: data.companyProfile.bankDetails,
         email: data.companyProfile.email ?? "",
         phone: data.companyProfile.phone ?? "",
@@ -328,16 +330,28 @@ export function SettingsPage() {
               }
               placeholder="Company address"
             />
-            <Input
-              value={companyProfile.taxNumber}
-              onChange={(event) =>
-                setCompanyProfile((current) => ({
-                  ...current,
-                  taxNumber: event.target.value,
-                }))
-              }
-              placeholder="Tax registration number"
-            />
+            <div className="grid gap-3 grid-cols-2">
+              <Input
+                value={companyProfile.panNo}
+                onChange={(event) =>
+                  setCompanyProfile((current) => ({
+                    ...current,
+                    panNo: event.target.value,
+                  }))
+                }
+                placeholder="PAN Number"
+              />
+              <Input
+                value={companyProfile.vatNo}
+                onChange={(event) =>
+                  setCompanyProfile((current) => ({
+                    ...current,
+                    vatNo: event.target.value,
+                  }))
+                }
+                placeholder="VAT Number"
+              />
+            </div>
             <Textarea
               value={companyProfile.bankDetails}
               onChange={(event) =>

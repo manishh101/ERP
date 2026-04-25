@@ -1,4 +1,7 @@
 import { Router } from "express";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
 import { prisma } from "../config/prisma";
 import { requireAuth, requireRole } from "../middleware/auth";
 import { asyncHandler } from "../middleware/async-handler";
@@ -14,6 +17,26 @@ import {
 import { getPagination } from "../utils/pagination";
 
 export const productsRouter = Router();
+
+// ── Multer setup for product images ──────────────────────────────────────────
+const uploadDir = path.join(process.cwd(), "uploads", "products");
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+
+const storage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, uploadDir),
+  filename: (_req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    cb(null, `${Date.now()}-${Math.round(Math.random() * 1e6)}${ext}`);
+  },
+});
+const upload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
+  fileFilter: (_req, file, cb) => {
+    if (/image\/(jpeg|png|webp|gif)/.test(file.mimetype)) cb(null, true);
+    else cb(new Error("Only JPEG, PNG, WebP and GIF images are allowed."));
+  },
+});
 
 productsRouter.use(requireAuth);
 
@@ -196,6 +219,11 @@ productsRouter.get(
       include: {
         variants: {
           include: {
+            inventoryItems: {
+              include: {
+                warehouse: true,
+              },
+            },
             stockMovements: {
               include: {
                 warehouse: true,
@@ -273,3 +301,54 @@ productsRouter.patch(
     response.json(variant);
   }),
 );
+
+// ── Image Upload ──────────────────────────────────────────────────────────────
+productsRouter.post(
+  "/:id/images",
+  requireRole(["ADMIN", "WAREHOUSE", "SALES"]),
+  validate(idParamSchema, "params"),
+  upload.array("images", 10) as any,
+  asyncHandler(async (request, response) => {
+    const params = request.validated?.params as { id: string };
+    const files = (request as any).files as Express.Multer.File[];
+
+    if (!files || files.length === 0) {
+      return response.status(400).json({ message: "No images uploaded." });
+    }
+
+    const newUrls = files.map((f) => `/uploads/products/${f.filename}`);
+
+    const product = await prisma.product.update({
+      where: { id: params.id },
+      data: { imageUrls: { push: newUrls } },
+    });
+
+    response.json({ imageUrls: product.imageUrls });
+  }),
+);
+
+productsRouter.delete(
+  "/:id/images",
+  requireRole(["ADMIN", "WAREHOUSE"]),
+  validate(idParamSchema, "params"),
+  asyncHandler(async (request, response) => {
+    const params = request.validated?.params as { id: string };
+    const { url } = request.body as { url: string };
+
+    const product = await prisma.product.findUnique({ where: { id: params.id }, select: { imageUrls: true } });
+    if (!product) return response.status(404).json({ message: "Product not found." });
+
+    // Remove from disk
+    const filename = path.basename(url);
+    const filePath = path.join(uploadDir, filename);
+    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+
+    const updated = await prisma.product.update({
+      where: { id: params.id },
+      data: { imageUrls: product.imageUrls.filter((u) => u !== url) },
+    });
+
+    response.json({ imageUrls: updated.imageUrls });
+  }),
+);
+

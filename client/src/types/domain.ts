@@ -156,6 +156,14 @@ export type ProductDetailPayload = {
   name: string;
   description: string;
   status: string;
+  category: string;
+  material: string;
+  costPrice: number;
+  sellingPrice: number;
+  margin: number;
+  totalStock: number;
+  recentSalesQty: number;
+  imageUrls: string[];
   variantRows: ProductDetailVariantRow[];
   metrics: ProductDetailMetric[];
   history: ProductDetailHistoryItem[];

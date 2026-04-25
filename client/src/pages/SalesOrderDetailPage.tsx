@@ -74,15 +74,15 @@ export function SalesOrderDetailPage() {
   const paid = computedPaid;
   const balance = computedBalance;
 
-  const statusTone = (status: string) => {
+  const statusVariant = (status: string): "destructive" | "success" | "warning" => {
     switch (status) {
-      case "CANCELLED": return "red" as const;
-      case "DELIVERED": return "green" as const;
+      case "CANCELLED": return "destructive";
+      case "DELIVERED": return "success";
       case "DEPOSIT_PAID":
       case "PAID":
-        return "green" as const;
-      case "CONFIRMED": return "amber" as const;
-      default: return "amber" as const;
+        return "success";
+      case "CONFIRMED": return "warning";
+      default: return "warning";
     }
   };
 
@@ -188,7 +188,7 @@ export function SalesOrderDetailPage() {
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
                 <div>
                   <p className="text-muted-foreground">Status</p>
-                  <Badge tone={statusTone(order.status)}>{order.status.replace(/_/g, " ")}</Badge>
+                  <Badge variant={statusVariant(order.status)}>{order.status.replace(/_/g, " ")}</Badge>
                 </div>
                 <div>
                   <p className="text-muted-foreground">Order Date</p>
@@ -441,7 +441,7 @@ export function SalesOrderDetailPage() {
                 <div className="flex flex-col gap-2 rounded-md border p-3 bg-muted/20">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-semibold text-muted-foreground uppercase">Invoice</span>
-                    <Badge tone="slate">{taxInvoice.status}</Badge>
+                    <Badge variant="secondary">{taxInvoice.status}</Badge>
                   </div>
                   <Button
                     variant="outline"
