@@ -23,6 +23,64 @@ export const taxInvoicesRouter = Router();
 taxInvoicesRouter.use(requireAuth);
 
 taxInvoicesRouter.get(
+  "/estimates",
+  validate(listQuerySchema, "query"),
+  asyncHandler(async (request, response) => {
+    const query = request.validated?.query as {
+      page: number;
+      pageSize: number;
+      status?: string;
+      search?: string;
+    };
+
+    const where: any = {
+      status: query.status || undefined,
+      invoiceType: "ESTIMATE",
+      OR: query.search
+        ? [
+            {
+              invoiceNumber: {
+                contains: query.search,
+                mode: "insensitive" as const,
+              },
+            },
+            {
+              salesOrder: {
+                customer: {
+                  name: {
+                    contains: query.search,
+                    mode: "insensitive" as const,
+                  },
+                },
+              },
+            },
+          ]
+        : undefined,
+    };
+
+    const [items, total] = await Promise.all([
+      prisma.taxInvoice.findMany({
+        where,
+        include: {
+          salesOrder: {
+            include: {
+              customer: true,
+            },
+          },
+        },
+        orderBy: {
+          issueDate: "desc",
+        },
+        ...getPagination(query.page, query.pageSize),
+      }),
+      prisma.taxInvoice.count({ where }),
+    ]);
+
+    response.json({ items, total });
+  }),
+);
+
+taxInvoicesRouter.get(
   "/",
   validate(listQuerySchema, "query"),
   asyncHandler(async (request, response) => {

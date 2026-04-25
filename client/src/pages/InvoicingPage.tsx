@@ -12,7 +12,7 @@ import { CreateInvoiceForm } from "@/components/invoicing/create-invoice-form";
 import { RecordPaymentForm } from "@/components/invoicing/record-payment-form";
 import { useAuth } from "@/components/auth/auth-provider";
 import { API_BASE_URL } from "@/lib/api";
-import { Download, FileText } from "lucide-react";
+import { Download } from "lucide-react";
 import type { TaxInvoiceRow } from "@/types/domain";
 
 export function InvoicingPage() {
@@ -82,11 +82,6 @@ export function InvoicingPage() {
       label: "Download Tax Invoice",
       icon: <Download className="h-4 w-4" />,
       onClick: (r) => handleDownloadPdf(r.id, "invoice"),
-    },
-    {
-      label: "Download Estimate",
-      icon: <FileText className="h-4 w-4" />,
-      onClick: (r) => handleDownloadPdf(r.id, "estimate"),
     },
   ];
 

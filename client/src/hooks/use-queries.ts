@@ -1506,6 +1506,7 @@ export function useCreateInvoiceMutation() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tax-invoices"] });
+      queryClient.invalidateQueries({ queryKey: ["estimate-bills"] });
       queryClient.invalidateQueries({ queryKey: ["sales-orders"] });
       queryClient.invalidateQueries({ queryKey: ["sales-order"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
@@ -1556,6 +1557,26 @@ export function useTaxInvoicesQuery() {
     enabled: Boolean(token),
     queryFn: async () => {
       const response = await apiRequest<PaginatedResponse<RawInvoice>>("/tax-invoices", {
+        token: token!,
+        query: { pageSize: 100 },
+      });
+
+      return {
+        ...response,
+        items: response.items.map(mapInvoice),
+      };
+    },
+  });
+}
+
+export function useEstimateBillsQuery() {
+  const { token } = useAuth();
+
+  return useQuery({
+    queryKey: ["estimate-bills", token],
+    enabled: Boolean(token),
+    queryFn: async () => {
+      const response = await apiRequest<PaginatedResponse<RawInvoice>>("/tax-invoices/estimates", {
         token: token!,
         query: { pageSize: 100 },
       });

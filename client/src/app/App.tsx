@@ -8,6 +8,7 @@ import { DashboardPage } from "@/pages/DashboardPage";
 import { DeliveryPage } from "@/pages/DeliveryPage";
 import { InventoryPage } from "@/pages/InventoryPage";
 import { InvoicingPage } from "@/pages/InvoicingPage";
+import { EstimateBillsPage } from "@/pages/EstimateBillsPage";
 import { LoginPage } from "@/pages/LoginPage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 import { ProductDetailPage } from "@/pages/ProductDetailPage";
@@ -56,6 +57,7 @@ export function App() {
         <Route path="/sales" element={<SalesPage />} />
         <Route path="/sales/:id" element={<SalesOrderDetailPage />} />
         <Route path="/invoicing" element={<InvoicingPage />} />
+        <Route path="/estimates" element={<EstimateBillsPage />} />
         <Route path="/accounting" element={<AccountingPage />} />
         <Route path="/accounting/ledger" element={<ArLedgerPage />} />
         <Route path="/accounting/vat" element={<VatRegisterPage />} />
