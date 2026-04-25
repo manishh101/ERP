@@ -192,7 +192,7 @@ const S = StyleSheet.create({
 
 
   signatureArea: {
-    marginTop: 40,
+    marginTop: 80,
     flexDirection: "row",
     justifyContent: "flex-end",
   },
@@ -219,7 +219,7 @@ const S = StyleSheet.create({
     borderTopColor: "#cccccc",
     paddingTop: 7,
     flexDirection: "row",
-    justifyContent: "space-between",
+    justifyContent: "center",
   },
   footerText: { fontSize: 7.5, color: "#888888" },
 });
@@ -411,14 +411,8 @@ function InvoiceDocument({
         {/* ── Fixed footer with page numbers ──────────────────────────── */}
         <View style={S.footer} fixed>
           <Text style={S.footerText}>
-            {isEstimate ? "Estimate Bill" : "Tax Document"}
+            This is computer generated bill.
           </Text>
-          <Text
-            style={S.footerText}
-            render={({ pageNumber, totalPages }) =>
-              `${companyProfile?.name || "Company"}  ·  Page ${pageNumber} of ${totalPages}`
-            }
-          />
         </View>
 
       </Page>
