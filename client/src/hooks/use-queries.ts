@@ -1486,6 +1486,7 @@ export type InvoiceCreatePayload = {
     discountPct: number;
   }>;
   invoiceType?: string;
+  paymentMode?: string;
   notes?: string;
   // Nepal specifics
   bsDate?: string;
