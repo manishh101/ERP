@@ -1,3 +1,4 @@
+import type { ColumnDef } from "@tanstack/react-table";
 import { useCustomerLedgerQuery } from "@/hooks/use-queries";
 import { useAuth } from "@/components/auth/auth-provider";
 import { formatCurrency, formatEnumLabel, formatDate } from "@/lib/utils";
@@ -7,12 +8,55 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { DataTable } from "@/components/shared/data-table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { X } from "lucide-react";
+import type { ArLedgerEntry } from "@/types/domain";
 
 type CustomerLedgerModalProps = {
   customerId: string;
   customerName: string;
   onClose: () => void;
 };
+
+const ledgerColumns: ColumnDef<ArLedgerEntry, unknown>[] = [
+  {
+    accessorKey: "date",
+    header: "Date",
+    cell: ({ row }) => formatDate(row.getValue("date")),
+  },
+  {
+    accessorKey: "type",
+    header: "Particulars",
+    cell: ({ row }) => {
+      const original = row.original as any;
+      return original.narration || formatEnumLabel(row.getValue("type"));
+    },
+  },
+  { accessorKey: "reference", header: "Reference" },
+  {
+    accessorKey: "debit",
+    header: () => <div className="text-right">Debit (Sales)</div>,
+    cell: ({ row }) => {
+      const val = row.getValue("debit") as number;
+      return <div className="text-right tabular-nums">{val > 0 ? formatCurrency(val) : "—"}</div>;
+    },
+  },
+  {
+    accessorKey: "credit",
+    header: () => <div className="text-right">Credit (Payment)</div>,
+    cell: ({ row }) => {
+      const val = row.getValue("credit") as number;
+      return <div className="text-right tabular-nums">{val > 0 ? formatCurrency(val) : "—"}</div>;
+    },
+  },
+  {
+    accessorKey: "balance",
+    header: () => <div className="text-right">Balance</div>,
+    cell: ({ row }) => (
+      <div className="text-right font-semibold tabular-nums">
+        {formatCurrency(row.getValue("balance") as number)}
+      </div>
+    ),
+  },
+];
 
 export function CustomerLedgerModal({ customerId, customerName, onClose }: CustomerLedgerModalProps) {
   const { token } = useAuth();
@@ -40,86 +84,53 @@ export function CustomerLedgerModal({ customerId, customerName, onClose }: Custo
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-950/40 p-6 backdrop-blur-sm">
-      <Card className="w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl rounded-[2rem]">
-        <CardHeader className="flex flex-row items-center justify-between border-b pb-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-6">
+      <Card className="w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+        <CardHeader className="flex flex-row items-center justify-between border-b pb-4">
           <div>
-            <CardTitle>Customer Statement</CardTitle>
+            <CardTitle>Khata (Ledger)</CardTitle>
             <CardDescription>{customerName}</CardDescription>
           </div>
-          <Button variant="ghost" onClick={onClose} className="rounded-full h-8 w-8 p-0">
-            <X className="h-5 w-5" />
+          <Button variant="ghost" onClick={onClose} className="h-8 w-8 p-0">
+            <X className="h-4 w-4" />
           </Button>
         </CardHeader>
         
         <CardContent className="flex-1 overflow-y-auto p-6">
           {isLoading ? (
-            <div className="space-y-4">
-              <Skeleton className="h-[40px] w-full" />
-              <Skeleton className="h-[40px] w-full" />
-              <Skeleton className="h-[40px] w-full" />
+            <div className="space-y-3">
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
             </div>
           ) : ledger && ledger.length > 0 ? (
-            <div className="space-y-6">
-              <DataTable
-                rows={ledger}
-                columns={[
-                  { 
-                    key: "date", 
-                    header: "Date",
-                    render: (row) => formatDate(row.date) 
-                  },
-                  { 
-                    key: "type", 
-                    header: "Particulars",
-                    render: (row: any) => row.narration || formatEnumLabel(row.type)
-                  },
-                  { key: "reference", header: "Payment Reference" },
-                  { 
-                    key: "debit", 
-                    header: "Debit (Sales)", 
-                    className: "text-right",
-                    render: (row) => row.debit > 0 ? formatCurrency(row.debit) : "-" 
-                  },
-                  { 
-                    key: "credit", 
-                    header: "Credit (Payment)", 
-                    className: "text-right",
-                    render: (row) => row.credit > 0 ? formatCurrency(row.credit) : "-" 
-                  },
-                  { 
-                    key: "balance", 
-                    header: "Balance", 
-                    className: "text-right font-semibold",
-                    render: (row) => formatCurrency(row.balance) 
-                  },
-                ]}
-              />
+            <div className="space-y-4">
+              <DataTable data={ledger} columns={ledgerColumns} pageSize={50} />
               
-              <div className="flex justify-end pt-4">
+              <div className="flex justify-end pt-2">
                 <div className="text-right">
-                  <p className="text-sm text-stone-500 uppercase tracking-wider">Closing Balance</p>
-                  <p className="text-2xl font-display mt-1">
+                  <p className="text-xs uppercase tracking-wider text-muted-foreground">Closing Balance</p>
+                  <p className="mt-1 text-xl font-semibold tabular-nums">
                     {formatCurrency(ledger[ledger.length - 1].balance)}
                   </p>
                 </div>
               </div>
             </div>
           ) : (
-            <div className="py-20 text-center">
-              <p className="text-stone-500">No transactions found for this customer.</p>
+            <div className="py-16 text-center text-muted-foreground">
+              No transactions found for this party.
             </div>
           )}
         </CardContent>
 
-        <CardHeader className="border-t pt-4 flex gap-3 flex-row justify-end">
+        <div className="flex justify-end gap-2 border-t p-4">
           <Button variant="outline" onClick={onClose}>
             Close
           </Button>
           <Button onClick={handleDownloadPdf} disabled={!ledger || ledger.length === 0}>
-            Download PDF Statement
+            Download PDF
           </Button>
-        </CardHeader>
+        </div>
       </Card>
     </div>
   );

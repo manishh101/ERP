@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/components/auth/auth-provider";
-import { useToast } from "@/components/layout/toast-provider";
+import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -55,7 +55,7 @@ function parseCsvInput(value: string) {
 }
 
 export function SettingsPage() {
-  const { push } = useToast();
+  
   const { token, user } = useAuth();
   const { data, error, isLoading } = useSettingsQuery();
   const [companyProfile, setCompanyProfile] = useState(emptyCompanyProfile);
@@ -149,9 +149,9 @@ export function SettingsPage() {
       });
 
       await queryClient.invalidateQueries({ queryKey: ["settings"] });
-      push("Company profile saved", "Settings are now being persisted to the backend.");
+      toast("Company profile saved", { description: "Settings are now being persisted to the backend." });
     } catch (requestError) {
-      push("Save failed", getErrorMessage(requestError, "Unable to save company profile."));
+      toast.error("Save failed", { description: getErrorMessage(requestError) });
     } finally {
       setProfileSaving(false);
     }
@@ -170,12 +170,12 @@ export function SettingsPage() {
       .filter((item) => Number.isFinite(item) && item > 0);
 
     if (supportedCurrencies.length === 0) {
-      push("Save failed", "Add at least one supported currency.");
+      toast("Save failed", { description: "Add at least one supported currency." });
       return;
     }
 
     if (overdueInvoiceDays.length === 0) {
-      push("Save failed", "Add at least one overdue reminder day.");
+      toast("Save failed", { description: "Add at least one overdue reminder day." });
       return;
     }
 
@@ -210,9 +210,9 @@ export function SettingsPage() {
       ]);
 
       await queryClient.invalidateQueries({ queryKey: ["settings"] });
-      push("Operational settings saved", "Currency, notifications, and invoice template settings were updated.");
+      toast.success("Operational settings saved");
     } catch (requestError) {
-      push("Save failed", getErrorMessage(requestError, "Unable to save operational settings."));
+      toast.error("Save failed", { description: getErrorMessage(requestError) });
     } finally {
       setOperationsSaving(false);
     }
@@ -221,9 +221,7 @@ export function SettingsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Settings"
         title="Company & System Settings"
-        description="Configure company identity, taxes, currencies, warehouses, invoice template styling, notification policies, and user administration."
       />
 
       <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">

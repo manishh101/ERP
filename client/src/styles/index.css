@@ -1,29 +1,40 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    --background: 36 44% 97%;
-    --foreground: 22 24% 14%;
+    --background: 210 20% 98%;
+    --foreground: 222 47% 11%;
     --card: 0 0% 100%;
-    --card-foreground: 22 24% 14%;
+    --card-foreground: 222 47% 11%;
     --popover: 0 0% 100%;
-    --popover-foreground: 22 24% 14%;
-    --primary: 24 33% 32%;
-    --primary-foreground: 36 44% 97%;
-    --secondary: 31 37% 91%;
-    --secondary-foreground: 24 33% 24%;
-    --muted: 30 27% 92%;
-    --muted-foreground: 24 13% 42%;
-    --accent: 150 23% 88%;
-    --accent-foreground: 154 35% 21%;
-    --destructive: 4 75% 56%;
+    --popover-foreground: 222 47% 11%;
+    --primary: 222 47% 20%;
+    --primary-foreground: 210 20% 98%;
+    --secondary: 214 20% 94%;
+    --secondary-foreground: 222 47% 20%;
+    --muted: 214 18% 93%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 214 20% 94%;
+    --accent-foreground: 222 47% 11%;
+    --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
-    --border: 30 20% 85%;
-    --input: 30 20% 85%;
-    --ring: 24 33% 32%;
-    --radius: 1rem;
+    --border: 214 20% 88%;
+    --input: 214 20% 88%;
+    --ring: 222 47% 20%;
+    --radius: 0.5rem;
+
+    /* Sidebar tokens */
+    --sidebar: 222 47% 11%;
+    --sidebar-foreground: 210 20% 98%;
+    --sidebar-primary: 210 40% 98%;
+    --sidebar-accent: 215 28% 17%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-muted: 215 16% 47%;
+    --sidebar-border: 215 28% 17%;
   }
 
   * {
@@ -32,10 +43,7 @@
 
   body {
     @apply min-h-screen bg-background text-foreground antialiased;
-    background-image:
-      radial-gradient(circle at top left, rgba(219, 204, 182, 0.35), transparent 28%),
-      radial-gradient(circle at right top, rgba(177, 214, 196, 0.22), transparent 24%),
-      linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(247, 243, 238, 0.95));
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
 
   #root {
@@ -45,7 +53,6 @@
 
 @layer components {
   .panel-surface {
-    @apply rounded-3xl border border-white/60 bg-white/85 shadow-panel backdrop-blur;
+    @apply rounded-lg border border-border bg-card shadow-panel;
   }
 }
-

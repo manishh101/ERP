@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useToast } from "@/components/layout/toast-provider";
+import { toast } from "sonner";
 import { useInviteUserMutation } from "@/hooks/use-queries";
 import { getErrorMessage } from "@/lib/api";
 
@@ -10,7 +10,7 @@ type UserInviteFormProps = {
 };
 
 export function UserInviteForm({ onClose }: UserInviteFormProps) {
-  const { push } = useToast();
+  
   const inviteUser = useInviteUserMutation();
   
   const [formData, setFormData] = useState({
@@ -22,7 +22,7 @@ export function UserInviteForm({ onClose }: UserInviteFormProps) {
 
   const handleSubmit = async () => {
     if (!formData.name || !formData.email) {
-      push("Validation failed", "Please provide a name and email for the new user.");
+      toast("Validation failed", { description: "Please provide a name and email for the new user." });
       return;
     }
 
@@ -35,10 +35,10 @@ export function UserInviteForm({ onClose }: UserInviteFormProps) {
         isActive: true,
       });
       
-      push("User invited", `An invitation has been sent to ${formData.email}.`);
+      toast("User invited", { description: `An invitation has been sent to ${formData.email}.` });
       onClose();
     } catch (error) {
-      push("Invitation failed", getErrorMessage(error, "Unable to invite user."));
+      toast.error("Invitation failed", { description: getErrorMessage(error) });
     }
   };
 

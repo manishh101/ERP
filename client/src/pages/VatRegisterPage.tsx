@@ -15,9 +15,7 @@ export default function VatRegisterPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Tax Compliance"
         title="VAT Sales Register"
-        description="Official record of all tax invoices issued, taxable amounts, and output VAT. This reflects the tax truth of your business, separate from the commercial ledger."
       />
 
       <Card>

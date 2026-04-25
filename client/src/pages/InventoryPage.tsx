@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/components/auth/auth-provider";
-import { useToast } from "@/components/layout/toast-provider";
+import { toast } from "sonner";
 import { FilterBar } from "@/components/shared/filter-bar";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -41,7 +41,7 @@ function formatInventoryRecordLabel(record: InventoryRecordRow) {
 
 export function InventoryPage() {
   const { user } = useAuth();
-  const { push } = useToast();
+  
   const { data, error, isLoading } = useProductsQuery();
   const inventoryRecords = useInventoryRecordsQuery();
   const inventoryValuation = useInventoryValuationQuery();
@@ -147,9 +147,7 @@ export function InventoryPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Module 2"
         title="Inventory Management"
-        description="Manage furniture catalog, variant stock across warehouses, movement history, adjustments, low stock alerts, and valuation reporting."
         actions={[
           {
             label: "Refresh Data",
@@ -162,7 +160,7 @@ export function InventoryPage() {
                 queryClient.invalidateQueries({ queryKey: ["inventory-movements"] }),
                 queryClient.invalidateQueries({ queryKey: ["low-stock"] }),
               ]);
-              push("Inventory refreshed", "Catalog, valuation, and movement data are being reloaded.");
+              toast.success("Inventory data refreshed");
             },
           },
           {
@@ -280,17 +278,17 @@ export function InventoryPage() {
                       const quantityDelta = Number(adjustmentForm.quantityDelta);
 
                       if (!selectedInventoryRecord) {
-                        push("Adjustment failed", "Select an inventory record first.");
+                        toast("Adjustment failed", { description: "Select an inventory record first." });
                         return;
                       }
 
                       if (!Number.isInteger(quantityDelta) || quantityDelta === 0) {
-                        push("Adjustment failed", "Enter a whole-number quantity delta that is not zero.");
+                        toast("Adjustment failed", { description: "Enter a whole-number quantity delta that is not zero." });
                         return;
                       }
 
                       if (adjustmentForm.source.trim().length < 2) {
-                        push("Adjustment failed", "Provide a short source or audit note.");
+                        toast("Adjustment failed", { description: "Provide a short source or audit note." });
                         return;
                       }
 
@@ -308,12 +306,11 @@ export function InventoryPage() {
                           source: "Cycle count",
                         }));
                         setAdjustmentOpen(false);
-                        push(
-                          "Adjustment saved",
-                          `${selectedInventoryRecord.product} / ${selectedInventoryRecord.variant} was adjusted by ${quantityDelta}.`,
-                        );
+                        toast.success("Adjustment saved", {
+                          description: `${selectedInventoryRecord.product} / ${selectedInventoryRecord.variant} adjusted by ${quantityDelta}.`,
+                        });
                       } catch (requestError) {
-                        push("Adjustment failed", getErrorMessage(requestError, "Unable to save stock adjustment."));
+                        toast.error("Adjustment failed", { description: getErrorMessage(requestError) });
                       }
                     }}
                   >

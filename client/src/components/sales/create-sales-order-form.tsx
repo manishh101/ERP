@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { useToast } from "@/components/layout/toast-provider";
+import { toast } from "sonner";
 import { useCreateSalesOrderMutation, useCustomersQuery, useProductsQuery } from "@/hooks/use-queries";
 import { getErrorMessage } from "@/lib/api";
 import { NepaliDatePickerInput } from "@/components/ui/nepali-date-picker-input";
@@ -15,7 +15,7 @@ type CreateSalesOrderFormProps = {
 };
 
 export function CreateSalesOrderForm({ onClose }: CreateSalesOrderFormProps) {
-  const { push } = useToast();
+  
   const createSO = useCreateSalesOrderMutation();
   const customers = useCustomersQuery();
   const products = useProductsQuery();
@@ -45,13 +45,13 @@ export function CreateSalesOrderForm({ onClose }: CreateSalesOrderFormProps) {
 
   const handleSubmit = async () => {
     if (!formData.customerId) {
-      push("Validation failed", "Please select a customer.");
+      toast("Validation failed", { description: "Please select a customer." });
       return;
     }
 
     const validLineItems = lineItems.filter(item => item.productVariantId && Number(item.quantity) > 0);
     if (validLineItems.length === 0) {
-      push("Validation failed", "Please add at least one valid line item.");
+      toast("Validation failed", { description: "Please add at least one valid line item." });
       return;
     }
 
@@ -76,10 +76,10 @@ export function CreateSalesOrderForm({ onClose }: CreateSalesOrderFormProps) {
         }))
       });
       
-      push("Sales Order created", `Sales order/quote has been generated successfully.`);
+      toast("Sales Order created", { description: `Sales order/quote has been generated successfully.` });
       onClose();
     } catch (error) {
-      push("Creation failed", getErrorMessage(error, "Unable to create sales order."));
+      toast.error("Creation failed", { description: getErrorMessage(error) });
     }
   };
 

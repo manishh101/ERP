@@ -1,11 +1,11 @@
-import { useToast } from "@/components/layout/toast-provider";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 const actions = ["New Sale", "New Purchase Order", "New Customer", "New Invoice"];
 
 export function QuickActions() {
-  const { push } = useToast();
+  
 
   return (
     <Card>
@@ -21,7 +21,7 @@ export function QuickActions() {
             key={action}
             variant="outline"
             className="justify-start rounded-3xl px-5 py-4"
-            onClick={() => push(action, "The workflow is scaffolded and ready for backend wiring.")}
+            onClick={() => toast(action, { description: "The workflow is scaffolded and ready for backend wiring." })}
           >
             {action}
           </Button>

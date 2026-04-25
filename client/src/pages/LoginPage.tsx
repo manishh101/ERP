@@ -1,7 +1,7 @@
 import { FormEvent, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "@/components/auth/auth-provider";
-import { useToast } from "@/components/layout/toast-provider";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -9,7 +9,7 @@ import { getErrorMessage } from "@/lib/api";
 
 export function LoginPage() {
   const navigate = useNavigate();
-  const { push } = useToast();
+  
   const { login, status } = useAuth();
   const [email, setEmail] = useState("admin@manishsteel.com.np");
   const [password, setPassword] = useState("Password123!");
@@ -27,7 +27,7 @@ export function LoginPage() {
 
     try {
       const user = await login(email, password);
-      push("Signed in", `Welcome back, ${user.name}.`);
+      toast.success("Signed in", { description: `Welcome back, ${user.name}.` });
       navigate("/", { replace: true });
     } catch (requestError) {
       setError(getErrorMessage(requestError, "Unable to sign in."));

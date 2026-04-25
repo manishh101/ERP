@@ -23,10 +23,10 @@ function ProtectedAppShell() {
 
   if (status === "loading") {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-secondary/30 px-4">
-        <div className="rounded-3xl border border-border bg-white px-6 py-5 text-center shadow-panel">
-          <p className="text-sm uppercase tracking-[0.24em] text-muted-foreground">Atlas ERP</p>
-          <p className="mt-3 font-display text-2xl">Restoring your session...</p>
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="text-center">
+          <div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          <p className="text-sm text-muted-foreground">Restoring your session...</p>
         </div>
       </div>
     );
@@ -48,6 +48,8 @@ export function App() {
         <Route path="/inventory" element={<InventoryPage />} />
         <Route path="/inventory/products/:productId" element={<ProductDetailPage />} />
         <Route path="/purchasing" element={<PurchasingPage />} />
+        {/* Parties — alias to sales/customers for now */}
+        <Route path="/parties" element={<SalesPage />} />
         <Route path="/sales" element={<SalesPage />} />
         <Route path="/sales/:id" element={<SalesOrderDetailPage />} />
         <Route path="/invoicing" element={<InvoicingPage />} />

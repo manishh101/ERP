@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useToast } from "@/components/layout/toast-provider";
+import { toast } from "sonner";
 import { useCreateTaxRateMutation } from "@/hooks/use-queries";
 import { getErrorMessage } from "@/lib/api";
 
@@ -10,7 +10,7 @@ type CreateTaxRateFormProps = {
 };
 
 export function CreateTaxRateForm({ onClose }: CreateTaxRateFormProps) {
-  const { push } = useToast();
+  
   const createTaxRate = useCreateTaxRateMutation();
   
   const [formData, setFormData] = useState({
@@ -22,7 +22,7 @@ export function CreateTaxRateForm({ onClose }: CreateTaxRateFormProps) {
 
   const handleSubmit = async () => {
     if (!formData.name || !formData.category) {
-      push("Validation failed", "Please provide a name and category for the tax rate.");
+      toast("Validation failed", { description: "Please provide a name and category for the tax rate." });
       return;
     }
 
@@ -34,10 +34,10 @@ export function CreateTaxRateForm({ onClose }: CreateTaxRateFormProps) {
         isDefault: formData.isDefault,
       });
       
-      push("Tax rate added", `The tax rate ${formData.name} was added successfully.`);
+      toast("Tax rate added", { description: `The tax rate ${formData.name} was added successfully.` });
       onClose();
     } catch (error) {
-      push("Creation failed", getErrorMessage(error, "Unable to add tax rate."));
+      toast.error("Creation failed", { description: getErrorMessage(error) });
     }
   };
 

@@ -1,182 +1,291 @@
-import { useMemo, useState } from "react";
+import { useState, useMemo } from "react";
+import {
+  flexRender,
+  getCoreRowModel,
+  getFilteredRowModel,
+  getPaginationRowModel,
+  getSortedRowModel,
+  useReactTable,
+  type ColumnDef,
+  type SortingState,
+  type ColumnFiltersState,
+} from "@tanstack/react-table";
+import { ArrowUpDown, MoreHorizontal, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import type { TableColumn } from "@/types/domain";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 
-export function DataTable<T extends { id: string }>({
-  columns,
-  rows,
-  detailHref,
-  searchPlaceholder = "Search records",
-  pageSize = 8,
-  selectedId,
-  onSelectRow,
-}: {
-  columns: Array<TableColumn<T>>;
-  rows: T[];
-  detailHref?: (row: T) => string;
+export type DropdownAction<T> = {
+  label: string;
+  icon?: React.ReactNode;
+  onClick?: (row: T) => void;
+  href?: (row: T) => string;
+  variant?: "default" | "destructive";
+  separator?: boolean;
+};
+
+type DataTableProps<T> = {
+  columns: ColumnDef<T, unknown>[];
+  data: T[];
   searchPlaceholder?: string;
   pageSize?: number;
-  selectedId?: string;
-  onSelectRow?: (id: string | undefined) => void;
-}) {
-  const [search, setSearch] = useState("");
-  const [sortKey, setSortKey] = useState(String(columns[0]?.key ?? "id"));
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
-  const [page, setPage] = useState(1);
+  isLoading?: boolean;
+  actions?: (row: T) => DropdownAction<T>[];
+  onRowClick?: (row: T) => void;
+  detailHref?: (row: T) => string;
+  emptyMessage?: string;
+};
 
-  const searchableRows = useMemo(() => {
-    const normalizedSearch = search.trim().toLowerCase();
+export function DataTable<T extends { id: string }>({
+  columns: userColumns,
+  data,
+  searchPlaceholder = "Search...",
+  pageSize = 20,
+  isLoading = false,
+  actions,
+  onRowClick,
+  detailHref,
+  emptyMessage = "No records found.",
+}: DataTableProps<T>) {
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const [globalFilter, setGlobalFilter] = useState("");
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
 
-    if (!normalizedSearch) {
-      return rows;
-    }
+  // Append actions column if provided
+  const columns = useMemo(() => {
+    if (!actions) return userColumns;
 
-    return rows.filter((row) =>
-      Object.values(row).some((value) => String(value ?? "").toLowerCase().includes(normalizedSearch)),
-    );
-  }, [rows, search]);
+    const actionsCol: ColumnDef<T, unknown> = {
+      id: "_actions",
+      header: "",
+      cell: ({ row }) => {
+        const rowActions = actions(row.original);
+        if (rowActions.length === 0) return null;
 
-  const sortedRows = useMemo(() => {
-    const nextRows = [...searchableRows];
-
-    nextRows.sort((left, right) => {
-      const leftValue = left[sortKey as keyof T];
-      const rightValue = right[sortKey as keyof T];
-
-      if (typeof leftValue === "number" && typeof rightValue === "number") {
-        return sortDirection === "asc" ? leftValue - rightValue : rightValue - leftValue;
-      }
-
-      const comparison = String(leftValue ?? "").localeCompare(String(rightValue ?? ""), undefined, {
-        numeric: true,
-        sensitivity: "base",
-      });
-
-      return sortDirection === "asc" ? comparison : -comparison;
-    });
-
-    return nextRows;
-  }, [searchableRows, sortDirection, sortKey]);
-
-  const totalPages = Math.max(1, Math.ceil(sortedRows.length / pageSize));
-  const currentPage = Math.min(page, totalPages);
-  const paginatedRows = sortedRows.slice((currentPage - 1) * pageSize, currentPage * pageSize);
-
-  return (
-    <div className="overflow-hidden rounded-3xl border border-border bg-white/90">
-      <div className="flex flex-col gap-3 border-b border-border/70 p-4 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex-1">
-          <Input
-            value={search}
-            onChange={(event) => {
-              setSearch(event.target.value);
-              setPage(1);
-            }}
-            placeholder={searchPlaceholder}
-          />
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <select
-            className="flex h-11 rounded-full border border-border bg-white/80 px-4 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            value={sortKey}
-            onChange={(event) => {
-              setSortKey(event.target.value);
-              setPage(1);
-            }}
-          >
-            {columns.map((column) => (
-              <option key={String(column.key)} value={String(column.key)}>
-                Sort by {column.header}
-              </option>
-            ))}
-          </select>
-          <Button
-            variant="outline"
-            onClick={() => setSortDirection((current) => (current === "asc" ? "desc" : "asc"))}
-          >
-            {sortDirection === "asc" ? "Ascending" : "Descending"}
-          </Button>
-        </div>
-      </div>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            {onSelectRow && <TableHead className="w-10 px-4"></TableHead>}
-            {columns.map((column) => (
-              <TableHead key={String(column.key)} className={column.className}>
-                {column.header}
-              </TableHead>
-            ))}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {paginatedRows.map((row) => (
-            <TableRow 
-              key={row.id} 
-              className={selectedId === row.id ? "bg-primary/5 active:bg-primary/10 transition-colors" : "cursor-pointer hover:bg-muted/50"}
-              onClick={() => {
-                if (onSelectRow) {
-                  onSelectRow(selectedId === row.id ? undefined : row.id);
+        return (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <MoreHorizontal className="h-4 w-4" />
+                <span className="sr-only">Actions</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {rowActions.map((action, idx) => {
+                if (action.separator) {
+                  return <DropdownMenuSeparator key={`sep-${idx}`} />;
                 }
-              }}
-            >
-              {onSelectRow && (
-                <TableCell className="w-10 px-4">
-                  <input
-                    type="radio"
-                    checked={selectedId === row.id}
-                    onChange={() => {}} // Controlled by row onClick
-                    className="h-4 w-4 accent-primary cursor-pointer"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onSelectRow(selectedId === row.id ? undefined : row.id);
-                    }}
-                  />
-                </TableCell>
-              )}
-              {columns.map((column, index) => {
-                const content = column.render ? column.render(row) : String(row[column.key as keyof T] ?? "");
 
-                if (index === 0 && detailHref) {
+                const content = (
+                  <>
+                    {action.icon}
+                    {action.label}
+                  </>
+                );
+
+                if (action.href) {
                   return (
-                    <TableCell key={String(column.key)} className={column.className}>
-                      <Link to={detailHref(row)} className="font-semibold text-primary hover:underline">
+                    <DropdownMenuItem key={action.label} asChild>
+                      <Link to={action.href(row.original)} className="flex items-center gap-2">
                         {content}
                       </Link>
-                    </TableCell>
+                    </DropdownMenuItem>
                   );
                 }
 
-                return <TableCell key={String(column.key)} className={column.className}>{content}</TableCell>;
+                return (
+                  <DropdownMenuItem
+                    key={action.label}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      action.onClick?.(row.original);
+                    }}
+                    className={cn(
+                      "flex items-center gap-2",
+                      action.variant === "destructive" && "text-destructive focus:text-destructive",
+                    )}
+                  >
+                    {content}
+                  </DropdownMenuItem>
+                );
               })}
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        );
+      },
+      enableSorting: false,
+      enableHiding: false,
+    };
 
-      <div className="flex items-center justify-between border-t border-border/70 px-4 py-3 text-sm text-muted-foreground">
-        <span>
-          Page {currentPage} of {totalPages} · {sortedRows.length} records
-        </span>
-        <div className="flex gap-2">
+    return [...userColumns, actionsCol];
+  }, [userColumns, actions]);
+
+  const table = useReactTable({
+    data,
+    columns,
+    state: {
+      sorting,
+      globalFilter,
+      columnFilters,
+    },
+    onSortingChange: setSorting,
+    onGlobalFilterChange: setGlobalFilter,
+    onColumnFiltersChange: setColumnFilters,
+    getCoreRowModel: getCoreRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    initialState: {
+      pagination: { pageSize },
+    },
+  });
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="rounded-lg border">
+        <div className="p-4">
+          <Skeleton className="h-9 w-64" />
+        </div>
+        <div className="border-t">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="flex items-center gap-4 border-b px-4 py-3 last:border-0">
+              {Array.from({ length: 4 }).map((_, j) => (
+                <Skeleton key={j} className="h-4 flex-1" />
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-lg border bg-card">
+      {/* Search */}
+      <div className="flex items-center gap-3 border-b px-4 py-3">
+        <Search className="h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder={searchPlaceholder}
+          value={globalFilter}
+          onChange={(e) => setGlobalFilter(e.target.value)}
+          className="h-8 border-0 bg-transparent p-0 shadow-none focus-visible:ring-0"
+        />
+      </div>
+
+      {/* Table */}
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <TableRow key={headerGroup.id} className="hover:bg-transparent">
+                {headerGroup.headers.map((header) => (
+                  <TableHead key={header.id} className="whitespace-nowrap">
+                    {header.isPlaceholder ? null : header.column.getCanSort() ? (
+                      <button
+                        className="flex items-center gap-1 hover:text-foreground"
+                        onClick={header.column.getToggleSortingHandler()}
+                      >
+                        {flexRender(header.column.columnDef.header, header.getContext())}
+                        <ArrowUpDown className="h-3 w-3" />
+                      </button>
+                    ) : (
+                      flexRender(header.column.columnDef.header, header.getContext())
+                    )}
+                  </TableHead>
+                ))}
+              </TableRow>
+            ))}
+          </TableHeader>
+          <TableBody>
+            {table.getRowModel().rows.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={columns.length} className="h-24 text-center text-muted-foreground">
+                  {emptyMessage}
+                </TableCell>
+              </TableRow>
+            ) : (
+              table.getRowModel().rows.map((row) => {
+                const firstCol = columns[0];
+                return (
+                  <TableRow
+                    key={row.id}
+                    className={cn(onRowClick && "cursor-pointer")}
+                    onClick={() => onRowClick?.(row.original)}
+                  >
+                    {row.getVisibleCells().map((cell, cellIdx) => {
+                      // Make first column a link if detailHref is provided
+                      if (cellIdx === 0 && detailHref) {
+                        return (
+                          <TableCell key={cell.id}>
+                            <Link
+                              to={detailHref(row.original)}
+                              className="font-medium text-primary hover:underline"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                            </Link>
+                          </TableCell>
+                        );
+                      }
+                      return (
+                        <TableCell key={cell.id}>
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </TableCell>
+                      );
+                    })}
+                  </TableRow>
+                );
+              })
+            )}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* Pagination */}
+      <div className="flex items-center justify-between border-t px-4 py-3">
+        <p className="text-sm text-muted-foreground">
+          Page {table.getState().pagination.pageIndex + 1} of{" "}
+          {table.getPageCount()} · {table.getFilteredRowModel().rows.length} records
+        </p>
+        <div className="flex items-center gap-1">
           <Button
             variant="outline"
-            className="px-3 py-1.5"
-            onClick={() => setPage((current) => Math.max(1, current - 1))}
-            disabled={currentPage <= 1}
+            size="sm"
+            onClick={() => table.previousPage()}
+            disabled={!table.getCanPreviousPage()}
           >
-            Previous
+            <ChevronLeft className="h-4 w-4" />
           </Button>
           <Button
             variant="outline"
-            className="px-3 py-1.5"
-            onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
-            disabled={currentPage >= totalPages}
+            size="sm"
+            onClick={() => table.nextPage()}
+            disabled={!table.getCanNextPage()}
           >
-            Next
+            <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
       </div>

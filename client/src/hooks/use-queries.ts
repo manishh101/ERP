@@ -2157,7 +2157,7 @@ export function useCustomerLedgerQuery(customerId: string, options?: { startDate
 
       return data.entries.map((tx: any) => ({
         id: tx.id,
-        date: new Date(tx.entryDate),
+        date: String(tx.entryDate),
         type: tx.entryType,
         reference: tx.referenceId,
         narration: tx.narration,

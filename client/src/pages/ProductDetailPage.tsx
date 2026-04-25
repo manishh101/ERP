@@ -31,7 +31,6 @@ export function ProductDetailPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Inventory Detail"
         title={product.name}
         description={product.description}
       />

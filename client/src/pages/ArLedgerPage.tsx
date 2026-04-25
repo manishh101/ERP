@@ -41,9 +41,7 @@ export default function ArLedgerPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Receivables"
         title="Account Receivable Ledger"
-        description="Transaction history and outstanding balances by customer."
       />
 
       <select 

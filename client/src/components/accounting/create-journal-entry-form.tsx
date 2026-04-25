@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { useToast } from "@/components/layout/toast-provider";
+import { toast } from "sonner";
 import { useCreateJournalEntryMutation, useAccountsQuery } from "@/hooks/use-queries";
 import { getErrorMessage } from "@/lib/api";
 import { NepaliDatePickerInput } from "@/components/ui/nepali-date-picker-input";
@@ -12,7 +12,7 @@ type CreateJournalEntryFormProps = {
 };
 
 export function CreateJournalEntryForm({ onClose }: CreateJournalEntryFormProps) {
-  const { push } = useToast();
+  
   const createJournal = useCreateJournalEntryMutation();
   const accounts = useAccountsQuery();
   
@@ -29,14 +29,14 @@ export function CreateJournalEntryForm({ onClose }: CreateJournalEntryFormProps)
 
   const handleSubmit = async () => {
     if (!formData.description) {
-      push("Validation failed", "Please enter a description for the journal entry.");
+      toast("Validation failed", { description: "Please enter a description for the journal entry." });
       return;
     }
 
     const validLines = lines.filter(line => line.accountId && (Number(line.debit) > 0 || Number(line.credit) > 0));
     
     if (validLines.length < 2) {
-      push("Validation failed", "A journal entry must have at least two valid lines.");
+      toast("Validation failed", { description: "A journal entry must have at least two valid lines." });
       return;
     }
 
@@ -44,7 +44,7 @@ export function CreateJournalEntryForm({ onClose }: CreateJournalEntryFormProps)
     const totalCredit = validLines.reduce((sum, line) => sum + Number(line.credit), 0);
 
     if (Math.abs(totalDebit - totalCredit) > 0.0001) {
-      push("Imbalanced Journal", `Total Debit (${totalDebit.toFixed(2)}) must equal Total Credit (${totalCredit.toFixed(2)}).`);
+      toast("Imbalanced Journal", { description: `Total Debit (${totalDebit.toFixed(2)}) must equal Total Credit (${totalCredit.toFixed(2)}).` });
       return;
     }
 
@@ -60,10 +60,10 @@ export function CreateJournalEntryForm({ onClose }: CreateJournalEntryFormProps)
         }))
       });
       
-      push("Journal Entry Created", `Balanced entry posted successfully.`);
+      toast("Journal Entry Created", { description: `Balanced entry posted successfully.` });
       onClose();
     } catch (error) {
-      push("Posting failed", getErrorMessage(error, "Unable to post journal entry."));
+      toast.error("Posting failed", { description: getErrorMessage(error) });
     }
   };
 

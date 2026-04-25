@@ -1,6 +1,7 @@
 import { useState } from "react";
+import type { ColumnDef } from "@tanstack/react-table";
 import { ConfirmDialog } from "@/components/layout/confirm-dialog";
-import { useToast } from "@/components/layout/toast-provider";
+import { toast } from "sonner";
 import { DataTable } from "@/components/shared/data-table";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -14,12 +15,36 @@ import { CreateCustomerForm } from "@/components/sales/create-customer-form";
 import { CreateSalesOrderForm } from "@/components/sales/create-sales-order-form";
 import { CustomerLedgerModal } from "@/components/sales/customer-ledger-modal";
 import { RecordDepositModal } from "@/components/sales/record-deposit-modal";
+import type { SalesOrderRow } from "@/types/domain";
+
+const orderColumns: ColumnDef<SalesOrderRow, unknown>[] = [
+  { accessorKey: "id", header: "Order" },
+  { accessorKey: "customer", header: "Party" },
+  {
+    accessorKey: "status",
+    header: "Status",
+    cell: ({ row }) => <StatusBadge value={row.getValue("status")} />,
+  },
+  {
+    accessorKey: "deliveryDate",
+    header: "Delivery",
+    cell: ({ row }) => formatDate(row.getValue("deliveryDate")),
+  },
+  {
+    accessorKey: "balanceDue",
+    header: () => <div className="text-right">Balance Due</div>,
+    cell: ({ row }) => (
+      <div className="text-right font-medium tabular-nums">
+        {formatCurrency(row.getValue("balanceDue") as number)}
+      </div>
+    ),
+  },
+];
 
 export function SalesPage() {
   const { data, error, isLoading } = useSalesOrdersQuery();
   const { data: customersData, isLoading: customersLoading } = useCustomersQuery();
   const { mutate: cancelOrder, isPending: isCancelling } = useCancelSalesOrderMutation();
-  const { push } = useToast();
   
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [depositModalOpen, setDepositModalOpen] = useState(false);
@@ -54,12 +79,10 @@ export function SalesPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Sales"
-        title="Sales & CRM"
-        description="Manage orders, deposits, and customer credit."
+        title="Orders"
         actions={[
           {
-            label: createCustomerOpen ? "Close Customer Form" : "New Customer",
+            label: createCustomerOpen ? "Close Party Form" : "New Party",
             variant: "outline",
             onClick: () => {
               setCreateCustomerOpen((c) => !c);
@@ -91,10 +114,11 @@ export function SalesPage() {
                 {selectedOrder?.rawStatus === "QUOTE" && (
                   <Button 
                     variant="default" 
+                    size="sm"
                     onClick={() => {
                       confirmOrder(selectedOrderId, {
-                        onSuccess: () => push("Order confirmed", "The quote has been successfully converted to a confirmed order."),
-                        onError: (error) => push("Confirmation failed", getErrorMessage(error))
+                        onSuccess: () => toast.success("Order confirmed"),
+                        onError: (error) => toast.error("Confirmation failed", { description: getErrorMessage(error) })
                       });
                     }}
                     disabled={isConfirming}
@@ -104,7 +128,8 @@ export function SalesPage() {
                 )}
                 {selectedOrder?.rawStatus === "CONFIRMED" && (
                   <Button 
-                    variant="default" 
+                    variant="default"
+                    size="sm"
                     onClick={() => setDepositModalOpen(true)}
                   >
                     Record Deposit
@@ -112,11 +137,12 @@ export function SalesPage() {
                 )}
                 {selectedOrder?.rawStatus === "DEPOSIT_PAID" && (
                   <Button 
-                    variant="default" 
+                    variant="default"
+                    size="sm"
                     onClick={() => {
                       updateStatus({ id: selectedOrderId, status: "IN_WAREHOUSE" }, {
-                        onSuccess: () => push("Order updated", "The order has been moved to the warehouse status."),
-                        onError: (error) => push("Update failed", getErrorMessage(error))
+                        onSuccess: () => toast.success("Moved to warehouse"),
+                        onError: (error) => toast.error("Update failed", { description: getErrorMessage(error) })
                       });
                     }}
                     disabled={isUpdating}
@@ -126,6 +152,7 @@ export function SalesPage() {
                 )}
                 <Button 
                   variant="outline" 
+                  size="sm"
                   className="text-destructive hover:bg-destructive hover:text-white border-destructive/30"
                   onClick={() => setConfirmOpen(true)}
                   disabled={isCancelling}
@@ -137,17 +164,11 @@ export function SalesPage() {
           </CardHeader>
           <CardContent>
             <DataTable
-              rows={data.items}
+              data={data.items}
+              columns={orderColumns}
               detailHref={(row) => `/sales/${row.id}`}
-              selectedId={selectedOrderId}
-              onSelectRow={setSelectedOrderId}
-              columns={[
-                { key: "id", header: "Order" },
-                { key: "customer", header: "Customer" },
-                { key: "status", header: "Status", render: (row) => <StatusBadge value={row.status} /> },
-                { key: "deliveryDate", header: "Delivery", render: (row) => formatDate(row.deliveryDate) },
-                { key: "balanceDue", header: "Balance Due", className: "text-right", render: (row) => formatCurrency(row.balanceDue) },
-              ]}
+              onRowClick={(row) => setSelectedOrderId(selectedOrderId === row.id ? undefined : row.id)}
+              searchPlaceholder="Search orders..."
             />
           </CardContent>
         </Card>
@@ -155,30 +176,28 @@ export function SalesPage() {
         <Card>
           <CardHeader>
             <div>
-              <CardTitle>Customer Credit & Statements</CardTitle>
+              <CardTitle>Parties & Khata</CardTitle>
               <CardDescription>Balances, credit limits, and statements.</CardDescription>
             </div>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="max-h-[400px] overflow-y-auto space-y-4">
+          <CardContent className="space-y-3">
+            <div className="max-h-[400px] overflow-y-auto space-y-3">
               {customersData?.items?.map((customer) => (
-                <div key={customer.id} className="rounded-2xl border border-border bg-white p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-semibold">{customer.name}</p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {customer.type} · Credit Limit: {formatCurrency(toNumber(customer.creditLimit))}
-                        {customer.panNo && ` · PAN: ${customer.panNo}`}
-                        {customer.vatNo && ` · VAT: ${customer.vatNo}`}
-                      </p>
-                    </div>
-                    <Button 
-                      variant="outline" 
-                      onClick={() => setLedgerCustomer({ id: customer.id, name: customer.name })}
-                    >
-                      View Ledger
-                    </Button>
+                <div key={customer.id} className="flex items-center justify-between rounded-lg border bg-card p-4">
+                  <div className="min-w-0">
+                    <p className="font-medium">{customer.name}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {customer.type} · Credit: {formatCurrency(toNumber(customer.creditLimit))}
+                      {customer.panNo && ` · PAN: ${customer.panNo}`}
+                    </p>
                   </div>
+                  <Button 
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setLedgerCustomer({ id: customer.id, name: customer.name })}
+                  >
+                    View Khata
+                  </Button>
                 </div>
               ))}
             </div>
@@ -189,7 +208,7 @@ export function SalesPage() {
       <ConfirmDialog
         open={confirmOpen}
         title="Cancel Sales Order"
-        description="Are you sure you want to cancel this order? This action will reverse any stock reservations if the order was already confirmed."
+        description="Are you sure? Stock reservations will be reversed."
         confirmLabel="Cancel Order"
         onCancel={() => setConfirmOpen(false)}
         onConfirm={() => {
@@ -198,10 +217,10 @@ export function SalesPage() {
               onSuccess: () => {
                 setConfirmOpen(false);
                 setSelectedOrderId(undefined);
-                push("Order cancelled", "The sales order has been successfully cancelled and stock released.");
+                toast.success("Order cancelled and stock released");
               },
               onError: (error) => {
-                push("Cancellation failed", getErrorMessage(error));
+                toast.error("Cancellation failed", { description: getErrorMessage(error) });
               }
             });
           }

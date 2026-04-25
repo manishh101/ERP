@@ -49,9 +49,7 @@ export function DashboardPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Module 1"
         title="Command Dashboard"
-        description="Track revenue, inventory exposure, deliveries, and quick next actions from a single operations cockpit."
       />
 
       <KpiGrid items={data.kpis} />

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { useToast } from "@/components/layout/toast-provider";
+import { toast } from "sonner";
 import { useCreateProductMutation } from "@/hooks/use-queries";
 import { getErrorMessage } from "@/lib/api";
 
@@ -11,7 +11,7 @@ type CreateProductFormProps = {
 };
 
 export function CreateProductForm({ onClose }: CreateProductFormProps) {
-  const { push } = useToast();
+  
   const createProduct = useCreateProductMutation();
   const [formData, setFormData] = useState({
     name: "",
@@ -45,12 +45,12 @@ export function CreateProductForm({ onClose }: CreateProductFormProps) {
 
   const handleSubmit = async () => {
     if (!formData.name || !formData.sku || !formData.category || !formData.costPrice || !formData.sellingPrice) {
-      push("Validation failed", "Please fill in all required fields (Name, SKU, Category, Cost, Selling Price).");
+      toast("Validation failed", { description: "Please fill in all required fields (Name, SKU, Category, Cost, Selling Price)." });
       return;
     }
     
     if (variants.length === 0 || !variants[0].variantName || !variants[0].sku) {
-      push("Validation failed", "Please add at least one variant with a name and SKU.");
+      toast("Validation failed", { description: "Please add at least one variant with a name and SKU." });
       return;
     }
 
@@ -76,10 +76,10 @@ export function CreateProductForm({ onClose }: CreateProductFormProps) {
         variants: variants,
       });
       
-      push("Product created", `${formData.name} has been added to the catalog.`);
+      toast("Product created", { description: `${formData.name} has been added to the catalog.` });
       onClose();
     } catch (error) {
-      push("Creation failed", getErrorMessage(error, "Unable to create product."));
+      toast.error("Creation failed", { description: getErrorMessage(error) });
     }
   };
 

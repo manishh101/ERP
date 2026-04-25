@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { useToast } from "@/components/layout/toast-provider";
+import { toast } from "sonner";
 import { useCreateCustomerMutation } from "@/hooks/use-queries";
 import { getErrorMessage } from "@/lib/api";
 
@@ -11,7 +11,7 @@ type CreateCustomerFormProps = {
 };
 
 export function CreateCustomerForm({ onClose }: CreateCustomerFormProps) {
-  const { push } = useToast();
+  
   const createCustomer = useCreateCustomerMutation();
   const [formData, setFormData] = useState({
     name: "",
@@ -29,7 +29,7 @@ export function CreateCustomerForm({ onClose }: CreateCustomerFormProps) {
 
   const handleSubmit = async () => {
     if (!formData.name || !formData.address) {
-      push("Validation failed", "Please fill in all required fields (Name, Address).");
+      toast("Validation failed", { description: "Please fill in all required fields (Name, Address)." });
       return;
     }
 
@@ -48,10 +48,10 @@ export function CreateCustomerForm({ onClose }: CreateCustomerFormProps) {
         ward: formData.ward || undefined,
       });
       
-      push("Customer created", `${formData.name} has been added to the system.`);
+      toast("Customer created", { description: `${formData.name} has been added to the system.` });
       onClose();
     } catch (error) {
-      push("Creation failed", getErrorMessage(error, "Unable to create customer."));
+      toast.error("Creation failed", { description: getErrorMessage(error) });
     }
   };
 

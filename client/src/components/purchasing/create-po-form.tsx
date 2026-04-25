@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { useToast } from "@/components/layout/toast-provider";
+import { toast } from "sonner";
 import { useCreatePurchaseOrderMutation, useSuppliersQuery, useProductsQuery } from "@/hooks/use-queries";
 import { getErrorMessage } from "@/lib/api";
 import { NepaliDatePickerInput } from "@/components/ui/nepali-date-picker-input";
@@ -12,7 +12,7 @@ type CreatePurchaseOrderFormProps = {
 };
 
 export function CreatePurchaseOrderForm({ onClose }: CreatePurchaseOrderFormProps) {
-  const { push } = useToast();
+  
   const createPO = useCreatePurchaseOrderMutation();
   const suppliers = useSuppliersQuery();
   const products = useProductsQuery();
@@ -35,13 +35,13 @@ export function CreatePurchaseOrderForm({ onClose }: CreatePurchaseOrderFormProp
 
   const handleSubmit = async () => {
     if (!formData.supplierId || !formData.orderDate) {
-      push("Validation failed", "Please select a supplier and order date.");
+      toast("Validation failed", { description: "Please select a supplier and order date." });
       return;
     }
 
     const validLineItems = lineItems.filter(item => item.productVariantId && Number(item.quantity) > 0);
     if (validLineItems.length === 0) {
-      push("Validation failed", "Please add at least one valid line item.");
+      toast("Validation failed", { description: "Please add at least one valid line item." });
       return;
     }
 
@@ -61,10 +61,10 @@ export function CreatePurchaseOrderForm({ onClose }: CreatePurchaseOrderFormProp
         }))
       });
       
-      push("Purchase Order created", `PO has been generated successfully.`);
+      toast("Purchase Order created", { description: `PO has been generated successfully.` });
       onClose();
     } catch (error) {
-      push("Creation failed", getErrorMessage(error, "Unable to create purchase order."));
+      toast.error("Creation failed", { description: getErrorMessage(error) });
     }
   };
 

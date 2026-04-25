@@ -1,3 +1,4 @@
+import type { ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "@/components/shared/data-table";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -9,11 +10,28 @@ import { formatDate } from "@/lib/utils";
 import { useState } from "react";
 import { ScheduleDeliveryForm } from "@/components/delivery/schedule-delivery-form";
 import { ConfirmDialog } from "@/components/layout/confirm-dialog";
-import { useToast } from "@/components/layout/toast-provider";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import type { DeliveryRow } from "@/types/domain";
+
+const deliveryColumns: ColumnDef<DeliveryRow, unknown>[] = [
+  { accessorKey: "id", header: "Challan" },
+  { accessorKey: "customer", header: "Party" },
+  { accessorKey: "driver", header: "Driver" },
+  {
+    accessorKey: "status",
+    header: "Status",
+    cell: ({ row }) => <StatusBadge value={row.getValue("status")} />,
+  },
+  {
+    accessorKey: "scheduledDate",
+    header: "Scheduled",
+    cell: ({ row }) => formatDate(row.getValue("scheduledDate")),
+  },
+  { accessorKey: "route", header: "Route" },
+];
 
 export function DeliveryPage() {
-  const { push } = useToast();
   const { data, error, isLoading } = useDeliveriesQuery();
   const { mutate: cancelDelivery, isPending: isCancelling } = useCancelDeliveryMutation();
   const [scheduleDeliveryOpen, setScheduleDeliveryOpen] = useState(false);
@@ -28,7 +46,7 @@ export function DeliveryPage() {
     return (
       <Card>
         <CardContent className="py-10">
-          <p className="font-semibold">Deliveries could not be loaded.</p>
+          <p className="font-semibold">Challans could not be loaded.</p>
           <p className="mt-2 text-sm text-muted-foreground">{getErrorMessage(error)}</p>
         </CardContent>
       </Card>
@@ -44,12 +62,12 @@ export function DeliveryPage() {
 
     cancelDelivery(selectedDeliveryId, {
       onSuccess: () => {
-        push("Delivery Cancelled", "The delivery has been cancelled and its order returned to the warehouse.");
+        toast.success("Challan cancelled");
         setSelectedDeliveryId(undefined);
         setConfirmOpen(false);
       },
       onError: (err) => {
-        push("Cancellation failed", getErrorMessage(err, "Unable to cancel delivery."));
+        toast.error("Cancellation failed", { description: getErrorMessage(err) });
       },
     });
   };
@@ -57,9 +75,7 @@ export function DeliveryPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Module 7"
-        title="Delivery & Logistics"
-        description="Schedule dispatches, assign drivers and vehicles, manage failed attempts, capture proof of delivery, and issue daily manifests."
+        title="Challans"
         actions={[
           {
             label: scheduleDeliveryOpen ? "Close Form" : "Schedule Delivery",
@@ -75,57 +91,51 @@ export function DeliveryPage() {
           <Card>
             <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between space-y-0">
               <div>
-                <CardTitle>Delivery Scheduler</CardTitle>
-                <CardDescription>Orders ready for dispatch, grouped with driver and route information.</CardDescription>
+                <CardTitle>Dispatch Scheduler</CardTitle>
+                <CardDescription>Orders ready for dispatch.</CardDescription>
               </div>
               {selectedDeliveryId && (
                 <Button 
                   variant="outline" 
+                  size="sm"
                   className="text-destructive hover:bg-destructive hover:text-white border-destructive/30"
                   onClick={() => setConfirmOpen(true)}
                   disabled={isCancelling}
                 >
-                  {isCancelling ? "Cancelling..." : "Cancel Delivery"}
+                  {isCancelling ? "Cancelling..." : "Cancel Challan"}
                 </Button>
               )}
             </CardHeader>
             <CardContent>
               <DataTable
-                rows={data.items}
-                detailHref={() => "/delivery"}
-                selectedId={selectedDeliveryId}
-                onSelectRow={setSelectedDeliveryId}
-                columns={[
-                  { key: "id", header: "Delivery" },
-                  { key: "customer", header: "Customer" },
-                  { key: "driver", header: "Driver" },
-                  { key: "status", header: "Status", render: (row) => <StatusBadge value={row.status} /> },
-                  { key: "scheduledDate", header: "Scheduled", render: (row) => formatDate(row.scheduledDate) },
-                  { key: "route", header: "Route" },
-                ]}
+                data={data.items}
+                columns={deliveryColumns}
+                onRowClick={(row) => setSelectedDeliveryId(
+                  selectedDeliveryId === row.id ? undefined : row.id
+                )}
+                searchPlaceholder="Search challans..."
               />
             </CardContent>
           </Card>
-
         </div>
 
         <Card>
           <CardHeader>
             <div>
               <CardTitle>Manifest & Performance</CardTitle>
-              <CardDescription>Printable daily route manifest and driver performance metrics.</CardDescription>
+              <CardDescription>Driver performance metrics.</CardDescription>
             </div>
           </CardHeader>
           <CardContent className="space-y-3">
             {[
               ["On-time rate", "93% this month"],
               ["Failed attempts", "4 deliveries"],
-              ["Average lead time", "3.8 days from order to delivery"],
-              ["Proof of delivery", "Notes + photo URL supported"],
+              ["Average lead time", "3.8 days"],
+              ["Proof of delivery", "Notes + photo supported"],
             ].map(([label, value]) => (
-              <div key={label} className="rounded-2xl border border-border bg-white p-4">
-                <p className="font-semibold">{label}</p>
-                <p className="mt-1 text-sm text-muted-foreground">{value}</p>
+              <div key={label} className="rounded-lg border p-3">
+                <p className="text-sm font-medium">{label}</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">{value}</p>
               </div>
             ))}
           </CardContent>
@@ -134,9 +144,9 @@ export function DeliveryPage() {
 
       <ConfirmDialog
         open={confirmOpen}
-        title="Cancel Delivery?"
-        description="This will set the delivery status to CANCELLED and return the sales order to the warehouse stage. This action cannot be undone."
-        confirmLabel="Cancel Delivery"
+        title="Cancel Challan?"
+        description="The order will be returned to the warehouse."
+        confirmLabel="Cancel Challan"
         onCancel={() => setConfirmOpen(false)}
         onConfirm={handleCancelDelivery}
       />

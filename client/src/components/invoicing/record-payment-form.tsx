@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { useToast } from "@/components/layout/toast-provider";
+import { toast } from "sonner";
 import { useRecordPaymentMutation, useSalesOrdersQuery } from "@/hooks/use-queries";
 import { getErrorMessage } from "@/lib/api";
 import { NepaliDatePickerInput } from "@/components/ui/nepali-date-picker-input";
@@ -16,7 +16,7 @@ type RecordPaymentFormProps = {
 };
 
 export function RecordPaymentForm({ onClose }: RecordPaymentFormProps) {
-  const { push } = useToast();
+  
   const recordPayment = useRecordPaymentMutation();
   const salesOrders = useSalesOrdersQuery();
   
@@ -33,7 +33,7 @@ export function RecordPaymentForm({ onClose }: RecordPaymentFormProps) {
 
   const handleSubmit = async () => {
     if (!formData.salesOrderId || !formData.amount) {
-      push("Validation failed", "Please select a sales order and enter a payment amount.");
+      toast("Validation failed", { description: "Please select a sales order and enter a payment amount." });
       return;
     }
 
@@ -47,7 +47,7 @@ export function RecordPaymentForm({ onClose }: RecordPaymentFormProps) {
         note: formData.note || undefined,
       });
       
-      push("Payment recorded", `The payment has been successfully recorded.`);
+      toast("Payment recorded", { description: `The payment has been successfully recorded.` });
       
       // Get download token
       const baseUrl = API_BASE_URL.replace(/\/$/, "");
@@ -63,7 +63,7 @@ export function RecordPaymentForm({ onClose }: RecordPaymentFormProps) {
         setDownloadLink(`${baseUrl}/payments/${payment.id}/receipt?token=${downloadToken}`);
       }
     } catch (error) {
-      push("Recording failed", getErrorMessage(error, "Unable to record payment."));
+      toast.error("Recording failed", { description: getErrorMessage(error) });
     }
   };
 

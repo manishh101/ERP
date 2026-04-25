@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { useToast } from "@/components/layout/toast-provider";
+import { toast } from "sonner";
 import { useCreateDeliveryMutation, useSalesOrdersQuery } from "@/hooks/use-queries";
 import { getErrorMessage } from "@/lib/api";
 import { NepaliDatePickerInput } from "@/components/ui/nepali-date-picker-input";
@@ -12,7 +12,7 @@ type ScheduleDeliveryFormProps = {
 };
 
 export function ScheduleDeliveryForm({ onClose }: ScheduleDeliveryFormProps) {
-  const { push } = useToast();
+  
   const createDelivery = useCreateDeliveryMutation();
   const salesOrders = useSalesOrdersQuery();
   
@@ -34,7 +34,7 @@ export function ScheduleDeliveryForm({ onClose }: ScheduleDeliveryFormProps) {
 
   const handleSubmit = async () => {
     if (!formData.soId || !formData.deliveryAddress) {
-      push("Validation failed", "Please select a Sales Order and enter a Delivery Address.");
+      toast("Validation failed", { description: "Please select a Sales Order and enter a Delivery Address." });
       return;
     }
 
@@ -55,10 +55,10 @@ export function ScheduleDeliveryForm({ onClose }: ScheduleDeliveryFormProps) {
         assemblyService: formData.assemblyService,
       });
       
-      push("Delivery Scheduled", `The delivery route has been successfully scheduled.`);
+      toast("Delivery Scheduled", { description: `The delivery route has been successfully scheduled.` });
       onClose();
     } catch (error) {
-      push("Scheduling failed", getErrorMessage(error, "Unable to schedule delivery."));
+      toast.error("Scheduling failed", { description: getErrorMessage(error) });
     }
   };
 

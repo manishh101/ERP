@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "@/components/auth/auth-provider";
-import { useToast } from "@/components/layout/toast-provider";
+import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -115,7 +115,7 @@ function renderPreviewValue(value: unknown) {
 
 export function ReportingPage() {
   const { user } = useAuth();
-  const { push } = useToast();
+  
   const { data, error, isLoading } = useReportsQuery();
   const previewMutation = useCustomReportPreviewMutation();
   const [entity, setEntity] = useState<ReportBuilderEntity>("sales");
@@ -167,7 +167,7 @@ export function ReportingPage() {
     const fieldList = parseCsvList(fields);
 
     if (fieldList.length === 0) {
-      push("Fields required", "Add at least one field to preview a custom report.");
+      toast("Fields required", { description: "Add at least one field to preview a custom report." });
       return;
     }
 
@@ -181,7 +181,7 @@ export function ReportingPage() {
         groupBy: parseCsvList(groupBy),
       });
     } catch (requestError) {
-      push("Preview failed", getErrorMessage(requestError, "Unable to preview custom report."));
+      toast.error("Preview failed", { description: getErrorMessage(requestError) });
     }
   }
 
@@ -193,9 +193,7 @@ export function ReportingPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Module 8"
         title="Reporting & Analytics"
-        description="Export sales, inventory, margin, supplier, customer, and financial reports as PDF or CSV, with a custom report builder for ad hoc analysis."
       />
 
       <div className="grid gap-6 xl:grid-cols-[1.2fr_1fr]">

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/components/auth/auth-provider";
-import { useToast } from "@/components/layout/toast-provider";
+import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
@@ -31,7 +31,7 @@ const initialInviteForm: InviteFormState = {
 
 export function UsersPage() {
   const { user } = useAuth();
-  const { push } = useToast();
+  
   const { data, error, isLoading } = useUsersQuery();
   const inviteUser = useInviteUserMutation();
   const updateUser = useUpdateUserMutation();
@@ -95,9 +95,7 @@ export function UsersPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="RBAC"
         title="Users & Roles"
-        description="Role-based access control for Admin, Accountant, Sales, Warehouse, and Driver users with invite and deactivation flows."
         actions={[
           {
             label: inviteOpen ? "Close Invite" : "Invite User",
@@ -168,9 +166,9 @@ export function UsersPage() {
                     await inviteUser.mutateAsync(inviteForm);
                     setInviteForm(initialInviteForm);
                     setInviteOpen(false);
-                    push("User invited", "The new account has been created successfully.");
+                    toast("User invited", { description: "The new account has been created successfully." });
                   } catch (requestError) {
-                    push("Invite failed", getErrorMessage(requestError, "Unable to invite user."));
+                    toast.error("Invite failed", { description: getErrorMessage(requestError) });
                   }
                 }}
                 disabled={inviteUser.isPending}
@@ -256,9 +254,9 @@ export function UsersPage() {
                         role: userDrafts[account.id]?.role ?? account.rawRole,
                         isActive: userDrafts[account.id]?.isActive ?? account.isActive,
                       });
-                      push("User updated", `${account.name}'s access has been updated.`);
+                      toast("User updated", { description: `${account.name}'s access has been updated.` });
                     } catch (requestError) {
-                      push("Update failed", getErrorMessage(requestError, "Unable to update user."));
+                      toast.error("Update failed", { description: getErrorMessage(requestError) });
                     }
                   }}
                 >

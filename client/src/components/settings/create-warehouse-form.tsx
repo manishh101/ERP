@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useToast } from "@/components/layout/toast-provider";
+import { toast } from "sonner";
 import { useCreateWarehouseMutation } from "@/hooks/use-queries";
 import { getErrorMessage } from "@/lib/api";
 
@@ -10,7 +10,7 @@ type CreateWarehouseFormProps = {
 };
 
 export function CreateWarehouseForm({ onClose }: CreateWarehouseFormProps) {
-  const { push } = useToast();
+  
   const createWarehouse = useCreateWarehouseMutation();
   
   const [formData, setFormData] = useState({
@@ -22,7 +22,7 @@ export function CreateWarehouseForm({ onClose }: CreateWarehouseFormProps) {
 
   const handleSubmit = async () => {
     if (!formData.name || !formData.location) {
-      push("Validation failed", "Please provide a name and location for the warehouse.");
+      toast("Validation failed", { description: "Please provide a name and location for the warehouse." });
       return;
     }
 
@@ -34,10 +34,10 @@ export function CreateWarehouseForm({ onClose }: CreateWarehouseFormProps) {
         isActive: formData.isActive,
       });
       
-      push("Warehouse created", `The warehouse was added successfully.`);
+      toast("Warehouse created", { description: `The warehouse was added successfully.` });
       onClose();
     } catch (error) {
-      push("Creation failed", getErrorMessage(error, "Unable to create warehouse."));
+      toast.error("Creation failed", { description: getErrorMessage(error) });
     }
   };
 

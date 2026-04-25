@@ -5,7 +5,7 @@ import {
   useCreateInvoiceMutation,
   useCreateDeliveryMutation,
 } from "@/hooks/use-queries";
-import { useToast } from "@/components/layout/toast-provider";
+import { toast } from "sonner";
 import { useAuth } from "@/components/auth/auth-provider";
 import { API_BASE_URL, getErrorMessage } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -31,7 +31,7 @@ export function SalesOrderDetailPage() {
   const navigate = useNavigate();
   const { data: order, isLoading } = useSalesOrderQuery(id);
   const { token } = useAuth();
-  const { push } = useToast();
+  
 
   const cancelMutation = useCancelSalesOrderMutation();
   const createInvoiceMutation = useCreateInvoiceMutation();
@@ -90,10 +90,10 @@ export function SalesOrderDetailPage() {
     if (!id) return;
     cancelMutation.mutate(id, {
       onSuccess: () => {
-        push("Order voided", "The order has been cancelled successfully.");
+        toast("Order voided", { description: "The order has been cancelled successfully." });
         navigate("/sales");
       },
-      onError: (error) => push("Failed to void", getErrorMessage(error)),
+      onError: (error) => toast("Failed to void", { description: getErrorMessage(error) }),
     });
   };
 
@@ -114,9 +114,9 @@ export function SalesOrderDetailPage() {
       {
         onSuccess: () => {
           const label = type === "ESTIMATE" ? "Estimate bill" : "Tax invoice";
-          push(`${label} created`, `${label} has been generated successfully.`);
+          toast(`${label} created`, { description: `${label} has been generated successfully.` });
         },
-        onError: (error) => push("Invoice failed", getErrorMessage(error)),
+        onError: (error) => toast("Invoice failed", { description: getErrorMessage(error) }),
       }
     );
   };
@@ -132,9 +132,9 @@ export function SalesOrderDetailPage() {
       },
       {
         onSuccess: () => {
-          push("Delivery scheduled", "A delivery has been scheduled for this order.");
+          toast("Delivery scheduled", { description: "A delivery has been scheduled for this order." });
         },
-        onError: (error) => push("Delivery failed", getErrorMessage(error)),
+        onError: (error) => toast("Delivery failed", { description: getErrorMessage(error) }),
       }
     );
   };
@@ -151,7 +151,7 @@ export function SalesOrderDetailPage() {
       const url = `${baseUrl}/tax-invoices/${invoiceId}/pdf?token=${downloadToken}&type=${type}`;
       window.open(url, "_blank");
     } catch {
-      push("Download failed", "Could not generate the PDF download link.");
+      toast("Download failed", { description: "Could not generate the PDF download link." });
     }
   };
 

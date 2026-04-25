@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "@/components/auth/auth-provider";
-import { useToast } from "@/components/layout/toast-provider";
+import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
@@ -45,7 +45,7 @@ function formatLineItemSummary(order: PurchaseOrderRow) {
 
 export function PurchasingPage() {
   const { user } = useAuth();
-  const { push } = useToast();
+  
   const {
     data: suppliers,
     error: suppliersError,
@@ -89,9 +89,7 @@ export function PurchasingPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Module 3"
         title="Purchasing & Suppliers"
-        description="Track supplier performance, manage purchase orders, receive goods with discrepancies, run 3-way matching, and monitor AP aging."
         actions={[
           {
             label: createSupplierOpen ? "Close Supplier Form" : "New Supplier",
@@ -241,14 +239,16 @@ export function PurchasingPage() {
                           try {
                             const summary = await matchPurchaseOrder.mutateAsync({ id: order.id });
                             setMatchResults((current) => ({ ...current, [order.id]: summary }));
-                            push(
+                            toast.success(
                               summary.isMatched ? "3-way match passed" : "3-way match flagged",
-                              summary.isMatched
-                                ? `${order.id} matched across PO, receipts, and supplier invoices.`
-                                : `${order.id} has a value mismatch that still needs review.`,
+                              {
+                                description: summary.isMatched
+                                  ? `${order.id} matched across PO, receipts, and supplier invoices.`
+                                  : `${order.id} has a value mismatch that needs review.`,
+                              },
                             );
                           } catch (requestError) {
-                            push("Match failed", getErrorMessage(requestError, "Unable to run 3-way match."));
+                            toast.error("Match failed", { description: getErrorMessage(requestError) });
                           }
                         }}
                       >
@@ -260,7 +260,7 @@ export function PurchasingPage() {
                         disabled={!canReceive || receivePurchaseOrder.isPending || pendingLines.length === 0}
                         onClick={async () => {
                           if (pendingLines.length === 0) {
-                            push("Nothing to receive", `${order.id} is already fully received.`);
+                            toast("Nothing to receive", { description: `${order.id} is already fully received.` });
                             return;
                           }
 
@@ -270,14 +270,16 @@ export function PurchasingPage() {
                               notes: `Receipt captured from the ERP client for ${order.supplier}.`,
                               lines: pendingLines,
                             });
-                            push(
+                            toast.success(
                               "Goods received",
-                              `${formatNumber(
-                                pendingLines.reduce((sum, lineItem) => sum + lineItem.quantityReceived, 0),
-                              )} units were received for ${order.id}.`,
+                              {
+                                description: `${formatNumber(
+                                  pendingLines.reduce((sum, lineItem) => sum + lineItem.quantityReceived, 0),
+                                )} units were received for ${order.id}.`,
+                              },
                             );
                           } catch (requestError) {
-                            push("Receipt failed", getErrorMessage(requestError, "Unable to receive goods."));
+                            toast.error("Receipt failed", { description: getErrorMessage(requestError) });
                           }
                         }}
                       >

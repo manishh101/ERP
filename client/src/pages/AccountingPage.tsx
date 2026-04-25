@@ -48,9 +48,7 @@ export function AccountingPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Module 6"
         title="Accounting & General Ledger"
-        description="Run a double-entry ledger, auto-post invoices and payments, reconcile bank activity, and produce statutory financial reports."
         actions={[
           {
             label: createJournalOpen ? "Close Form" : "New Journal Entry",

@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { useToast } from "@/components/layout/toast-provider";
+import { toast } from "sonner";
 import { useCreateInvoiceMutation, useSalesOrdersQuery, useSalesOrderQuery } from "@/hooks/use-queries";
 import { getErrorMessage } from "@/lib/api";
 import { formatCurrency } from "@/lib/utils";
@@ -13,7 +13,7 @@ type CreateInvoiceFormProps = {
 };
 
 export function CreateInvoiceForm({ onClose }: CreateInvoiceFormProps) {
-  const { push } = useToast();
+  
   const createInvoice = useCreateInvoiceMutation();
   const salesOrders = useSalesOrdersQuery();
   
@@ -77,12 +77,12 @@ export function CreateInvoiceForm({ onClose }: CreateInvoiceFormProps) {
 
   const handleSubmit = async () => {
     if (!formData.soId || lineItems.length === 0) {
-      push("Validation failed", "Please select a sales order and assure line items exist.");
+      toast("Validation failed", { description: "Please select a sales order and assure line items exist." });
       return;
     }
 
     if (totalAmount <= 0) {
-      push("Validation failed", "Invoice amount must be greater than 0.");
+      toast("Validation failed", { description: "Invoice amount must be greater than 0." });
       return;
     }
 
@@ -104,10 +104,10 @@ export function CreateInvoiceForm({ onClose }: CreateInvoiceFormProps) {
         fiscalYear: formData.fiscalYear || undefined,
       });
       
-      push("Invoice created", `Invoice generated successfully.`);
+      toast("Invoice created", { description: `Invoice generated successfully.` });
       onClose();
     } catch (error) {
-      push("Creation failed", getErrorMessage(error, "Unable to create invoice."));
+      toast.error("Creation failed", { description: getErrorMessage(error) });
     }
   };
 

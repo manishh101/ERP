@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { useToast } from "@/components/layout/toast-provider";
+import { toast } from "sonner";
 import { useCreateSupplierMutation } from "@/hooks/use-queries";
 import { getErrorMessage } from "@/lib/api";
 
@@ -11,7 +11,7 @@ type CreateSupplierFormProps = {
 };
 
 export function CreateSupplierForm({ onClose }: CreateSupplierFormProps) {
-  const { push } = useToast();
+  
   const createSupplier = useCreateSupplierMutation();
   const [formData, setFormData] = useState({
     name: "",
@@ -27,7 +27,7 @@ export function CreateSupplierForm({ onClose }: CreateSupplierFormProps) {
 
   const handleSubmit = async () => {
     if (!formData.name || !formData.country || !formData.leadTimeDays) {
-      push("Validation failed", "Please fill in all required fields (Name, Country, Lead Time).");
+      toast("Validation failed", { description: "Please fill in all required fields (Name, Country, Lead Time)." });
       return;
     }
 
@@ -44,10 +44,10 @@ export function CreateSupplierForm({ onClose }: CreateSupplierFormProps) {
         notes: formData.notes || undefined,
       });
       
-      push("Supplier created", `${formData.name} has been added to the system.`);
+      toast("Supplier created", { description: `${formData.name} has been added to the system.` });
       onClose();
     } catch (error) {
-      push("Creation failed", getErrorMessage(error, "Unable to create supplier."));
+      toast.error("Creation failed", { description: getErrorMessage(error) });
     }
   };
 

@@ -1,28 +1,56 @@
 import { ChevronRight } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 
+/** Map URL segments to Nepali business module labels */
+const labelMap: Record<string, string> = {
+  parties: "Parties",
+  sales: "Sales & Dispatch",
+  delivery: "Challans",
+  invoicing: "VAT/PAN Bills",
+  accounting: "Finance",
+  ledger: "Ledger (Khata)",
+  vat: "VAT Register",
+  inventory: "Products",
+  purchasing: "Warehouses",
+  products: "Products",
+  settings: "Settings",
+  users: "Users",
+  reporting: "Reports",
+};
+
+function formatSegment(segment: string): string {
+  return labelMap[segment] || segment.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 export function Breadcrumbs() {
   const location = useLocation();
   const segments = location.pathname.split("/").filter(Boolean);
 
+  if (segments.length === 0) {
+    return <p className="text-sm text-muted-foreground">Dashboard</p>;
+  }
+
   const crumbs = segments.map((segment, index) => ({
-    label: segment.replace(/-/g, " "),
+    label: formatSegment(segment),
     href: `/${segments.slice(0, index + 1).join("/")}`,
   }));
 
   return (
-    <div className="mb-6 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-      <Link to="/" className="hover:text-foreground">
+    <nav className="flex items-center gap-1 text-sm">
+      <Link to="/" className="text-muted-foreground transition-colors hover:text-foreground">
         Dashboard
       </Link>
       {crumbs.map((crumb) => (
-        <div key={crumb.href} className="flex items-center gap-2">
-          <ChevronRight className="h-4 w-4" />
-          <Link to={crumb.href} className="capitalize hover:text-foreground">
+        <div key={crumb.href} className="flex items-center gap-1">
+          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50" />
+          <Link
+            to={crumb.href}
+            className="text-muted-foreground transition-colors hover:text-foreground"
+          >
             {crumb.label}
           </Link>
         </div>
       ))}
-    </div>
+    </nav>
   );
 }

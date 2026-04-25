@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { useToast } from "@/components/layout/toast-provider";
+import { toast } from "sonner";
 import { useRecordSalesOrderDepositMutation } from "@/hooks/use-queries";
 import { getErrorMessage } from "@/lib/api";
 
@@ -13,7 +13,7 @@ type RecordDepositModalProps = {
 };
 
 export function RecordDepositModal({ orderId, orderNumber, onClose }: RecordDepositModalProps) {
-  const { push } = useToast();
+  
   const recordDeposit = useRecordSalesOrderDepositMutation();
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState("CASH");
@@ -21,7 +21,7 @@ export function RecordDepositModal({ orderId, orderNumber, onClose }: RecordDepo
 
   const handleSubmit = async () => {
     if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
-      push("Validation failed", "Please enter a valid deposit amount.");
+      toast("Validation failed", { description: "Please enter a valid deposit amount." });
       return;
     }
 
@@ -33,10 +33,10 @@ export function RecordDepositModal({ orderId, orderNumber, onClose }: RecordDepo
         reference: reference || undefined,
       });
       
-      push("Deposit recorded", `The deposit for order ${orderNumber} has been successfully recorded.`);
+      toast("Deposit recorded", { description: `The deposit for order ${orderNumber} has been successfully recorded.` });
       onClose();
     } catch (error) {
-      push("Recording failed", getErrorMessage(error, "Unable to record deposit."));
+      toast.error("Recording failed", { description: getErrorMessage(error) });
     }
   };
 
