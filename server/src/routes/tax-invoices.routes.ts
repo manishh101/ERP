@@ -94,6 +94,7 @@ taxInvoicesRouter.post(
       bsDate: body.bsDate || getBsDate(),
       fiscalYear: body.fiscalYear || getCurrentFiscalYear(),
       notes: body.notes,
+      paymentMode: body.paymentMode,
       // PRD Golden Rule #3: pass user-entered amounts through directly
       invoiceAmount: body.invoiceAmount,
       vatAmount: body.vatAmount,

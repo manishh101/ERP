@@ -31,3 +31,18 @@ export async function nextReceiptNumber(
   const seqStr = result[0].last_seq.toString().padStart(4, "0");
   return `REC-${fiscalYear}-${seqStr}`;
 }
+
+export async function nextEstimateNumber(
+  tx: Prisma.TransactionClient,
+  fiscalYear: string,
+): Promise<string> {
+  const result = await tx.$queryRaw<Array<{ last_seq: number }>>`
+    INSERT INTO estimate_counters (id, fiscal_year, last_seq)
+    VALUES (gen_random_uuid()::text, ${fiscalYear}, 1)
+    ON CONFLICT (fiscal_year)
+    DO UPDATE SET last_seq = estimate_counters.last_seq + 1
+    RETURNING last_seq
+  `;
+  const seqStr = result[0].last_seq.toString().padStart(4, "0");
+  return `EST-${fiscalYear}-${seqStr}`;
+}

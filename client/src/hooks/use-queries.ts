@@ -193,6 +193,7 @@ type RawSalesOrder = {
     name: string;
     type: string;
   };
+  lineItems?: any[];
 };
 
 type RawInvoice = {
@@ -1409,6 +1410,7 @@ export function useCancelSalesOrderMutation() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["sales-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["sales-order"] });
       queryClient.invalidateQueries({ queryKey: ["inventory"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     },
@@ -1426,6 +1428,7 @@ export function useConfirmSalesOrderMutation() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["sales-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["sales-order"] });
       queryClient.invalidateQueries({ queryKey: ["inventory"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     },
@@ -1444,7 +1447,9 @@ export function useRecordSalesOrderDepositMutation() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["sales-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["sales-order"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["ar-ledger"] });
     },
   });
 }
@@ -1461,6 +1466,7 @@ export function useUpdateSalesOrderStatusMutation() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["sales-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["sales-order"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     },
   });
@@ -1500,6 +1506,10 @@ export function useCreateInvoiceMutation() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tax-invoices"] });
+      queryClient.invalidateQueries({ queryKey: ["sales-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["sales-order"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["ar-ledger"] });
     },
   });
 }
@@ -1530,7 +1540,10 @@ export function useRecordPaymentMutation() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["invoices"] });
       queryClient.invalidateQueries({ queryKey: ["sales-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["sales-order"] });
       queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["ar-ledger"] });
     },
   });
 }

@@ -118,6 +118,7 @@ export const purchaseOrderSchema = z.object({
   expectedDelivery: optionalDate,
   shippingTerms: z.string().optional(),
   notes: z.string().optional(),
+  paymentMode: z.string().optional(),
   lineItems: z.array(purchaseOrderLineItemSchema).min(1),
 });
 
@@ -133,6 +134,7 @@ export const goodsReceiptSchema = z.object({
   receivedDate: z.coerce.date().default(new Date()),
   status: z.nativeEnum(GoodsReceiptStatus).default(GoodsReceiptStatus.RECEIVED),
   notes: z.string().optional(),
+  paymentMode: z.string().optional(),
   lines: z.array(goodsReceiptLineSchema).min(1),
 });
 
@@ -148,6 +150,7 @@ export const supplierInvoiceSchema = z.object({
   totalAmount: decimalNumber,
   amountPaid: decimalNumber.default(0),
   notes: z.string().optional(),
+  paymentMode: z.string().optional(),
 });
 
 export const customerSchema = z.object({
@@ -181,6 +184,7 @@ export const salesOrderSchema = z.object({
   depositAmount: decimalNumber.default(0),
   deliveryDate: optionalDate,
   notes: z.string().optional(),
+  paymentMode: z.string().optional(),
   isCustomOrder: z.boolean().default(false),
   expectedReadyDate: optionalDate,
   lineItems: z.array(salesOrderLineItemSchema).min(1),
@@ -212,6 +216,7 @@ export const taxInvoiceSchema = z.object({
   bsDate: z.string().optional(),
   printed: z.boolean().default(false),
   notes: z.string().optional(),
+  paymentMode: z.string().optional(),
   // PRD Golden Rule #3: invoiceAmount and vatAmount MUST be manually entered by the user.
   // They must NEVER be auto-computed from line items. Line items are for display/print only.
   invoiceAmount: decimalNumber.optional(), // user-entered taxable amount (excl. VAT)
@@ -301,6 +306,7 @@ export const deliverySchema = z.object({
   vehicle: z.string().optional(),
   deliveryAddress: z.string().min(4),
   notes: z.string().optional(),
+  paymentMode: z.string().optional(),
   proofPhotoUrl: z.string().url().optional(),
 });
 

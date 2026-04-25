@@ -1,7 +1,7 @@
 import { prisma } from "../../config/prisma";
 import { Prisma } from "@prisma/client";
 import { ApiError } from "../../utils/api-error";
-import { nextInvoiceNumber } from "../../shared/invoice-seq.util";
+import { nextInvoiceNumber, nextEstimateNumber } from "../../shared/invoice-seq.util";
 import { postEntry } from "../vat-register/vat-register.service";
 
 /**
@@ -22,6 +22,7 @@ export interface CreateTaxInvoiceInput {
   bsDate: string;
   fiscalYear: string;
   notes?: string;
+  paymentMode?: string;
   /**
    * PRD Golden Rule #3: Must be manually provided by the user.
    * For VAT invoices: the taxable amount EXCLUDING VAT.
@@ -81,8 +82,10 @@ export async function createTaxInvoice(
       totalInvoiceAmount = subtotal + taxAmount;
     }
 
-    // 3. Generate sequential invoice number
-    const invoiceNumber = await nextInvoiceNumber(tx, input.fiscalYear);
+    // 3. Generate sequential invoice number based on type
+    const invoiceNumber = input.invoiceType === "ESTIMATE" 
+      ? await nextEstimateNumber(tx, input.fiscalYear)
+      : await nextInvoiceNumber(tx, input.fiscalYear);
 
     // 4. Create TaxInvoice with line items (line items = display/print only, not the source of amounts)
     const taxInvoice = await tx.taxInvoice.create({
@@ -96,6 +99,7 @@ export async function createTaxInvoice(
         fiscalYear: input.fiscalYear,
         bsDate: input.bsDate,
         notes: input.notes,
+        paymentMode: input.paymentMode,
         status: "SENT",
         lineItems: {
           create: input.lineItems.map((item) => ({

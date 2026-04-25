@@ -28,6 +28,7 @@ export function CreateInvoiceForm({ onClose, defaultSoId = "", defaultInvoiceTyp
     notes: "",
     bsDate: "",
     fiscalYear: "",
+    paymentMode: "",
   });
 
   const fullOrder = useSalesOrderQuery(formData.soId);
@@ -118,6 +119,7 @@ export function CreateInvoiceForm({ onClose, defaultSoId = "", defaultInvoiceTyp
         notes: formData.notes || undefined,
         bsDate: formData.bsDate || undefined,
         fiscalYear: formData.fiscalYear || undefined,
+        paymentMode: formData.invoiceType === "ESTIMATE" ? formData.paymentMode : undefined,
       });
       
       toast("Invoice created", { description: `Invoice generated successfully.` });
@@ -204,6 +206,22 @@ export function CreateInvoiceForm({ onClose, defaultSoId = "", defaultInvoiceTyp
               <option value="PAID">PAID</option>
             </select>
           </div>
+          {formData.invoiceType === "ESTIMATE" && (
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Payment Mode</label>
+              <select 
+                className="flex h-11 w-full rounded-2xl border border-border bg-white/90 px-4 text-sm"
+                value={formData.paymentMode}
+                onChange={(e) => setFormData({ ...formData, paymentMode: e.target.value })}
+              >
+                <option value="">Select Mode</option>
+                <option value="Cash">Cash</option>
+                <option value="Bank/Transfer">Bank/Transfer</option>
+                <option value="Cheque">Cheque</option>
+                <option value="Credit">Credit</option>
+              </select>
+            </div>
+          )}
           <div className="space-y-2">
             <label className="text-sm font-medium">Issue Date</label>
             <NepaliDatePickerInput 

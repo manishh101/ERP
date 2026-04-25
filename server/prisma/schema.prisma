@@ -403,6 +403,7 @@ model SalesOrderLineItem {
 }
 
 model TaxInvoice {
+  paymentMode   String?              @map("payment_mode")
   id            String               @id @default(cuid())
   soId          String               @map("so_id")
   invoiceNumber String               @unique @map("invoice_number")
@@ -753,4 +754,11 @@ model AuditLog {
   @@index([userId, timestamp])
   @@index([action, timestamp])
   @@map("audit_logs")
+}
+model EstimateCounter {
+  id         String @id @default(cuid())
+  fiscalYear String @unique @map("fiscal_year")
+  lastSeq    Int    @default(0) @map("last_seq")
+
+  @@map("estimate_counters")
 }

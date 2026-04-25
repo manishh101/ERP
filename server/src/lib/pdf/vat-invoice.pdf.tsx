@@ -134,12 +134,12 @@ const S = StyleSheet.create({
   tdMuted: { fontSize: 8, color: "#666666" },
 
   // Column widths
-  cNo:   { width: "5%" },
+  cNo: { width: "5%" },
   cDesc: { width: "38%" },
-  cQty:  { width: "10%", textAlign: "center" },
+  cQty: { width: "10%", textAlign: "center" },
   cRate: { width: "15%", textAlign: "right" },
   cDisc: { width: "12%", textAlign: "right" },
-  cAmt:  { width: "20%", textAlign: "right" },
+  cAmt: { width: "20%", textAlign: "right" },
 
   // ── Summary / Totals ──────────────────────────────────────────────────
   summarySection: {
@@ -159,7 +159,7 @@ const S = StyleSheet.create({
   },
   summaryLabel: { fontSize: 8.5, color: "#555555" },
   summaryValue: { fontSize: 8.5, color: "#111111", textAlign: "right" },
-  
+
   totalRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -188,7 +188,7 @@ const S = StyleSheet.create({
     marginTop: 16,
     textTransform: "uppercase",
   },
-  
+
 
 
   signatureArea: {
@@ -238,16 +238,14 @@ function InvoiceDocument({
   companyProfile,
   isEstimate = false,
 }: RenderInvoiceOptions) {
-  const lineItems = isEstimate 
-    ? (invoice?.salesOrder?.lineItems || []) 
+  const lineItems = isEstimate
+    ? (invoice?.salesOrder?.lineItems || [])
     : (invoice?.lineItems || []);
-    
+
   const invoiceType = invoice?.invoiceType || "PAN";
   const isVat = invoiceType === "VAT" && !isEstimate;
 
-  const invoiceNumber = isEstimate 
-    ? `EST-${(invoice?.invoiceNumber || "").replace("INV-", "")}` 
-    : invoice?.invoiceNumber;
+  const invoiceNumber = invoice?.invoiceNumber;
 
   // Maths
   const subtotal = lineItems.reduce((acc: number, item: any) => {
@@ -256,7 +254,7 @@ function InvoiceDocument({
     const discountPct = Number(item.discountPct || 0);
     return acc + (qty * unitPrice * (1 - discountPct / 100));
   }, 0);
-  
+
   const taxableAmount = subtotal;
   const vatAmount = isVat ? (taxableAmount * 0.13) : 0;
   // If the invoice already has a manual amount (Rule #3), we should try to rely on it.
@@ -291,9 +289,6 @@ function InvoiceDocument({
           </View>
           <View>
             <Text style={S.docTitle}>{title}</Text>
-            <Text style={S.docMeta}>{invoiceNumber}</Text>
-            <Text style={S.docMeta}>Date: {fmtDate(invoice?.issueDate)}</Text>
-            {invoice?.bsDate ? <Text style={S.docMeta}>Date (BS): {invoice.bsDate}</Text> : null}
           </View>
         </View>
 
@@ -316,31 +311,31 @@ function InvoiceDocument({
             ) : null}
           </View>
 
-          {/* Additional details */}
+          {/* Invoice / Estimate details */}
           <View style={S.infoBlock}>
             <Text style={S.infoLabel}>Details</Text>
             <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 2 }}>
+              <Text style={S.infoText}>{isEstimate ? "Estimate No:" : "Invoice No:"}</Text>
+              <Text style={S.infoText}>{invoiceNumber}</Text>
+            </View>
+            {/* <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 2 }}>
               <Text style={S.infoText}>Fiscal Year:</Text>
               <Text style={S.infoText}>{invoice?.fiscalYear || "—"}</Text>
+            </View> */}
+            {invoice?.bsDate && (
+              <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 2 }}>
+                <Text style={S.infoText}>Miti:</Text>
+                <Text style={S.infoText}>{invoice.bsDate}</Text>
+              </View>
+            )}
+            <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 2 }}>
+              <Text style={S.infoText}>Date:</Text>
+              <Text style={S.infoText}>{fmtDate(invoice?.issueDate)}</Text>
             </View>
-            {isEstimate && (
-              <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 2 }}>
-                <Text style={S.infoText}>Estimate No:</Text>
-                <Text style={S.infoText}>{invoiceNumber}</Text>
-              </View>
-            )}
-            {!isEstimate && companyProfile?.bankName && (
-              <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 2 }}>
-                <Text style={S.infoText}>Bank:</Text>
-                <Text style={S.infoText}>{companyProfile.bankName}</Text>
-              </View>
-            )}
-            {!isEstimate && companyProfile?.bankAccountNo && (
-              <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 2 }}>
-                <Text style={S.infoText}>A/C No:</Text>
-                <Text style={S.infoText}>{companyProfile.bankAccountNo}</Text>
-              </View>
-            )}
+            <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 2 }}>
+              <Text style={S.infoText}>Payment Mode:</Text>
+              <Text style={S.infoText}>{isEstimate ? (invoice?.paymentMode || "—") : "Cash/Credit"}</Text>
+            </View>
           </View>
         </View>
 
