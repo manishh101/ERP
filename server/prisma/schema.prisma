@@ -372,7 +372,7 @@ model SalesOrder {
   assignedWarehouse   Warehouse?           @relation(fields: [assignedWarehouseId], references: [id], onDelete: SetNull)
   salesperson         User?                @relation(fields: [salespersonId], references: [id])
   lineItems           SalesOrderLineItem[]
-  taxInvoice          TaxInvoice?
+  taxInvoices         TaxInvoice[]
   delivery            Delivery?
   arLedger            ArLedger[]
   payments            Payment[]
@@ -403,7 +403,7 @@ model SalesOrderLineItem {
 
 model TaxInvoice {
   id            String               @id @default(cuid())
-  soId          String               @unique @map("so_id")
+  soId          String               @map("so_id")
   invoiceNumber String               @unique @map("invoice_number")
   invoiceType   String?              @map("invoice_type")
   issueDate     DateTime             @default(now()) @map("issue_date")
@@ -421,6 +421,7 @@ model TaxInvoice {
   vatRegister   VatRegister?
   lineItems     TaxInvoiceLineItem[]
 
+  @@index([soId])
   @@index([status, dueDate])
   @@map("tax_invoices")
 }

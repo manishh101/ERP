@@ -76,7 +76,7 @@ salesOrdersRouter.get(
               },
             },
           },
-          taxInvoice: true,
+          taxInvoices: true,
           delivery: true,
         },
         orderBy: {
@@ -140,7 +140,7 @@ salesOrdersRouter.get(
             },
           },
         },
-        taxInvoice: true,
+        taxInvoices: true,
         payments: true,
         delivery: true,
       },

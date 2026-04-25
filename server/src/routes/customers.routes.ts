@@ -103,7 +103,7 @@ customersRouter.get(
                 },
               },
             },
-            taxInvoice: true,
+            taxInvoices: true,
             payments: true,
           },
           orderBy: {

@@ -24,7 +24,7 @@ export function DataTable<T extends { id: string }>({
 }) {
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState(String(columns[0]?.key ?? "id"));
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const [page, setPage] = useState(1);
 
   const searchableRows = useMemo(() => {

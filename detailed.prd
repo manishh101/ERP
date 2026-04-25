@@ -1,0 +1,134 @@
+Here is the updated **Product Requirements Document (PRD)** incorporating the AR Aging Report, IRD CBMS readiness, Redis caching for the dashboard, and Audit Logging.
+
+---
+
+# Product Requirements Document (PRD): Furniture ERP (Manish Steel ERP)
+
+## 1. Document Information
+**Project Name:** Furniture ERP System (Nepal-based Wholesale & Manufacturing)
+**Date:** April 25, 2026
+**Author:** manishh101
+**Repository:** `manishh101/ERP`
+**Current Status:** Rebuild / Core Ledger Overhaul, Wholesale Dashboard & Compliance Enhancements
+
+## 2. Project Overview & Objectives
+The Furniture ERP is a full-stack accounting and business management system specifically tailored for a **wholesale furniture and manufacturing workflow** in Nepal. The core business model involves manufacturing and distributing products to various external showrooms and retail partners.
+
+**Primary Objectives:**
+1. **Financial Accuracy:** To refactor the core financial logic to strictly separate the **commercial reality** (Accounts Receivable) from the **tax/compliance reality** (VAT/PAN invoices for the IRD).
+2. **Wholesale Analytics:** To provide deep, time-based insights into wholesale distribution metrics, tracking volume and value of products sent to specific showrooms, outstanding balances, and top-performing entities.
+3. **Security & Performance:** Ensure high-performance dashboard load times via caching, prepare for future government API integrations, and maintain strict audit trails to prevent fraud.
+
+## 3. User Roles & Access (RBAC)
+- **Admin** (`admin@manishsteel.com.np`): Full system configuration and oversight.
+- **Accountant** (`accountant@manishsteel.com.np`): Manages the AR Ledger, VAT Register, Payments, Invoicing, and Tax reporting.
+- **Sales/Distribution** (`sales@manishsteel.com.np`): Handles Showroom/Customer creation, Sales Orders, and Deposits.
+- **Warehouse** (`warehouse@manishsteel.com.np`): Handles Inventory, Stock Movements, Goods Receipts, and dispatching to showrooms.
+- **Driver** (`driver@manishsteel.com.np`): Manages delivery fulfillments to showrooms.
+
+## 4. Core Business Requirements: The Two Tracks (Golden Rules)
+The business operates in Nepal and requires strict adherence to dual financial tracking. **Violating these rules invalidates the system's compliance.**
+
+### Track 1: AR Ledger (Accounts Receivable) — The Commercial Truth
+- **Basis:** Actual agreed-upon order amount (`SalesOrder.orderAmount`).
+- **Purpose:** Used for showroom statements, payment tracking, and remaining balance.
+- **Source of Truth:** `SalesOrder.orderAmount`.
+
+### Track 2: VAT Register — The Tax Document Track
+- **Basis:** User-entered invoice amount (`TaxInvoice.invoiceAmount`), which may differ from the order amount.
+- **Purpose:** IRD tax filing, VAT return.
+- **Source of Truth:** `TaxInvoice.invoiceAmount` (Never auto-computed from line items).
+
+### 🚨 Golden Rules of Data Flow:
+1. `Payment` records are strictly linked to `SalesOrder`, **never** to `TaxInvoice`.
+2. `ArLedger` entries use `orderAmount`, **never** `invoiceAmount`.
+3. `VatRegister` entries use `invoiceAmount`, **never** `orderAmount`.
+4. Showroom Statements query the `ArLedger` ONLY.
+5. Invoicing is optional. Uninvoiced orders still exist in the AR ledger.
+
+## 5. Functional Requirements
+
+### 5.1 Wholesale Dashboard & Analytics
+The dashboard serves as the central command center for the wholesale operation, providing real-time visibility into distribution and cash flow.
+- **Top-Level Financial Summaries:**
+  - **Amount Received:** Total cash collected via payments (filterable by today, month, year).
+  - **Amount Pending (AR):** Total outstanding balance across all showrooms.
+- **AR Aging Report (NEW):**
+  - A widget displaying outstanding debt broken down into time buckets to assess collection risk: **0-30 days**, **31-60 days**, **61-90 days**, and **90+ days overdue**.
+- **Sales & Product Performance:**
+  - **Highest Sales:** Ranking of top showrooms/customers by total revenue.
+  - **Top Selling Products:** Ranking of products by quantity dispatched.
+- **Showroom-Specific Analytics (Volume & Value):**
+  - **Current Month:** Number of products dispatched and their total monetary value.
+  - **Previous Month:** Comparative view of products dispatched and total value.
+  - **Year-to-Date (YTD):** Total volume and value sent to the showroom in the current fiscal year.
+
+### 5.2 Sales, Orders & Distribution (AR Ledger Integration)
+- **Showroom/Customer Management:** Capture standard details plus `panNo`, `vatNo`, and `invoicePref`.
+- **Wholesale Order Creation:**
+  - Compute `orderAmount` = sum of (qty * unitPrice * (1 - discount)).
+  - Generate a `SalesOrder` calculating `balanceDue = orderAmount - depositAmount`.
+  - Automatically post a DEBIT entry to the `ArLedger`.
+- **Stock Dispatch:** Update `balanceAfter` to correctly reflect `variant.stockQuantity - lineItem.quantity`.
+
+### 5.3 Payments & Deposits
+- **Recording Payments:** Accept payments directly against `salesOrderId`. Update `SalesOrder.paidAmount` and `balanceDue`. Automatically post a CREDIT entry to the `ArLedger`.
+
+### 5.4 Tax & Invoicing (VAT Register Integration)
+- **Manual Invoice Entry:** Users must manually enter the `invoiceAmount` and `vatAmount`.
+- **Invoice Numbering:** Must use Nepal fiscal year sequence (e.g., `INV-2081/82-0001`).
+- **IRD CBMS Readiness (NEW):** Structure the `TaxInvoice` module with an extensible payload generator, ensuring it can easily push JSON payloads to the Nepal Inland Revenue Department's Computerized Billing Management System (CBMS) API in a future phase.
+
+### 5.5 Reporting & Printables
+- **Showroom AR Statements:** Generates PDF reading purely from `ArLedger`. Contains Date (BS), Narration, Order Ref, Debit, Credit, Balance.
+- **Tax Invoices (IRD Compliant):** Header displays "कर बिजक / TAX INVOICE" (VAT) or "बिजक / INVOICE" (PAN) with BS Dates and amounts in words.
+- **Secure Downloads:** Downloadable PDFs must use a short-lived download token via `/reports/download-token`.
+
+## 6. Non-Functional Requirements
+- **Technology Stack:** React, TypeScript, Tailwind CSS, Vite, Node.js, Express.js, Prisma ORM, Zod, PostgreSQL, Redis (Caching).
+- **Localization:** Deep integration of the Nepal Calendar (Bikram Sambat - BS) and Fiscal year boundaries.
+- **Performance & Scalability (Redis Caching) (NEW):** Calculating YTD, AR Aging, and Previous Month aggregates across thousands of ledger entries is database-heavy. The backend must implement **Redis caching** for dashboard summary endpoints (e.g., refreshing every 15 minutes) so the application remains fast under concurrent user load.
+- **Security & Compliance (Audit Logging) (NEW):** Strict rules govern invoices and payments. The system must maintain an immutable audit trail capturing who recorded a payment, who generated or modified an invoice, and the exact timestamp, to prevent internal fraud.
+
+## 7. System Architecture & Database Schema
+
+### Updated Prisma Entities
+1. **`Customer` (Acts as Showroom):** Add `pan_no`, `vat_no`, `invoice_pref`.
+2. **`SalesOrder`:** Add `order_amount`, `fiscal_year`, `bs_date`. Move payments relation here.
+3. **`TaxInvoice`:** Add `invoice_type`, `fiscal_year`, `bs_date`. Remove `amountPaid`.
+4. **`Payment`:** Link to `sales_order_id`. Add `bs_date`.
+5. **`ArLedger`**: Tracks `customerId`, `salesOrderId`, `paymentId`, `entryType`, `running_balance`, `fiscal_year`, `bs_date`.
+6. **`VatRegister`**: Tracks `taxInvoiceId`, `taxableAmount`, `outputVat`, `fiscal_year`, `bs_date`.
+7. **`AuditLog` (NEW):** Tracks `userId`, `action` (e.g., CREATE_INVOICE, RECORD_PAYMENT), `entityType`, `entityId`, `previousState` (JSON), `newState` (JSON), and `timestamp`.
+
+### Backend Services Architecture
+- `dashboard.service.ts`: Aggregates metrics (YTD, AR Aging, Volume/Value). Uses Redis for caching heavy computations.
+- `audit.service.ts` **(NEW)**: Middleware and helper functions to write immutable logs for sensitive financial actions.
+- `sales-order.service.ts`: Handles creation, ledger debits.
+- `payment.service.ts`: Handles payment recording, AR credits (triggers Audit Log).
+- `tax-invoice.service.ts`: Handles tax bill generation (triggers Audit Log, prepared for CBMS).
+- `ar-ledger.service.ts`: Handles showroom commercial statements.
+
+## 8. API Endpoints Overview
+**Base URL:** `http://localhost:4000/api`
+
+*Dashboard Specific Endpoints (Redis Cached):*
+- `GET /dashboard/financial-summary` - Returns Amount Received vs Amount Pending.
+- `GET /dashboard/ar-aging` - Returns pending amounts grouped by 0-30, 31-60, 61-90, 90+ days.
+- `GET /dashboard/top-entities` - Returns Highest Sales (Showrooms) and Highest Selling Products.
+- `GET /dashboard/showroom-analytics/:customerId` - Returns volume/value for Current Month, Prev Month, and YTD.
+
+*Core Workflow Endpoints:*
+- `POST /sales-orders` - Creates order, posts AR debit.
+- `POST /tax-invoices/from-sales-order/:id` - Generates tax document. Logs to Audit.
+- `POST /payments` - Records customer payment. Logs to Audit.
+- `GET /reports/customer-ledger/:id` - Fetches the AR statement.
+
+## 9. Implementation Plan & Rollout
+1. **Schema Update:** Update Prisma schema with `ArLedger`, `VatRegister`, `AuditLog`, and transition rules. Apply migrations.
+2. **Infrastructure:** Set up Redis via `docker-compose.yml` for backend caching.
+3. **Audit System:** Build the `audit.service.ts` and attach it to existing mutation routes (Payments, Invoices).
+4. **Dashboard Query Layer:** Build the `dashboard.service.ts` to aggregate wholesale metrics efficiently, applying Redis caching with a 15-minute TTL.
+5. **Service Layer Refactoring:** Establish the strict AR Ledger vs VAT Register boundaries across all backend modules. Prepare Tax Invoice structure for CBMS JSON.
+6. **Frontend Revamp:** Use `Recharts` to build the new visual dashboard showing Top Showrooms, Top Products, AR Pending vs Received, AR Aging buckets, and Month-over-Month trends.
+7. **PDF Templates:** Ensure all generated statements reflect the B2B wholesale nature.

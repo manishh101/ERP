@@ -34,6 +34,7 @@ taxInvoicesRouter.get(
 
     const where: any = {
       status: query.status || undefined,
+      invoiceType: { not: "ESTIMATE" },
       OR: query.search
         ? [
             {
@@ -267,7 +268,7 @@ taxInvoicesRouter.get(
       throw new ApiError(404, "Tax invoice not found");
     }
 
-    const isEstimate = request.query.type === "estimate";
+    const isEstimate = request.query.type === "estimate" || invoice.invoiceType === "ESTIMATE";
     const buffer = await renderInvoicePdfBuffer({ 
       invoice, 
       companyProfile, 

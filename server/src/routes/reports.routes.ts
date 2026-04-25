@@ -266,7 +266,7 @@ reportsRouter.get(
       include: {
         salesOrders: {
           include: {
-            taxInvoice: true,
+            taxInvoices: true,
             lineItems: true, // Also need lineItems for revenue calculation
           },
         },
@@ -349,7 +349,7 @@ reportsRouter.post(
         include: {
           customer: true,
           salesperson: true,
-          taxInvoice: true,
+          taxInvoices: true,
           lineItems: true,
         },
         orderBy: {
@@ -373,7 +373,7 @@ reportsRouter.post(
         include: {
           salesOrders: {
             include: {
-              taxInvoice: true,
+              taxInvoices: true,
               lineItems: true,
             },
           },

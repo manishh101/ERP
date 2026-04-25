@@ -19,11 +19,11 @@ export async function createTaxInvoice(input: {
   notes?: string;
 }, existingTx?: Prisma.TransactionClient) {
   const execute = async (tx: Prisma.TransactionClient) => {
-    // 1. Check if invoice already exists
-    const existing = await tx.taxInvoice.findUnique({
-      where: { soId: input.salesOrderId }
+    // 1. Check if invoice of the same type already exists for this order
+    const existing = await tx.taxInvoice.findFirst({
+      where: { soId: input.salesOrderId, invoiceType: input.invoiceType }
     });
-    if (existing) throw new ApiError(400, "Tax invoice already exists for this order");
+    if (existing) throw new ApiError(400, `${input.invoiceType} invoice already exists for this order`);
 
     const order = await tx.salesOrder.findUnique({
       where: { id: input.salesOrderId }
