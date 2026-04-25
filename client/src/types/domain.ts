@@ -16,6 +16,7 @@ export type Kpi = {
   value: string;
   change: string;
   tone: "positive" | "neutral" | "negative";
+  tooltip?: string;
 };
 
 export type AuthUser = {
@@ -203,6 +204,7 @@ export type SalesOrderRow = {
   expectedReadyDate?: string;
   assemblyNotes?: string;
   deliveryFloor?: number;
+  items?: { name: string; quantity: number }[];
 };
 
 export type TaxInvoiceRow = {

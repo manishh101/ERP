@@ -673,6 +673,12 @@ function mapSalesOrder(order: RawSalesOrder): SalesOrderRow {
     expectedReadyDate: order.expectedReadyDate ?? undefined,
     assemblyNotes: order.assemblyNotes ?? undefined,
     deliveryFloor: order.deliveryFloor ? toNumber(order.deliveryFloor) : undefined,
+    items: order.lineItems
+      ? order.lineItems.map((li: any) => ({
+          name: li.productVariant?.product?.name || "Unknown Product",
+          quantity: li.quantity,
+        }))
+      : [],
   };
 }
 

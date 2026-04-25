@@ -26,9 +26,9 @@ type MonthRow = {
 interface KhataAnalyticsTableProps {
   ledgerEntries: ArLedgerEntry[];
   salesOrders: Array<{
-    id: string;
     orderDate?: string;
     grandTotal?: number | string;
+    orderAmount?: number | string;
     balanceDue?: number | string;
     paidAmount?: number | string;
     lineItems?: Array<{
@@ -75,7 +75,7 @@ function groupByNepaliMonth(
       0,
     );
     existing.totalQty += qty;
-    existing.totalValue += toNumber(order.grandTotal);
+    existing.totalValue += toNumber(order.orderAmount || order.grandTotal);
     existing.amountPaid += toNumber(order.paidAmount);
 
     monthMap.set(key, existing);
@@ -149,7 +149,7 @@ export function KhataAnalyticsTable({ ledgerEntries, salesOrders }: KhataAnalyti
     },
     {
       accessorKey: "totalQty",
-      header: () => <div className="text-right">Qty Ordered</div>,
+      header: () => <div className="text-right w-full block">Qty Ordered</div>,
       cell: ({ row }) => (
         <button
           className="block w-full text-right tabular-nums font-medium text-primary hover:underline cursor-pointer"
@@ -161,29 +161,29 @@ export function KhataAnalyticsTable({ ledgerEntries, salesOrders }: KhataAnalyti
     },
     {
       accessorKey: "totalValue",
-      header: () => <div className="text-right">Order Value (NPR)</div>,
+      header: () => <div className="text-right w-full block">Order Value (NPR)</div>,
       cell: ({ row }) => (
-        <div className="text-right tabular-nums font-medium">
+        <div className="text-right w-full block tabular-nums font-medium">
           {formatCurrency(row.getValue("totalValue") as number)}
         </div>
       ),
     },
     {
       accessorKey: "amountPaid",
-      header: () => <div className="text-right">Amount Paid (NPR)</div>,
+      header: () => <div className="text-right w-full block">Amount Paid (NPR)</div>,
       cell: ({ row }) => (
-        <div className="text-right tabular-nums font-medium text-green-700">
+        <div className="text-right w-full block tabular-nums font-medium text-green-700">
           {formatCurrency(row.getValue("amountPaid") as number)}
         </div>
       ),
     },
     {
       accessorKey: "closingBalance",
-      header: () => <div className="text-right">Closing Balance (NPR)</div>,
+      header: () => <div className="text-right w-full block">Closing Balance (NPR)</div>,
       cell: ({ row }) => {
         const bal = row.getValue("closingBalance") as number;
         return (
-          <div className={`text-right tabular-nums font-bold ${bal > 0 ? "text-amber-700" : "text-green-700"}`}>
+          <div className={`text-right w-full block tabular-nums font-bold ${bal > 0 ? "text-amber-700" : "text-green-700"}`}>
             {formatCurrency(bal)}
           </div>
         );

@@ -1,5 +1,11 @@
 import { Banknote, ArrowDownToLine, Truck, Building2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import type { Kpi } from "@/types/domain";
 
@@ -10,9 +16,8 @@ export function KpiGrid({ items }: { items: Kpi[] }) {
     <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
       {items.map((item, index) => {
         const Icon = kpiIcons[index % kpiIcons.length];
-        return (
+        const content = (
           <Card
-            key={item.label}
             className="overflow-hidden bg-white/50 backdrop-blur-md border-white/20 shadow-sm hover:-translate-y-1 hover:shadow-lg transition-all duration-300 group"
           >
             <CardContent className="p-5 relative">
@@ -47,6 +52,25 @@ export function KpiGrid({ items }: { items: Kpi[] }) {
               </div>
             </CardContent>
           </Card>
+        );
+
+        return (
+          <div key={item.label}>
+            {item.tooltip ? (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    {content}
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="bg-foreground text-background text-xs px-3 py-2 border-none">
+                    <p>{item.tooltip}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            ) : (
+              content
+            )}
+          </div>
         );
       })}
     </div>

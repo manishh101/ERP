@@ -205,11 +205,13 @@ export function DataTable<T extends { id: string }>({
                   <TableHead key={header.id} className="whitespace-nowrap">
                     {header.isPlaceholder ? null : header.column.getCanSort() ? (
                       <button
-                        className="flex items-center gap-1 hover:text-foreground"
+                        className="flex items-center gap-1 hover:text-foreground w-full"
                         onClick={header.column.getToggleSortingHandler()}
                       >
-                        {flexRender(header.column.columnDef.header, header.getContext())}
-                        <ArrowUpDown className="h-3 w-3" />
+                        <div className="flex-1 text-left">
+                          {flexRender(header.column.columnDef.header, header.getContext())}
+                        </div>
+                        <ArrowUpDown className="h-3 w-3 shrink-0" />
                       </button>
                     ) : (
                       flexRender(header.column.columnDef.header, header.getContext())

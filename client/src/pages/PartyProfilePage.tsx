@@ -61,18 +61,22 @@ const salesOrderColumns: ColumnDef<any, unknown>[] = [
     cell: ({ row }) => <StatusBadge value={row.getValue("status")} />,
   },
   {
-    accessorKey: "grandTotal",
-    header: () => <div className="text-right">Total</div>,
-    cell: ({ row }) => (
-      <div className="text-right font-medium tabular-nums">
-        {formatCurrency(toNumber(row.getValue("grandTotal")))}
-      </div>
-    ),
+    id: "total",
+    header: () => <div className="text-right w-full">Total</div>,
+    cell: ({ row }) => {
+      const order = row.original;
+      const amount = toNumber(order.orderAmount || order.grandTotal || order.total);
+      return (
+        <div className="text-right font-medium tabular-nums w-full block">
+          {formatCurrency(amount)}
+        </div>
+      );
+    },
   },
   {
     accessorKey: "balanceDue",
     header: () => (
-      <div className="text-right text-muted-foreground whitespace-nowrap">
+      <div className="text-right text-muted-foreground whitespace-nowrap w-full">
         Balance Due
       </div>
     ),

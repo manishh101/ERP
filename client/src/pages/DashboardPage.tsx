@@ -12,6 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDashboardQuery, useCustomersQuery, useSalesOrdersQuery } from "@/hooks/use-queries";
 import { getErrorMessage } from "@/lib/api";
+import type { Kpi } from "@/types/domain";
 
 function RecentSalesOrdersCard({ rows }: { rows: any[] }) {
   return (
@@ -73,24 +74,32 @@ export function DashboardPage() {
         });
 
     let revenue = 0;
+    let showroomRevenue = 0;
+    let retailRevenue = 0;
     let collected = 0;
     let delivered = 0;
     let totalCogs = 0;
 
     filtered.forEach((o) => {
       revenue += toNumber(o.total);
+      if (o.customerType === "SHOWROOM") {
+        showroomRevenue += toNumber(o.total);
+      } else {
+        retailRevenue += toNumber(o.total);
+      }
       collected += toNumber(o.paidAmount);
       totalCogs += toNumber(o.cogs);
       // Heuristic: rawStatus DELIVERED implies completion
       if (o.rawStatus === "DELIVERED") delivered++;
     });
 
-    const result = [
+    const result: Kpi[] = [
       {
         label: "Total Revenue",
         value: formatCurrency(revenue),
         change: "Billed",
         tone: "neutral" as const,
+        tooltip: `Showroom: ${formatCurrency(showroomRevenue)} • Retail: ${formatCurrency(retailRevenue)}`,
       },
       {
         label: "Net Collection",
@@ -125,6 +134,53 @@ export function DashboardPage() {
 
     return result;
   }, [orders, selectedMonth, data]);
+
+  // ─── Compute Filtered Top Products ───
+  const customTopProducts = useMemo(() => {
+    if (selectedMonth === "ALL") return data?.topProducts ?? [];
+
+    const map = new Map<string, number>();
+    const filteredOrders = selectedMonth === "ALL" 
+      ? orders 
+      : orders.filter((o) => {
+          try {
+            const dStr = o.deliveryDate;
+            if (!dStr) return false;
+            const d = new NepaliDate(new Date(dStr));
+            const key = `${d.getYear()}-${String(d.getMonth()).padStart(2, "0")}`;
+            return key === selectedMonth;
+          } catch {
+            return false;
+          }
+        });
+
+    filteredOrders.forEach((o) => {
+      o.items?.forEach((item) => {
+        map.set(item.name, (map.get(item.name) || 0) + item.quantity);
+      });
+    });
+
+    return Array.from(map.entries())
+      .map(([name, quantity]) => ({ name, quantity }))
+      .sort((a, b) => b.quantity - a.quantity)
+      .slice(0, 10);
+  }, [orders, selectedMonth, data]);
+
+  // Make sure we have the standalone filtered array isolated for Showroom
+  const filteredOrders = useMemo(() => {
+    if (selectedMonth === "ALL") return orders;
+    return orders.filter((o) => {
+      try {
+        const dStr = o.deliveryDate;
+        if (!dStr) return false;
+        const d = new NepaliDate(new Date(dStr));
+        const key = `${d.getYear()}-${String(d.getMonth()).padStart(2, "0")}`;
+        return key === selectedMonth;
+      } catch {
+        return false;
+      }
+    });
+  }, [orders, selectedMonth]);
 
   if (isLoading) {
     return (
@@ -195,7 +251,7 @@ export function DashboardPage() {
           ═══════════════════════════════════════════════════════ */}
       <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
         <RevenueCogsChart data={data.revenueVsCogs} />
-        <TopProductsChart data={data.topProducts} />
+        <TopProductsChart data={customTopProducts} />
       </div>
 
       {/* ═══════════════════════════════════════════════════════
@@ -204,7 +260,7 @@ export function DashboardPage() {
           ═══════════════════════════════════════════════════════ */}
       <div className="grid gap-6 grid-cols-1 xl:grid-cols-2">
         <ShowroomPerformanceTable
-          salesOrders={salesOrdersData?.items ?? []}
+          salesOrders={filteredOrders}
           customers={customersData?.items ?? []}
         />
         {data.arAging && (
