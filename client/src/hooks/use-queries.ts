@@ -1156,6 +1156,7 @@ export type RawCustomer = {
   phone: string | null;
   type: string;
   creditLimit: number | string;
+  outstandingBalance: number | string;
   address: string;
   panNo: string | null;
   vatNo: string | null;
@@ -1189,6 +1190,31 @@ export function useCustomersQuery() {
         query: { pageSize: 100 },
       });
       return response;
+    },
+  });
+}
+
+export type RawCustomerProfile = RawCustomer & {
+  salesOrders: Array<{
+    id: string;
+    status: string;
+    orderDate: string;
+    grandTotal: number | string;
+    balanceDue: number | string;
+    taxInvoices: Array<{ id: string; invoiceNo: string; totalInvoiceAmount: number; status: string }>;
+    payments: Array<{ id: string; amount: number; paymentDate: string; method: string }>;
+  }>;
+};
+
+export function useCustomerQuery(id: string) {
+  const { token } = useAuth();
+  return useQuery({
+    queryKey: ["customer", id, token],
+    enabled: Boolean(token) && Boolean(id),
+    queryFn: async () => {
+      return apiRequest<RawCustomerProfile>(`/customers/${id}`, {
+        token: token!,
+      });
     },
   });
 }
