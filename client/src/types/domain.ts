@@ -197,6 +197,7 @@ export type SalesOrderRow = {
   total: number;
   balanceDue: number;
   paidAmount: number;
+  cogs: number;
   // Furniture fields
   isCustomOrder?: boolean;
   expectedReadyDate?: string;

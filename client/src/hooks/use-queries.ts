@@ -661,6 +661,14 @@ function mapSalesOrder(order: RawSalesOrder): SalesOrderRow {
     total: toNumber(order.orderAmount),
     balanceDue: toNumber(order.balanceDue),
     paidAmount: toNumber(order.paidAmount),
+    cogs: order.lineItems
+      ? order.lineItems.reduce((acc: number, li: any) => {
+          const cost =
+            toNumber(li.productVariant?.product?.costPrice) +
+            toNumber(li.productVariant?.additionalCost);
+          return acc + li.quantity * cost;
+        }, 0)
+      : 0,
     isCustomOrder: order.isCustomOrder,
     expectedReadyDate: order.expectedReadyDate ?? undefined,
     assemblyNotes: order.assemblyNotes ?? undefined,

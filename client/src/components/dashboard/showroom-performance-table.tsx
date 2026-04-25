@@ -335,34 +335,36 @@ export function ShowroomPerformanceTable({
       <Card className="bg-white/50 backdrop-blur-sm border-white/20 shadow-sm overflow-hidden">
         {/* ── Header ── */}
         <CardHeader className="pb-0">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-[10px] uppercase tracking-[0.18em] font-bold text-muted-foreground/60 mb-1">
-                CLICK ANY ROW TO DRILL DOWN
-              </p>
-              <CardTitle className="text-xl">Showroom Leaderboard</CardTitle>
+          <div className="w-full">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-[10px] uppercase tracking-[0.18em] font-bold text-muted-foreground/60 mb-1">
+                  CLICK ANY ROW TO DRILL DOWN
+                </p>
+                <CardTitle className="text-xl">Showroom Leaderboard</CardTitle>
+              </div>
+              <div className="text-right">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground/60">Total Revenue</p>
+                <p className="text-2xl font-black tabular-nums mt-0.5">{formatCurrency(totalRevenue)}</p>
+              </div>
             </div>
-            <div className="text-right">
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground/60">Total Revenue</p>
-              <p className="text-2xl font-black tabular-nums mt-0.5">{formatCurrency(totalRevenue)}</p>
-            </div>
-          </div>
 
-          {/* Summary strip */}
-          <div className="grid grid-cols-2 gap-3 mt-5">
-            <div className="rounded-xl bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-100 px-4 py-3">
-              <p className="text-[10px] uppercase tracking-widest font-bold text-amber-600/70">Outstanding</p>
-              <p className="text-lg font-black text-amber-700 tabular-nums mt-0.5">{formatCurrency(totalDue)}</p>
-              <p className="text-[10px] text-amber-600/60 mt-1">
-                across {metrics.filter((m) => m.totalDue > 0).length} showrooms
-              </p>
-            </div>
-            <div className="rounded-xl bg-gradient-to-br from-emerald-50 to-green-50 border border-emerald-100 px-4 py-3">
-              <p className="text-[10px] uppercase tracking-widest font-bold text-emerald-600/70">Avg. Collection</p>
-              <p className="text-lg font-black text-emerald-700 tabular-nums mt-0.5">{Math.round(avgCollection)}%</p>
-              <p className="text-[10px] text-emerald-600/60 mt-1">
-                {metrics.length} active showroom{metrics.length !== 1 ? "s" : ""}
-              </p>
+            {/* Summary strip */}
+            <div className="grid grid-cols-2 gap-3 mt-5">
+              <div className="rounded-xl bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-100 px-4 py-3">
+                <p className="text-[10px] uppercase tracking-widest font-bold text-amber-600/70">Outstanding</p>
+                <p className="text-lg font-black text-amber-700 tabular-nums mt-0.5">{formatCurrency(totalDue)}</p>
+                <p className="text-[10px] text-amber-600/60 mt-1">
+                  across {metrics.filter((m) => m.totalDue > 0).length} showrooms
+                </p>
+              </div>
+              <div className="rounded-xl bg-gradient-to-br from-emerald-50 to-green-50 border border-emerald-100 px-4 py-3">
+                <p className="text-[10px] uppercase tracking-widest font-bold text-emerald-600/70">Avg. Collection</p>
+                <p className="text-lg font-black text-emerald-700 tabular-nums mt-0.5">{Math.round(avgCollection)}%</p>
+                <p className="text-[10px] text-emerald-600/60 mt-1">
+                  {metrics.length} active showroom{metrics.length !== 1 ? "s" : ""}
+                </p>
+              </div>
             </div>
           </div>
         </CardHeader>

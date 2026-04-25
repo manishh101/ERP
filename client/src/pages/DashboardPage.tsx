@@ -1,3 +1,6 @@
+import { useState, useMemo } from "react";
+import NepaliDate from "nepali-datetime";
+import { getNepaliMonthName, toNumber, formatCurrency } from "@/lib/utils";
 import { KpiGrid } from "@/components/dashboard/kpi-grid";
 import { RevenueCogsChart } from "@/components/dashboard/revenue-cogs-chart";
 import { TopProductsChart } from "@/components/dashboard/top-products-chart";
@@ -5,7 +8,6 @@ import { CashFlowChart } from "@/components/dashboard/cash-flow-chart";
 import { ArAgingTable } from "@/components/dashboard/ar-aging-table";
 import { ShowroomPerformanceTable } from "@/components/dashboard/showroom-performance-table";
 import { RecentSalesTable } from "@/components/dashboard/recent-sales-table";
-import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDashboardQuery, useCustomersQuery, useSalesOrdersQuery } from "@/hooks/use-queries";
@@ -31,6 +33,98 @@ export function DashboardPage() {
   const { data, error, isLoading } = useDashboardQuery();
   const { data: customersData } = useCustomersQuery();
   const { data: salesOrdersData } = useSalesOrdersQuery();
+
+  const orders = salesOrdersData?.items ?? [];
+
+  // ─── Extract Available Months ───
+  const availableMonths = useMemo(() => {
+    const months = new Set<string>();
+    orders.forEach((o) => {
+      try {
+        const dStr = o.deliveryDate;
+        if (!dStr) return;
+        const d = new NepaliDate(new Date(dStr));
+        const m = d.getMonth();
+        const y = d.getYear();
+        months.add(`${y}-${String(m).padStart(2, "0")}|${getNepaliMonthName(m)} ${y}`);
+      } catch {}
+    });
+    return Array.from(months)
+      .sort((a, b) => b.localeCompare(a)) // sort descending
+      .map((m) => ({ key: m.split("|")[0], label: m.split("|")[1] }));
+  }, [orders]);
+
+  const [selectedMonth, setSelectedMonth] = useState<string>("ALL");
+
+  // ─── Compute Filtered KPIs ───
+  const customKpis = useMemo(() => {
+    const filtered = selectedMonth === "ALL"
+      ? orders
+      : orders.filter((o) => {
+          try {
+            const dStr = o.deliveryDate;
+            if (!dStr) return false;
+            const d = new NepaliDate(new Date(dStr));
+            const key = `${d.getYear()}-${String(d.getMonth()).padStart(2, "0")}`;
+            return key === selectedMonth;
+          } catch {
+            return false;
+          }
+        });
+
+    let revenue = 0;
+    let collected = 0;
+    let delivered = 0;
+    let totalCogs = 0;
+
+    filtered.forEach((o) => {
+      revenue += toNumber(o.total);
+      collected += toNumber(o.paidAmount);
+      totalCogs += toNumber(o.cogs);
+      // Heuristic: rawStatus DELIVERED implies completion
+      if (o.rawStatus === "DELIVERED") delivered++;
+    });
+
+    const result = [
+      {
+        label: "Total Revenue",
+        value: formatCurrency(revenue),
+        change: "Billed",
+        tone: "neutral" as const,
+      },
+      {
+        label: "Net Collection",
+        value: formatCurrency(collected),
+        change: "Received",
+        tone: "positive" as const,
+      },
+      {
+        label: "Total Orders",
+        value: String(filtered.length),
+        change: "Created",
+        tone: "neutral" as const,
+      },
+      {
+        label: "Total Delivered",
+        value: String(delivered),
+        change: "Completed",
+        tone: "positive" as const,
+      },
+      {
+        label: "Net Profit",
+        value: formatCurrency(revenue - totalCogs),
+        change: "Margin",
+        tone: (revenue - totalCogs) > 0 ? "positive" : "negative",
+      },
+    ];
+
+    // Grab Inventory Value from the backend summary data
+    const inventoryKpi = data?.kpis.find((k) => k.label.toLowerCase().includes("inventory"));
+
+    if (inventoryKpi) result.push(inventoryKpi);
+
+    return result;
+  }, [orders, selectedMonth, data]);
 
   if (isLoading) {
     return (
@@ -69,12 +163,31 @@ export function DashboardPage() {
       {/* Ambient glowing background */}
       <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary/10 via-background to-background rounded-3xl" />
 
-      <PageHeader title="Wholesale Command Center" />
-
       {/* ═══════════════════════════════════════════════════════
-          SECTION A: Top KPI Cards
+          SECTION A: Top KPI Cards + Custom Month Header
           ═══════════════════════════════════════════════════════ */}
-      <KpiGrid items={data.kpis} />
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="text-2xl font-semibold tracking-tight">Wholesale Command Center</h1>
+        <div className="flex items-center gap-3">
+          <span className="text-sm font-semibold text-muted-foreground uppercase tracking-widest">
+            REPORT MONTH
+          </span>
+          <select
+            className="flex h-9 items-center justify-between rounded-md border border-input bg-white/50 backdrop-blur-sm px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring font-medium"
+            value={selectedMonth}
+            onChange={(e) => setSelectedMonth(e.target.value)}
+          >
+            <option value="ALL">All Time</option>
+            {availableMonths.map((m) => (
+              <option key={m.key} value={m.key}>
+                {m.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <KpiGrid items={customKpis} />
 
       {/* ═══════════════════════════════════════════════════════
           SECTION B: Visual Analytics

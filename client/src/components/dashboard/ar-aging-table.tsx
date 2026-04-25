@@ -100,9 +100,18 @@ export function ArAgingTable({ data, customers }: ArAgingTableProps) {
     }))
     .sort((a, b) => b.outstanding - a.outstanding);
 
+  const isAll = typeFilter === "ALL";
   const partyDebtorCount = partyRows.length;
+  const filteredTotal = partyRows.reduce((sum, r) => sum + r.outstanding, 0);
+  const displayTotal = isAll ? total : filteredTotal;
+
+  const getBucketValue = (key: keyof AgingBuckets) => {
+    if (isAll) return toNumber(data[key as keyof AgingBuckets]);
+    return partyRows.reduce((sum, r) => r.riskBucket === key ? sum + r.outstanding : sum, 0);
+  };
+
   const maxOutstanding = Math.max(...partyRows.map((r) => r.outstanding), 1);
-  const allClear = total <= 0 && partyDebtorCount === 0;
+  const allClear = displayTotal <= 0 && partyDebtorCount === 0;
 
   return (
     <Card className="bg-white/50 backdrop-blur-sm border-white/20 shadow-sm overflow-hidden">
@@ -137,9 +146,9 @@ export function ArAgingTable({ data, customers }: ArAgingTableProps) {
             <p className="text-[10px] uppercase tracking-wider text-muted-foreground/60">Total Owed</p>
             <p className={cn(
               "text-2xl font-black tabular-nums mt-0.5",
-              total > 0 ? "text-red-700" : "text-green-700"
+              displayTotal > 0 ? "text-red-700" : "text-green-700"
             )}>
-              {formatCurrency(total)}
+              {formatCurrency(displayTotal)}
             </p>
             <p className="text-[10px] text-muted-foreground mt-0.5">
               {partyDebtorCount} part{partyDebtorCount !== 1 ? "ies" : "y"} with dues
@@ -163,8 +172,8 @@ export function ArAgingTable({ data, customers }: ArAgingTableProps) {
             {/* ── 4 Bucket Cards ── */}
             <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
               {BUCKETS.map(({ key, label, sub, Icon, bar, bg, text, border, glow, ring }) => {
-                const value = data[key];
-                const pct = total > 0 ? (value / total) * 100 : 0;
+                const value = getBucketValue(key);
+                const pct = displayTotal > 0 ? (value / displayTotal) * 100 : 0;
                 const isActive = value > 0;
 
                 return (
@@ -232,11 +241,12 @@ export function ArAgingTable({ data, customers }: ArAgingTableProps) {
             </div>
 
             {/* ── Proportional colour bar ── */}
-            {total > 0 && (
+            {displayTotal > 0 && (
               <div className="space-y-2">
                 <div className="flex h-3 w-full overflow-hidden rounded-full bg-muted/20 shadow-inner">
                   {BUCKETS.map(({ key, bar }) => {
-                    const pct = (data[key] / total) * 100;
+                    const value = getBucketValue(key);
+                    const pct = displayTotal > 0 ? (value / displayTotal) * 100 : 0;
                     if (pct <= 0) return null;
                     return (
                       <div
@@ -249,7 +259,8 @@ export function ArAgingTable({ data, customers }: ArAgingTableProps) {
                 </div>
                 <div className="flex justify-between text-[9px] font-medium text-muted-foreground/50 px-0.5">
                   {BUCKETS.map(({ key, label }) => {
-                    const pct = total > 0 ? Math.round((data[key] / total) * 100) : 0;
+                    const value = getBucketValue(key);
+                    const pct = displayTotal > 0 ? Math.round((value / displayTotal) * 100) : 0;
                     return pct > 4 ? (
                       <span key={key}>{label} {pct}%</span>
                     ) : null;

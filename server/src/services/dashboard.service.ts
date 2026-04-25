@@ -279,13 +279,9 @@ export async function getDashboardSummary() {
       },
       select: { orderAmount: true },
     }),
-    prisma.inventory.findMany({
+    prisma.productVariant.findMany({
       include: {
-        productVariant: {
-          include: {
-            product: true,
-          },
-        },
+        product: true,
       },
     }),
     prisma.delivery.count({
@@ -338,10 +334,10 @@ export async function getDashboardSummary() {
   });
   const outstandingArValue = openOrders.reduce((sum, o) => sum + toNumber(o.balanceDue), 0);
 
-  const inventoryValue = inventoryItems.reduce((sum, item) => {
-    const baseCost = toNumber(item.productVariant.product.costPrice);
-    const extra = toNumber(item.productVariant.additionalCost);
-    return sum + item.quantity * (baseCost + extra);
+  const inventoryValue = inventoryItems.reduce((sum, variant) => {
+    const baseCost = toNumber(variant.product.costPrice);
+    const extra = toNumber(variant.additionalCost);
+    return sum + variant.stockQuantity * (baseCost + extra);
   }, 0);
 
   const invoicePayments = await prisma.payment.findMany({

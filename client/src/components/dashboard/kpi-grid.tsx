@@ -7,7 +7,7 @@ const kpiIcons = [Banknote, ArrowDownToLine, Truck, Building2];
 
 export function KpiGrid({ items }: { items: Kpi[] }) {
   return (
-    <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+    <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
       {items.map((item, index) => {
         const Icon = kpiIcons[index % kpiIcons.length];
         return (
