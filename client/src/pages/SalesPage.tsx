@@ -189,40 +189,49 @@ export function SalesPage() {
                     {isConfirming ? "Confirming..." : "Confirm Order"}
                   </Button>
                 )}
-                {selectedOrder?.rawStatus === "CONFIRMED" && (
-                  <Button
-                    variant="default"
-                    size="sm"
-                    onClick={() => setDepositModalOpen(true)}
-                  >
-                    Record Deposit
-                  </Button>
-                )}
-                {selectedOrder?.rawStatus === "DEPOSIT_PAID" && (
-                  <Button
-                    variant="default"
-                    size="sm"
-                    onClick={() => {
-                      updateStatus(
-                        { id: selectedOrderId, status: "IN_WAREHOUSE" },
-                        {
-                          onSuccess: () => toast.success("Moved to warehouse"),
-                          onError: (error) =>
-                            toast.error("Update failed", {
-                              description: getErrorMessage(error),
-                            }),
-                        },
-                      );
-                    }}
-                    disabled={isUpdating}
-                  >
-                    {isUpdating ? "Updating..." : "Move to Warehouse"}
-                  </Button>
-                )}
+                {selectedOrder?.rawStatus !== "QUOTE" &&
+                  selectedOrder?.rawStatus !== "CANCELLED" && (
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="border-primary/50 text-primary hover:bg-primary hover:text-white"
+                        onClick={() => setDepositModalOpen(true)}
+                      >
+                        Record Deposit
+                      </Button>
+
+                      {selectedOrder?.rawStatus !== "DELIVERED" && (
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={() => {
+                            updateStatus(
+                              { id: selectedOrderId, status: "DELIVERED" },
+                              {
+                                onSuccess: () =>
+                                  toast.success("Order marked as delivered"),
+                                onError: (error) =>
+                                  toast.error("Update failed", {
+                                    description: getErrorMessage(error),
+                                  }),
+                              },
+                            );
+                          }}
+                          disabled={isUpdating}
+                        >
+                          <span className="flex items-center gap-2">
+                            {isUpdating ? "Updating..." : "Mark Delivered"}
+                          </span>
+                        </Button>
+                      )}
+                    </>
+                  )}
+
                 <Button
                   variant="outline"
                   size="sm"
-                  className="text-destructive hover:bg-destructive hover:text-white border-destructive/30"
+                  className="text-destructive hover:bg-destructive hover:text-white border-destructive/30 ml-auto"
                   onClick={() => setConfirmOpen(true)}
                   disabled={isCancelling}
                 >
