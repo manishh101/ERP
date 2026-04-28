@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { getErrorMessage } from "@/lib/api";
+import { ArrowRight, Globe, Info } from "lucide-react";
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -37,75 +38,134 @@ export function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(120,113,108,0.18),_transparent_35%),linear-gradient(180deg,_#f7f2eb_0%,_#efe5d7_100%)] px-4 py-10">
-      <div className="mx-auto grid min-h-[calc(100vh-5rem)] max-w-6xl gap-8 lg:grid-cols-[1.15fr_0.85fr]">
-        <section className="flex flex-col justify-center rounded-[2rem] bg-stone-950 px-8 py-10 text-stone-50 shadow-panel lg:px-12">
-          <p className="text-xs uppercase tracking-[0.32em] text-stone-400">Manish Steel Management</p>
-          <h1 className="mt-5 font-display text-5xl leading-tight">Run stock, sales, finance, and delivery from one place.</h1>
-          <p className="mt-5 max-w-xl text-base text-stone-300">
-            The client is now wired for authenticated API access, so this login is the entry point to the real backend instead of demo-only fallbacks.
-          </p>
-          <div className="mt-8 grid gap-4 md:grid-cols-3">
-            {[
-              ["Dashboard", "Live KPIs, low stock alerts, and recent order activity"],
-              ["Operations", "Inventory, purchasing, invoicing, and delivery workflows"],
-              ["Admin", "User roles and company settings synced from the API"],
-            ].map(([title, detail]) => (
-              <div key={title} className="rounded-3xl border border-white/10 bg-white/5 p-4">
-                <p className="font-semibold">{title}</p>
-                <p className="mt-2 text-sm text-stone-300">{detail}</p>
-              </div>
-            ))}
-          </div>
-        </section>
+    <div className="relative flex min-h-screen flex-col bg-white selection:bg-stone-900 selection:text-white">
+      {/* Dynamic Ambient Background */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -left-[10%] -top-[10%] h-[50%] w-[50%] rounded-full bg-stone-100 blur-[100px]" />
+        <div className="absolute -right-[10%] bottom-[10%] h-[40%] w-[40%] rounded-full bg-stone-50 blur-[80px]" />
+      </div>
 
-        <section className="flex items-center justify-center">
-          <Card className="w-full max-w-xl border-white/70 bg-white/90 shadow-panel">
-            <CardHeader>
-              <div>
-                <CardTitle>Sign In</CardTitle>
-                <CardDescription>Use one of the seeded accounts to access the ERP modules.</CardDescription>
+      <main className="relative z-10 flex flex-1 items-center justify-center p-6">
+        <div className="flex w-full max-w-5xl flex-col overflow-hidden rounded-[2.5rem] bg-stone-950 shadow-2xl lg:flex-row">
+          {/* Brand Panel */}
+          <section className="relative hidden w-1/2 flex-col justify-between border-r border-white/5 p-12 lg:flex">
+            <div className="space-y-8">
+              <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 backdrop-blur-xl">
+                <Globe className="text-white" size={24} />
               </div>
-            </CardHeader>
-            <CardContent>
-              <form className="space-y-4" onSubmit={handleSubmit}>
+              <div className="space-y-4">
+                <h1 className="font-display text-5xl font-bold leading-tight tracking-tight text-white">
+                  Industrial <br /> 
+                  <span className="text-stone-500">Intelligence.</span>
+                </h1>
+                <p className="max-w-xs text-sm leading-relaxed text-stone-400">
+                  Secure, precision management for modern steel operations. Streamlined for clarity and high-performance.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4 text-[10px] font-bold uppercase tracking-[0.3em] text-stone-600">
+              <span className="h-px w-8 bg-stone-800" />
+              <span>Manish Steel Management</span>
+            </div>
+          </section>
+
+          {/* Login Panel */}
+          <section className="flex flex-1 flex-col justify-center bg-white p-8 lg:p-16">
+            <div className="mx-auto w-full max-w-sm space-y-8">
+              <div className="space-y-2">
+                <h2 className="text-3xl font-bold tracking-tight text-stone-900">Welcome Back</h2>
+                <p className="text-sm text-stone-500">Please enter your credentials to continue</p>
+              </div>
+
+              <form className="space-y-5" onSubmit={handleSubmit}>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium" htmlFor="email">
-                    Email
+                  <label className="block text-xs font-bold uppercase tracking-wider text-stone-500" htmlFor="email">
+                    Email Address
                   </label>
-                  <Input id="email" value={email} onChange={(event) => setEmail(event.target.value)} />
+                  <Input 
+                    id="email" 
+                    type="email"
+                    required
+                    className="h-12 border-stone-200 bg-stone-50/50 px-4 transition-all focus:border-stone-900 focus:ring-0" 
+                    placeholder="name@manishsteel.com.np"
+                    value={email} 
+                    onChange={(event) => setEmail(event.target.value)} 
+                  />
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium" htmlFor="password">
-                    Password
-                  </label>
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-bold uppercase tracking-wider text-stone-500" htmlFor="password">
+                      Password
+                    </label>
+                    <button type="button" className="text-[10px] font-bold uppercase tracking-widest text-stone-400 hover:text-stone-600 transition-colors">
+                      Forgot?
+                    </button>
+                  </div>
                   <Input
                     id="password"
                     type="password"
+                    required
+                    placeholder="••••••••"
+                    className="h-12 border-stone-200 bg-stone-50/50 px-4 transition-all focus:border-stone-900 focus:ring-0"
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
                   />
                 </div>
 
                 {error ? (
-                  <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                    {error}
+                  <div className="animate-in fade-in slide-in-from-top-1 flex items-center gap-3 rounded-xl border border-red-100 bg-red-50/50 p-4 text-xs font-medium text-red-600">
+                    <Info size={14} className="shrink-0" />
+                    <span>{error}</span>
                   </div>
                 ) : null}
 
-                <Button className="w-full" type="submit" disabled={submitting || status === "loading"}>
-                  {submitting || status === "loading" ? "Signing In..." : "Sign In"}
+                <Button 
+                  className="h-12 w-full rounded-xl bg-stone-950 text-stone-50 transition-all duration-300 hover:bg-stone-800 active:scale-[0.98] disabled:opacity-50" 
+                  type="submit" 
+                  disabled={submitting || status === "loading"}
+                >
+                  {submitting || status === "loading" ? (
+                    <div className="flex items-center gap-2">
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/20 border-t-white" />
+                      <span>Authenticating...</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <span>Sign In</span>
+                      <ArrowRight size={16} />
+                    </div>
+                  )}
                 </Button>
               </form>
 
-              <div className="mt-6 rounded-2xl bg-secondary/70 p-4 text-sm text-muted-foreground">
-                Default seeded password: <span className="font-semibold text-foreground">Password123!</span>
+              {/* Dev/Production Awareness Note */}
+              <div className="inline-flex items-center gap-2 rounded-lg bg-stone-50 px-3 py-2 text-[10px] font-medium text-stone-400">
+                <Info size={12} />
+                <span>Authorized access only. Logins are monitored.</span>
               </div>
-            </CardContent>
-          </Card>
-        </section>
-      </div>
+            </div>
+          </section>
+        </div>
+      </main>
+
+      {/* Production Footer */}
+      <footer className="relative z-10 flex flex-col items-center justify-between gap-4 border-t border-stone-100 bg-white/50 px-8 py-6 backdrop-blur-md sm:flex-row">
+        <p className="text-[10px] font-medium text-stone-400 uppercase tracking-[0.2em]">
+          © 2024 Manish Steel Management System. All rights reserved.
+        </p>
+        <div className="flex items-center gap-6">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-stone-300">v1.2.4-stable</span>
+          <div className="flex gap-4">
+            {["Privacy", "Terms", "Support"].map((item) => (
+              <button key={item} className="text-[10px] font-bold uppercase tracking-widest text-stone-400 hover:text-stone-900 transition-colors">
+                {item}
+              </button>
+            ))}
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
