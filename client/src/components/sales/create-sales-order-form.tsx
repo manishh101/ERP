@@ -259,7 +259,9 @@ export function CreateSalesOrderForm({ onClose }: CreateSalesOrderFormProps) {
                   >
                     <option value="">Select a Product</option>
                     {products.data?.items.map(p => (
-                      <option key={p.id} value={p.id}>{p.name} ({p.sku})</option>
+                      <option key={p.id} value={p.id}>
+                        {p.name} ({p.sku}) {p.height || p.width || p.length ? `- ${p.height || 0}x${p.width || 0}x${p.length || 0}` : ""}
+                      </option>
                     ))}
                   </select>
                 </div>

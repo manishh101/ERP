@@ -94,6 +94,9 @@ export type ProductRow = {
   sellingPrice: number;
   defaultVariantId: string;
   // Furniture specific
+  height?: number;
+  width?: number;
+  length?: number;
   hsCode?: string;
   woodType?: string;
   finishType?: string;
@@ -164,6 +167,9 @@ export type ProductDetailPayload = {
   margin: number;
   totalStock: number;
   recentSalesQty: number;
+  height?: number;
+  width?: number;
+  length?: number;
   imageUrls: string[];
   variantRows: ProductDetailVariantRow[];
   metrics: ProductDetailMetric[];

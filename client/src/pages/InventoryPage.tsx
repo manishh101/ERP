@@ -180,6 +180,15 @@ export function InventoryPage() {
       },
       { accessorKey: "category", header: "Category" },
       {
+        accessorKey: "size",
+        header: "Size",
+        cell: ({ row }) => {
+          const { height, width, length } = row.original;
+          if (!height && !width && !length) return "-";
+          return `${height || 0}x${width || 0}x${length || 0}`;
+        },
+      },
+      {
         accessorKey: "status",
         header: "Status",
         cell: ({ row }) => <StatusBadge value={row.getValue("status")} />,

@@ -31,6 +31,9 @@ export function CreateProductForm({ onClose }: CreateProductFormProps) {
     warrantyMonths: "",
     leadTimeDays: "",
     isCustomizable: false,
+    height: "",
+    width: "",
+    length: "",
   });
   
   const [variants, setVariants] = useState([{ 
@@ -72,6 +75,9 @@ export function CreateProductForm({ onClose }: CreateProductFormProps) {
         assemblyRequired: formData.assemblyRequired,
         warrantyMonths: formData.warrantyMonths ? Number(formData.warrantyMonths) : undefined,
         leadTimeDays: formData.leadTimeDays ? Number(formData.leadTimeDays) : undefined,
+        height: formData.height ? Number(formData.height) : undefined,
+        width: formData.width ? Number(formData.width) : undefined,
+        length: formData.length ? Number(formData.length) : undefined,
         isCustomizable: formData.isCustomizable,
         variants: variants,
       });
@@ -159,6 +165,26 @@ export function CreateProductForm({ onClose }: CreateProductFormProps) {
             value={formData.leadTimeDays} 
             onChange={(e) => setFormData({ ...formData, leadTimeDays: e.target.value })} 
           />
+          <div className="grid grid-cols-3 gap-2 lg:col-span-1">
+            <Input 
+              placeholder="H (in)" 
+              type="number"
+              value={formData.height} 
+              onChange={(e) => setFormData({ ...formData, height: e.target.value })} 
+            />
+            <Input 
+              placeholder="W (in)" 
+              type="number"
+              value={formData.width} 
+              onChange={(e) => setFormData({ ...formData, width: e.target.value })} 
+            />
+            <Input 
+              placeholder="L (in)" 
+              type="number"
+              value={formData.length} 
+              onChange={(e) => setFormData({ ...formData, length: e.target.value })} 
+            />
+          </div>
           <div className="flex items-center gap-2 px-4 h-11 border border-border bg-white/90 rounded-2xl">
             <input 
               type="checkbox" 

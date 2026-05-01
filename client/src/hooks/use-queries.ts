@@ -70,6 +70,9 @@ type RawProduct = {
   warrantyMonths?: number | string;
   leadTimeDays?: number | string;
   isCustomizable?: boolean;
+  height?: number | string | null;
+  width?: number | string | null;
+  length?: number | string | null;
   variants: Array<{
     id: string;
     stockQuantity: number | string;
@@ -85,6 +88,9 @@ type RawProductHistoryResponse = {
   sellingPrice: number | string;
   category: string;
   material?: string | null;
+  height?: number | string | null;
+  width?: number | string | null;
+  length?: number | string | null;
   imageUrls: string[];
   variants: Array<{
     id: string;
@@ -553,6 +559,9 @@ function mapProduct(product: RawProduct): ProductRow {
     warrantyMonths: toNumber(product.warrantyMonths),
     leadTimeDays: toNumber(product.leadTimeDays),
     isCustomizable: product.isCustomizable,
+    height: toNumber(product.height),
+    width: toNumber(product.width),
+    length: toNumber(product.length),
   };
 }
 
@@ -618,6 +627,9 @@ function mapProductDetail(product: RawProductHistoryResponse): ProductDetailPayl
     margin,
     totalStock: variantRows.reduce((sum, v) => sum + v.quantity, 0),
     recentSalesQty,
+    height: toNumber(product.height),
+    width: toNumber(product.width),
+    length: toNumber(product.length),
     imageUrls: product.imageUrls ?? [],
     variantRows,
     metrics: [

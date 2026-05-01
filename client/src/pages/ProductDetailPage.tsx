@@ -90,6 +90,9 @@ function EditPanel({
     costPrice: product.costPrice.toString(),
     sellingPrice: product.sellingPrice.toString(),
     status: product.status === "Active" ? "ACTIVE" : "DISCONTINUED",
+    height: product.height?.toString() || "",
+    width: product.width?.toString() || "",
+    length: product.length?.toString() || "",
   });
 
   const set = (field: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
@@ -107,6 +110,9 @@ function EditPanel({
           costPrice: Number(form.costPrice),
           sellingPrice: Number(form.sellingPrice),
           status: form.status,
+          height: form.height ? Number(form.height) : undefined,
+          width: form.width ? Number(form.width) : undefined,
+          length: form.length ? Number(form.length) : undefined,
         },
       });
       toast.success("Product updated successfully");
@@ -160,6 +166,18 @@ function EditPanel({
             <option value="ACTIVE">Active</option>
             <option value="DISCONTINUED">Discontinued</option>
           </select>
+        </div>
+        <div>
+          <label className={labelCls}>Height (in)</label>
+          <Input type="number" value={form.height} onChange={set("height")} />
+        </div>
+        <div>
+          <label className={labelCls}>Width (in)</label>
+          <Input type="number" value={form.width} onChange={set("width")} />
+        </div>
+        <div>
+          <label className={labelCls}>Length (in)</label>
+          <Input type="number" value={form.length} onChange={set("length")} />
         </div>
         <div className="sm:col-span-2 lg:col-span-3">
           <label className={labelCls}>Description</label>
@@ -456,8 +474,14 @@ export function ProductDetailPage() {
                 Product Overview
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
               <p className="text-sm leading-relaxed text-muted-foreground">{product.description}</p>
+              {(product.height || product.width || product.length) && (
+                <div className="pt-2 border-t border-border">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">Dimensions (HxWxL)</p>
+                  <p className="text-sm font-bold">{product.height || 0} x {product.width || 0} x {product.length || 0} inches</p>
+                </div>
+              )}
             </CardContent>
           </Card>
 
