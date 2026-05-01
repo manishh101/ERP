@@ -415,27 +415,32 @@ export function ProductDetailPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Layers className="h-5 w-5 text-muted-foreground" />
-                Variants & Warehouse Stock
+                Factory Inventory
               </CardTitle>
               <CardDescription>
-                Each variant with live factory outlet stock levels.
+                Live stock levels at the Itahari Factory Depot.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               {product.variantRows.length === 0 ? (
-                <p className="py-8 text-center text-sm text-muted-foreground">No variants have been configured yet.</p>
+                <p className="py-8 text-center text-sm text-muted-foreground">No stock data available.</p>
               ) : (
                 product.variantRows.map((item) => (
                   <div key={item.id} className="flex items-center justify-between rounded-2xl border border-border bg-white p-4">
-                    <div>
-                      <p className="font-semibold">{item.variant}</p>
-                      <p className="mt-0.5 text-xs text-muted-foreground">{item.warehouse}</p>
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/5 text-primary">
+                        <Box className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <p className="font-semibold">{item.variant === "Standard" ? product.name : item.variant}</p>
+                        <p className="mt-0.5 text-xs text-muted-foreground">Main Factory Storage</p>
+                      </div>
                     </div>
                     <div className="text-right">
                       <p className={`text-2xl font-bold tabular-nums ${item.quantity === 0 ? "text-red-500" : item.quantity <= 5 ? "text-amber-500" : "text-emerald-600"}`}>
                         {item.quantity}
                       </p>
-                      <p className="text-xs text-muted-foreground">units</p>
+                      <p className="text-xs text-muted-foreground">Available Units</p>
                     </div>
                   </div>
                 ))
@@ -475,11 +480,29 @@ export function ProductDetailPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <p className="text-sm leading-relaxed text-muted-foreground">{product.description}</p>
+              <div className="rounded-xl bg-secondary/30 p-4">
+                <p className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-2">Description</p>
+                <p className="text-sm leading-relaxed text-foreground">{product.description}</p>
+              </div>
+              
               {(product.height || product.width || product.length) && (
-                <div className="pt-2 border-t border-border">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">Dimensions (HxWxL)</p>
-                  <p className="text-sm font-bold">{product.height || 0} x {product.width || 0} x {product.length || 0} inches</p>
+                <div className="rounded-xl bg-primary/5 border border-primary/10 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-primary mb-2">Physical Dimensions</p>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <p className="text-[10px] uppercase text-muted-foreground">Height</p>
+                      <p className="text-lg font-bold">{product.height || 0}"</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] uppercase text-muted-foreground">Width</p>
+                      <p className="text-lg font-bold">{product.width || 0}"</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] uppercase text-muted-foreground">Length</p>
+                      <p className="text-lg font-bold">{product.length || 0}"</p>
+                    </div>
+                  </div>
+                  <p className="mt-3 text-[10px] text-muted-foreground italic">Standard unit: Inches (in)</p>
                 </div>
               )}
             </CardContent>

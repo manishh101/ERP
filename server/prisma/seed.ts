@@ -206,25 +206,11 @@ async function main() {
   };
 
   const warehouses = {
-    showroom: await prisma.warehouse.create({
-      data: {
-        name: "Biratnagar Showroom",
-        location: "Dharan Road, Biratnagar",
-        type: "SHOWROOM",
-      },
-    }),
-    storage: await prisma.warehouse.create({
+    factory: await prisma.warehouse.create({
       data: {
         name: "Itahari Factory Depot",
         location: "Itahari-04, Sunsari",
         type: "STORAGE",
-      },
-    }),
-    transit: await prisma.warehouse.create({
-      data: {
-        name: "Dharan Service Point",
-        location: "Bhanu Chowk, Dharan",
-        type: "TRANSIT",
       },
     }),
   };
@@ -324,11 +310,12 @@ async function main() {
 
   const customersInput: any[] = [
     { name: "Ram Kumar", email: "ram@example.com", phone: "+977-9810001101", type: "RETAIL", creditLimit: 0, address: "Tinkune, Biratnagar", panNo: "100123456", invoicePref: "PAN", district: "Morang", ward: "3" },
-    { name: "Birat Medical College", email: "procurement@biratmedical.local", phone: "+977-21-444111", type: "SHOWROOM", creditLimit: 50000, address: "Tankisinuwari, Morang", vatNo: "300123456", invoicePref: "VAT", district: "Morang", ward: "2" },
-    { name: "Nobel Hospital", email: "ap@nobel.local", phone: "+977-21-555222", type: "SHOWROOM", creditLimit: 100000, address: "Kanchanbari, Biratnagar", vatNo: "300234567", invoicePref: "VAT", district: "Morang", ward: "4" },
     { name: "Sita Poudel", email: "sita@example.com", phone: "+977-9842001102", type: "RETAIL", creditLimit: 0, address: "Puspalal Chowk, Biratnagar", invoicePref: "PAN", district: "Morang", ward: "2" },
     { name: "Bikash Thapa", email: "bikash@example.com", phone: "+977-9800001103", type: "RETAIL", creditLimit: 0, address: "Bhanu Chowk, Dharan", invoicePref: "NONE", district: "Sunsari", ward: "1" },
-    { name: "Itahari Business Center", email: "office@itahari.biz", phone: "+977-25-580101", type: "SHOWROOM", creditLimit: 35000, address: "Main Road, Itahari", vatNo: "300456789", invoicePref: "VAT", district: "Sunsari", ward: "4" },
+    // Showroom Channels (B2B)
+    { name: "Birat Showroom (Manish Steel)", email: "brt@manishsteel.com", phone: "+977-21-444111", type: "SHOWROOM", creditLimit: 500000, address: "Tankisinuwari, Morang", vatNo: "300123456", invoicePref: "VAT", district: "Morang", ward: "2" },
+    { name: "Dharan Furniture Mart", email: "dharan@furniture.com", phone: "+977-21-555222", type: "SHOWROOM", creditLimit: 1000000, address: "Kanchanbari, Biratnagar", vatNo: "300234567", invoicePref: "VAT", district: "Morang", ward: "4" },
+    { name: "Itahari Business Center", email: "office@itahari.biz", phone: "+977-25-580101", type: "SHOWROOM", creditLimit: 350000, address: "Main Road, Itahari", vatNo: "300456789", invoicePref: "VAT", district: "Sunsari", ward: "4" },
   ];
 
   const customers = await Promise.all(customersInput.map((customer) => prisma.customer.create({ data: customer })));
@@ -454,19 +441,15 @@ async function main() {
         skuVariant: variant.skuVariant,
       });
 
-      // Default inventory distribution
-      await prisma.inventory.createMany({
-        data: [
-          { productVariantId: variant.id, warehouseId: warehouses.showroom.id, quantity: 2, status: "IN_STOCK" },
-          { productVariantId: variant.id, warehouseId: warehouses.showroom.id, quantity: 1, status: "ON_DISPLAY" },
-          { productVariantId: variant.id, warehouseId: warehouses.storage.id, quantity: 7, status: "IN_STOCK" },
-        ],
+      // Factory stock distribution
+      await prisma.inventory.create({
+        data: { productVariantId: variant.id, warehouseId: warehouses.factory.id, quantity: 10, status: "IN_STOCK" },
       });
 
       await prisma.stockMovement.create({
         data: {
           productVariantId: variant.id,
-          warehouseId: warehouses.storage.id,
+          warehouseId: warehouses.factory.id,
           userId: users.warehouse.id,
           type: "INBOUND",
           quantity: 10,
@@ -486,7 +469,7 @@ async function main() {
         orderDate: daysAgo(25),
         expectedDelivery: daysAgo(14),
         totalAmount: 4850,
-        shippingTerms: "Delivered to storage warehouse",
+        shippingTerms: "Delivered to Itahari Factory Depot",
         notes: "Frames and walnut components",
         lineItems: {
           create: [
@@ -619,7 +602,7 @@ async function main() {
     prisma.salesOrder.create({
       data: {
         customerId: customers[1].id,
-        assignedWarehouseId: warehouses.storage.id,
+        assignedWarehouseId: warehouses.factory.id,
         salespersonId: users.sales.id,
         status: "OUT_FOR_DELIVERY",
         orderAmount: 8600,
@@ -642,7 +625,7 @@ async function main() {
     prisma.salesOrder.create({
       data: {
         customerId: customers[0].id,
-        assignedWarehouseId: warehouses.showroom.id,
+        assignedWarehouseId: warehouses.factory.id,
         salespersonId: users.sales.id,
         status: "DEPOSIT_PAID",
         orderAmount: 3200,
@@ -665,7 +648,7 @@ async function main() {
     prisma.salesOrder.create({
       data: {
         customerId: customers[3].id,
-        assignedWarehouseId: warehouses.storage.id,
+        assignedWarehouseId: warehouses.factory.id,
         salespersonId: users.sales.id,
         status: "DELIVERED",
         orderAmount: 21450,
@@ -688,7 +671,7 @@ async function main() {
     prisma.salesOrder.create({
       data: {
         customerId: customers[2].id,
-        assignedWarehouseId: warehouses.storage.id,
+        assignedWarehouseId: warehouses.factory.id,
         salespersonId: users.sales.id,
         status: "CONFIRMED",
         orderAmount: 12940,

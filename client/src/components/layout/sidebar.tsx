@@ -42,9 +42,9 @@ const navigation: NavSection[] = [
     ],
   },
   {
-    title: "Showrooms",
+    title: "Parties",
     items: [
-      { label: "All Parties", href: "/parties", icon: Building2 },
+      { label: "Customers & Showrooms", href: "/parties", icon: Building2 },
     ],
   },
   {
@@ -68,7 +68,7 @@ const navigation: NavSection[] = [
     title: "Inventory",
     items: [
       { label: "Products", href: "/inventory", icon: Package },
-      { label: "Warehouses", href: "/purchasing", icon: Warehouse },
+      { label: "Purchasing & Suppliers", href: "/purchasing", icon: Warehouse },
     ],
   },
   {
