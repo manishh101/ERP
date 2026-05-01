@@ -9,7 +9,7 @@
     "rootDir": ".",
     "strict": true,
     "moduleResolution": "Node",
-    "ignoreDeprecations": "6.0",
+    "ignoreDeprecations": "5.0",
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "skipLibCheck": true,
