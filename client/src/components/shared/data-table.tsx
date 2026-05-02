@@ -51,6 +51,7 @@ type DataTableProps<T> = {
   onRowClick?: (row: T) => void;
   detailHref?: (row: T) => string;
   emptyMessage?: string;
+  hideSearch?: boolean;
 };
 
 export function DataTable<T extends { id: string }>({
@@ -63,6 +64,7 @@ export function DataTable<T extends { id: string }>({
   onRowClick,
   detailHref,
   emptyMessage = "No records found.",
+  hideSearch = false,
 }: DataTableProps<T>) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
@@ -185,15 +187,17 @@ export function DataTable<T extends { id: string }>({
   return (
     <div className="rounded-lg border bg-card">
       {/* Search */}
-      <div className="flex items-center gap-3 border-b px-4 py-3">
-        <Search className="h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder={searchPlaceholder}
-          value={globalFilter}
-          onChange={(e) => setGlobalFilter(e.target.value)}
-          className="h-8 border-0 bg-transparent p-0 shadow-none focus-visible:ring-0"
-        />
-      </div>
+      {!hideSearch && (
+        <div className="flex items-center gap-3 border-b px-4 py-3">
+          <Search className="h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder={searchPlaceholder}
+            value={globalFilter}
+            onChange={(e) => setGlobalFilter(e.target.value)}
+            className="h-8 border-0 bg-transparent p-0 shadow-none focus-visible:ring-0"
+          />
+        </div>
+      )}
 
       {/* Table */}
       <div className="overflow-x-auto">

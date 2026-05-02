@@ -11,7 +11,7 @@ const labelMap: Record<string, string> = {
   accounting: "Finance",
   ledger: "Ledger (Khata)",
   vat: "VAT Register",
-  inventory: "Products",
+  inventory: "Inventory",
   purchasing: "Warehouses",
   products: "Products",
   settings: "Settings",
@@ -20,6 +20,7 @@ const labelMap: Record<string, string> = {
 };
 
 function formatSegment(segment: string): string {
+  if (segment.length >= 24) return "Detail"; // Hide CUID/UUID
   return labelMap[segment] || segment.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 

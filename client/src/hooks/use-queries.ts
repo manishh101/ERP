@@ -58,6 +58,7 @@ type RawProduct = {
   id: string;
   name: string;
   sku: string;
+  imageUrls: string[];
   category: string;
   material?: string | null;
   status: string;
@@ -83,6 +84,7 @@ type RawProduct = {
 type RawProductHistoryResponse = {
   id: string;
   name: string;
+  sku: string;
   description?: string | null;
   status: string;
   costPrice: number | string;
@@ -555,6 +557,7 @@ function mapProduct(product: RawProduct): ProductRow {
     valuation: stock * costPrice,
     sellingPrice,
     defaultVariantId: product.variants[0]?.id || "",
+    imageUrls: product.imageUrls,
     hsCode: product.hsCode ?? undefined,
     woodType: product.woodType ?? undefined,
     finishType: product.finishType ?? undefined,
@@ -622,7 +625,8 @@ function mapProductDetail(product: RawProductHistoryResponse): ProductDetailPayl
   return {
     id: product.id,
     name: product.name,
-    description: product.description ?? "No product description has been added yet.",
+    sku: product.sku,
+    description: product.description || "No product description has been added yet.",
     status: formatEnumLabel(product.status),
     category: product.category,
     material: product.material ?? "",

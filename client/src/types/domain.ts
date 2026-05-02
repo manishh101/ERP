@@ -100,6 +100,7 @@ export type ProductRow = {
   valuation: number;
   sellingPrice: number;
   defaultVariantId: string;
+  imageUrls?: string[];
   // Furniture specific
   height?: number;
   width?: number;
@@ -166,6 +167,7 @@ export type ProductDetailHistoryItem = {
 export type ProductDetailPayload = {
   id: string;
   name: string;
+  sku: string;
   description: string;
   status: string;
   category: string;

@@ -251,47 +251,7 @@ export function SalesPage() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <div>
-              <CardTitle>Parties &amp; Khata</CardTitle>
-              <CardDescription>
-                Balances, credit limits, and statements.
-              </CardDescription>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="max-h-[400px] overflow-y-auto space-y-3">
-              {customersData?.items?.map((customer) => (
-                <div
-                  key={customer.id}
-                  className="flex items-center justify-between rounded-lg border bg-card p-4"
-                >
-                  <div className="min-w-0">
-                    <p className="font-medium">{customer.name}</p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      {customer.type} · Credit:{" "}
-                      {formatCurrency(toNumber(customer.creditLimit))}
-                      {customer.panNo && ` · PAN: ${customer.panNo}`}
-                    </p>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() =>
-                      setLedgerCustomer({
-                        id: customer.id,
-                        name: customer.name,
-                      })
-                    }
-                  >
-                    View Khata
-                  </Button>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+
       </div>
 
       <ConfirmDialog

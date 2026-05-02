@@ -8,6 +8,8 @@ import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { DataTable } from "@/components/shared/data-table";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Image, PackageOpen } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -178,21 +180,45 @@ export function InventoryPage() {
       {
         accessorKey: "name",
         header: "Product / SKU",
-        cell: ({ row }) => (
-          <div>
-            <Link
-              to={`/inventory/products/${row.original.id}`}
-              className="font-semibold hover:underline"
-            >
-              {row.original.name}
-            </Link>
-            <div className="text-xs text-muted-foreground">
-              {row.original.sku}
+        cell: ({ row }) => {
+          const firstImage = row.original.imageUrls?.[0];
+          return (
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 shrink-0 overflow-hidden rounded-md border bg-muted flex items-center justify-center">
+                {firstImage ? (
+                  <img
+                    src={firstImage}
+                    alt={row.original.name}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <Image className="h-4 w-4 text-muted-foreground/50" />
+                )}
+              </div>
+              <div>
+                <Link
+                  to={`/inventory/products/${row.original.id}`}
+                  className="font-semibold hover:underline"
+                >
+                  {row.original.name}
+                </Link>
+                <div className="text-xs text-muted-foreground">
+                  {row.original.sku}
+                </div>
+              </div>
             </div>
-          </div>
+          );
+        },
+      },
+      {
+        accessorKey: "category",
+        header: "Category",
+        cell: ({ row }) => (
+          <Badge variant="secondary" className="font-normal">
+            {row.getValue("category")}
+          </Badge>
         ),
       },
-      { accessorKey: "category", header: "Category" },
       {
         accessorKey: "size",
         header: "Size",
@@ -214,11 +240,32 @@ export function InventoryPage() {
         cell: ({ row }) => {
           const stock = row.getValue("stock") as number;
           const isLow = lowStockProductIds.has(row.original.id);
+          
+          if (stock <= 0) {
+            return (
+              <div className="text-right">
+                <Badge variant="destructive" className="font-mono">
+                  Out of Stock
+                </Badge>
+              </div>
+            );
+          }
+          
+          if (isLow) {
+            return (
+              <div className="text-right">
+                <Badge variant="outline" className="border-amber-500 text-amber-600 font-mono font-bold">
+                  {formatNumber(stock)} ⚠
+                </Badge>
+              </div>
+            );
+          }
+
           return (
-            <div
-              className={`text-right tabular-nums ${isLow ? "text-amber-600 font-bold" : ""}`}
-            >
-              {formatNumber(stock)} {isLow && "⚠"}
+            <div className="text-right">
+              <Badge variant="outline" className="border-emerald-200 text-emerald-700 bg-emerald-50 font-mono">
+                {formatNumber(stock)} units
+              </Badge>
             </div>
           );
         },
@@ -229,6 +276,15 @@ export function InventoryPage() {
         cell: ({ row }) => (
           <div className="text-right tabular-nums">
             {formatCurrency(row.getValue("valuation") as number)}
+          </div>
+        ),
+      },
+      {
+        accessorKey: "sellingPrice",
+        header: () => <div className="text-right">Selling Price</div>,
+        cell: ({ row }) => (
+          <div className="text-right tabular-nums font-medium text-blue-700">
+            {formatCurrency(row.original.sellingPrice)}
           </div>
         ),
       },
@@ -266,7 +322,7 @@ export function InventoryPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Stock & Inventory"
+        title="Products"
         actions={[
           {
             label: "Refresh Data",
@@ -472,7 +528,10 @@ export function InventoryPage() {
         <CardHeader>
           <CardTitle>Product Catalog</CardTitle>
           <CardDescription>
-            Search, filter, and drill into the live product catalog.
+            Search, filter, and drill into the live product catalog.{" "}
+            <span className="font-semibold text-primary">
+              ({filteredProducts.length} items found)
+            </span>
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -499,6 +558,7 @@ export function InventoryPage() {
             data={filteredProducts}
             pageSize={10}
             emptyMessage="No products matched your search."
+            hideSearch
           />
         </CardContent>
       </Card>

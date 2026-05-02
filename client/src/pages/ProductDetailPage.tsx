@@ -264,12 +264,12 @@ function ImageGallery({ productId, imageUrls }: { productId: string; imageUrls: 
       <CardContent>
         {imageUrls.length === 0 ? (
           <div
-            className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-border py-10 text-muted-foreground hover:border-primary/40"
+            className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border py-6 text-muted-foreground hover:border-primary/40 bg-secondary/10"
             onClick={() => fileInputRef.current?.click()}
           >
-            <ImagePlus className="h-10 w-10 opacity-40" />
-            <p className="text-sm">Click to upload product photos</p>
-            <p className="text-xs opacity-60">JPEG, PNG or WebP • Max 5 MB per file</p>
+            <ImagePlus className="h-8 w-8 opacity-40" />
+            <p className="text-sm font-medium">Click to upload photos</p>
+            <p className="text-xs opacity-60">JPEG, PNG or WebP • Max 5 MB</p>
           </div>
         ) : (
           <div className="grid grid-cols-3 gap-2">
@@ -361,8 +361,15 @@ export function ProductDetailPage() {
             <Link to="/inventory"><ArrowLeft className="h-4 w-4" /></Link>
           </Button>
           <div className="flex items-center gap-3">
-            <PageHeader title={product.name} />
-            <StatusBadge value={product.status} />
+            <div>
+              <PageHeader title={product.name} />
+              <div className="-mt-5 mb-6 text-sm text-muted-foreground font-medium">
+                SKU: {product.sku}
+              </div>
+            </div>
+            <div className="-mt-1">
+              <StatusBadge value={product.status} />
+            </div>
           </div>
         </div>
         <Button
@@ -533,7 +540,7 @@ export function ProductDetailPage() {
                   <span>Margin Utilization</span>
                   <span className="font-bold text-foreground">{product.margin}%</span>
                 </div>
-                <div className="h-2.5 w-full overflow-hidden rounded-full bg-secondary">
+                <div className="h-4 w-full overflow-hidden rounded-full bg-secondary">
                   <div
                     className={`h-full transition-all ${product.margin >= 40 ? "bg-emerald-500" : product.margin >= 20 ? "bg-amber-500" : "bg-red-500"}`}
                     style={{ width: `${Math.min(product.margin, 100)}%` }}
