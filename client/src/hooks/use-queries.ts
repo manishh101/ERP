@@ -2128,6 +2128,16 @@ export function useAccountingSummaryQuery() {
       const liabilities = sumAccountBalances(balanceSheet.liabilities);
       const equity = sumAccountBalances(balanceSheet.equity);
 
+      const cashAtBank = accounts.find((a) => a.name === "Cash at Bank")?.balance || 0;
+      const accountsReceivable = accounts.find((a) => a.name === "Accounts Receivable")?.balance || 0;
+      const accountsPayable = accounts.find((a) => a.name === "Accounts Payable")?.balance || 0;
+      
+      const liquidityAccounts = accounts
+        .filter((a) => a.name.includes("Cash") || a.name.includes("Bank"))
+        .sort((a, b) => toNumber(b.balance) - toNumber(a.balance))
+        .slice(0, 5)
+        .map(a => ({ name: a.name, balance: toNumber(a.balance) }));
+
       return {
         recentEntries: journalEntries.items.map((entry) => ({
           id: entry.id,
@@ -2158,11 +2168,13 @@ export function useAccountingSummaryQuery() {
             detail: `Output ${formatCurrency(toNumber(taxSummary.outputTax))} · Input ${formatCurrency(toNumber(taxSummary.inputTax))}`,
           },
         ],
-        snapshotCards: [
-          { label: "Accounts", value: String(accounts.length) },
-          { label: "Journal Entries", value: String(journalEntries.total) },
-          { label: "Trial Balance Lines", value: String(trialBalance.length) },
-        ],
+        metrics: {
+          cashAndBank: toNumber(cashAtBank),
+          accountsReceivable: toNumber(accountsReceivable),
+          accountsPayable: toNumber(accountsPayable),
+          netTaxPayable: toNumber(taxSummary.netPayable),
+        },
+        liquidityAccounts,
       };
     },
   });
