@@ -385,7 +385,8 @@ model SalesOrder {
 model SalesOrderLineItem {
   id                 String         @id @default(cuid())
   soId               String         @map("so_id")
-  productVariantId   String         @map("product_variant_id")
+  productVariantId   String?        @map("product_variant_id")
+  customProductName  String?        @map("custom_product_name")
   quantity           Int
   unitPrice          Decimal        @map("unit_price") @db.Decimal(14, 2)
   discountPct        Decimal        @default(0) @map("discount_pct") @db.Decimal(5, 2)
@@ -396,7 +397,7 @@ model SalesOrderLineItem {
   createdAt          DateTime       @default(now()) @map("created_at")
   updatedAt          DateTime       @updatedAt @map("updated_at")
   salesOrder         SalesOrder     @relation(fields: [soId], references: [id], onDelete: Cascade)
-  productVariant     ProductVariant @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
+  productVariant     ProductVariant? @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
 
   @@index([soId])
   @@map("so_line_items")
@@ -431,14 +432,15 @@ model TaxInvoice {
 model TaxInvoiceLineItem {
   id               String         @id @default(cuid())
   invoiceId        String         @map("invoice_id")
-  productVariantId String         @map("product_variant_id")
+  productVariantId String?        @map("product_variant_id")
+  customProductName String?       @map("custom_product_name")
   quantity         Int
   unitPrice        Decimal        @map("unit_price") @db.Decimal(14, 2)
   discountPct      Decimal        @default(0) @map("discount_pct") @db.Decimal(5, 2)
   createdAt        DateTime       @default(now()) @map("created_at")
   updatedAt        DateTime       @updatedAt @map("updated_at")
   taxInvoice       TaxInvoice     @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  productVariant   ProductVariant @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
+  productVariant   ProductVariant? @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
 
   @@index([invoiceId])
   @@map("tax_invoice_line_items")

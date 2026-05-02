@@ -353,8 +353,8 @@ function InvoiceDocument({
               <View style={[S.dataRow, idx % 2 === 1 ? S.dataRowAlt : {}]} key={item.id || idx}>
                 <Text style={[S.tdMuted, S.cNo]}>{idx + 1}</Text>
                 <View style={S.cDesc}>
-                  <Text style={S.tdBold}>{item.productVariant?.product?.name}</Text>
-                  {item.productVariant?.variantName && (
+                  <Text style={S.tdBold}>{item.productVariant?.product?.name ?? item.customProductName ?? "Manual Entry"}</Text>
+                  {item.productVariant?.variantName && item.productVariant.variantName !== "Default" && (
                     <Text style={[S.tdMuted, { marginTop: 2 }]}>
                       {item.productVariant.variantName}
                     </Text>

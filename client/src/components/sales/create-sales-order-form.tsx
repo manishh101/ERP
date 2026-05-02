@@ -31,12 +31,22 @@ export function CreateSalesOrderForm({ onClose }: CreateSalesOrderFormProps) {
     isCustomOrder: false,
     expectedReadyDate: "",
   });
-  
-  const [lineItems, setLineItems] = useState([{ 
+  const [lineItems, setLineItems] = useState<Array<{
+    productVariantId?: string;
+    customProductName?: string;
+    quantity: string;
+    unitPrice: string;
+    discountPct: string;
+    isCustom: boolean;
+    fabricColor: string;
+    woodFinish: string;
+    customizationNotes: string;
+  }>>([{ 
     productVariantId: "", 
+    customProductName: undefined,
     quantity: "", 
     unitPrice: "", 
-    discountPct: "",
+    discountPct: "0",
     isCustom: false,
     fabricColor: "",
     woodFinish: "",
@@ -49,9 +59,9 @@ export function CreateSalesOrderForm({ onClose }: CreateSalesOrderFormProps) {
       return;
     }
 
-    const validLineItems = lineItems.filter(item => item.productVariantId && Number(item.quantity) > 0);
+    const validLineItems = lineItems.filter(item => (item.productVariantId || item.customProductName) && Number(item.quantity) > 0);
     if (validLineItems.length === 0) {
-      toast("Validation failed", { description: "Please add at least one valid line item." });
+      toast("Validation failed", { description: "Please add at least one valid line item with quantity." });
       return;
     }
 
@@ -65,7 +75,8 @@ export function CreateSalesOrderForm({ onClose }: CreateSalesOrderFormProps) {
         isCustomOrder: formData.isCustomOrder,
         expectedReadyDate: formData.expectedReadyDate ? new Date(formData.expectedReadyDate).toISOString() : undefined,
         lineItems: validLineItems.map(item => ({
-          productVariantId: item.productVariantId,
+          productVariantId: item.productVariantId || undefined,
+          customProductName: item.customProductName || undefined,
           quantity: Number(item.quantity),
           unitPrice: Number(item.unitPrice),
           discountPct: Number(item.discountPct),
@@ -219,9 +230,10 @@ export function CreateSalesOrderForm({ onClose }: CreateSalesOrderFormProps) {
                 size="sm"
                 onClick={() => setLineItems([...lineItems, { 
                   productVariantId: "", 
+                  customProductName: undefined,
                   quantity: "", 
                   unitPrice: "", 
-                  discountPct: "",
+                  discountPct: "0",
                   isCustom: false,
                   fabricColor: "",
                   woodFinish: "",
@@ -237,45 +249,81 @@ export function CreateSalesOrderForm({ onClose }: CreateSalesOrderFormProps) {
             
             return (
               <div key={index} className="grid gap-3 md:grid-cols-12 items-center bg-white p-4 rounded-xl border border-border">
-                <div className="md:col-span-3">
-                  <select 
-                    className="flex h-11 w-full rounded-2xl border border-border bg-white/90 px-4 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    value={products.data?.items.find(p => p.defaultVariantId === item.productVariantId)?.id || ""}
-                    onChange={(e) => {
-                      const productId = e.target.value;
-                      const newItems = [...lineItems];
-                      const selectedProduct = products.data?.items.find(p => p.id === productId);
-                      
-                      if (selectedProduct) {
-                        newItems[index].productVariantId = selectedProduct.defaultVariantId;
-                        newItems[index].unitPrice = String(selectedProduct.sellingPrice);
-                        if (!newItems[index].quantity) newItems[index].quantity = "1";
-                        if (!newItems[index].discountPct) newItems[index].discountPct = "0";
-                      } else {
-                        newItems[index].productVariantId = "";
-                      }
-                      setLineItems(newItems);
-                    }}
-                  >
-                    <option value="">Select a Product</option>
-                    {products.data?.items.map(p => {
-                      const sizeDisplay = p.sizeLabel && p.sizeLabel !== "Standard" 
-                        ? p.sizeLabel 
-                        : (p.height || p.width || p.length) 
-                          ? `${p.height || 0}x${p.width || 0}x${p.length || 0}`
-                          : "";
-                      return (
-                        <option key={p.id} value={p.id}>
-                          {p.name} ({p.sku}) {sizeDisplay ? `- ${sizeDisplay}` : ""}
-                        </option>
-                      );
-                    })}
-                  </select>
+                <div className="md:col-span-4 flex flex-col gap-1">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-bold uppercase text-muted-foreground ml-1">Product</label>
+                    <button 
+                      type="button"
+                      className="text-[10px] text-primary hover:underline font-medium"
+                      onClick={() => {
+                        const newItems = [...lineItems];
+                        if (newItems[index].customProductName === undefined) {
+                          // Switch to Manual
+                          newItems[index].productVariantId = undefined;
+                          newItems[index].customProductName = "";
+                        } else {
+                          // Switch to Catalog
+                          newItems[index].productVariantId = "";
+                          newItems[index].customProductName = undefined;
+                        }
+                        setLineItems(newItems);
+                      }}
+                    >
+                      {item.customProductName !== undefined ? "Select from catalog" : "Enter manually"}
+                    </button>
+                  </div>
+                  {item.customProductName !== undefined ? (
+                    <Input 
+                      placeholder="Enter product name..."
+                      className="h-11 rounded-2xl border-primary/20 focus:border-primary"
+                      value={item.customProductName}
+                      onChange={(e) => {
+                        const newItems = [...lineItems];
+                        newItems[index].customProductName = e.target.value;
+                        setLineItems(newItems);
+                      }}
+                    />
+                  ) : (
+                    <select 
+                      className="flex h-11 w-full rounded-2xl border border-border bg-white/90 px-4 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      value={products.data?.items.find(p => p.defaultVariantId === item.productVariantId)?.id || ""}
+                      onChange={(e) => {
+                        const productId = e.target.value;
+                        const newItems = [...lineItems];
+                        const selectedProduct = products.data?.items.find(p => p.id === productId);
+                        
+                        if (selectedProduct) {
+                          newItems[index].productVariantId = selectedProduct.defaultVariantId;
+                          newItems[index].unitPrice = String(selectedProduct.sellingPrice);
+                          if (!newItems[index].quantity) newItems[index].quantity = "1";
+                        } else {
+                          newItems[index].productVariantId = "";
+                        }
+                        setLineItems(newItems);
+                      }}
+                    >
+                      <option value="">Select a Product</option>
+                      {products.data?.items.map(p => {
+                        const sizeDisplay = p.sizeLabel && p.sizeLabel !== "Standard" 
+                          ? p.sizeLabel 
+                          : (p.height || p.width || p.length) 
+                            ? `${p.height || 0}x${p.width || 0}x${p.length || 0}`
+                            : "";
+                        return (
+                          <option key={p.id} value={p.id}>
+                            {p.name} ({p.sku}) {sizeDisplay ? `- ${sizeDisplay}` : ""}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  )}
                 </div>
-                <div className="md:col-span-2">
+                <div className="md:col-span-1">
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground ml-1 mb-1 block">Qty</label>
                   <Input 
-                    placeholder="Qty" 
+                    placeholder="0" 
                     type="number"
+                    className="h-11 rounded-2xl"
                     value={item.quantity} 
                     onChange={(e) => {
                       const newItems = [...lineItems];
@@ -285,10 +333,12 @@ export function CreateSalesOrderForm({ onClose }: CreateSalesOrderFormProps) {
                   />
                 </div>
                 <div className="md:col-span-2">
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground ml-1 mb-1 block">Unit Price</label>
                   <Input 
-                    placeholder="Unit Price" 
+                    placeholder="0.00" 
                     type="number"
                     step="0.01"
+                    className="h-11 rounded-2xl"
                     value={item.unitPrice} 
                     onChange={(e) => {
                       const newItems = [...lineItems];
@@ -298,10 +348,12 @@ export function CreateSalesOrderForm({ onClose }: CreateSalesOrderFormProps) {
                   />
                 </div>
                 <div className="md:col-span-2">
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground ml-1 mb-1 block">Disc %</label>
                   <Input 
-                    placeholder="Discount %" 
+                    placeholder="0" 
                     type="number"
                     step="0.1"
+                    className="h-11 rounded-2xl"
                     value={item.discountPct} 
                     onChange={(e) => {
                       const newItems = [...lineItems];
@@ -311,11 +363,12 @@ export function CreateSalesOrderForm({ onClose }: CreateSalesOrderFormProps) {
                   />
                 </div>
                 <div className="md:col-span-2">
-                  <div className="h-11 flex items-center px-4 bg-muted/30 rounded-2xl text-sm font-medium">
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground ml-1 mb-1 block">Line Total</label>
+                  <div className="h-11 flex items-center px-4 bg-primary/10 rounded-2xl text-sm font-bold text-primary">
                     {formatCurrency(rowTotal)}
                   </div>
                 </div>
-                <div className="md:col-span-1 flex justify-end">
+                <div className="md:col-span-1 flex justify-end pt-5">
                   <Button 
                     variant="ghost" 
                     className="text-red-500 hover:text-red-600 hover:bg-red-50 rounded-full w-9 h-9 p-0"

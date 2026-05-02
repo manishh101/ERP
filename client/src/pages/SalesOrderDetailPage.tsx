@@ -233,7 +233,7 @@ export function SalesOrderDetailPage() {
                         return (
                           <TableRow key={li.id}>
                             <TableCell>
-                              <p className="font-medium">{product?.name ?? "Unknown"}</p>
+                              <p className="font-medium">{product?.name ?? li.customProductName ?? "Manual Entry"}</p>
                               {variant?.variantName && variant.variantName !== "Default" && (
                                 <p className="text-xs text-muted-foreground">{variant.variantName}</p>
                               )}

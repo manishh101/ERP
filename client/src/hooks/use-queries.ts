@@ -1355,7 +1355,8 @@ export type SalesOrderCreatePayload = {
   assemblyNotes?: string;
   deliveryFloor?: number;
   lineItems: Array<{
-    productVariantId: string;
+    productVariantId?: string;
+    customProductName?: string;
     quantity: number;
     unitPrice: number;
     discountPct: number;
@@ -1498,7 +1499,8 @@ export type InvoiceCreatePayload = {
   dueDate?: string;
   status: string;
   lineItems: Array<{
-    productVariantId: string;
+    productVariantId?: string;
+    customProductName?: string;
     quantity: number;
     unitPrice: number;
     discountPct: number;

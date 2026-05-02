@@ -166,7 +166,8 @@ export const customerSchema = z.object({
 });
 
 export const salesOrderLineItemSchema = z.object({
-  productVariantId: z.string().min(1),
+  productVariantId: z.string().min(1).optional(),
+  customProductName: z.string().min(1).optional(),
   quantity: z.coerce.number().int().min(1),
   unitPrice: decimalNumber,
   discountPct: z.coerce.number().min(0).max(100).default(0),
@@ -174,6 +175,9 @@ export const salesOrderLineItemSchema = z.object({
   fabricColor: z.string().optional(),
   woodFinish: z.string().optional(),
   customizationNotes: z.string().optional(),
+}).refine(data => data.productVariantId || data.customProductName, {
+  message: "Either productVariantId or customProductName must be provided",
+  path: ["productVariantId"]
 });
 
 export const salesOrderSchema = z.object({
@@ -199,10 +203,14 @@ export const recordDepositSchema = z.object({
 });
 
 export const taxInvoiceLineItemSchema = z.object({
-  productVariantId: z.string().min(1),
+  productVariantId: z.string().min(1).optional(),
+  customProductName: z.string().min(1).optional(),
   quantity: z.coerce.number().int().min(1),
   unitPrice: decimalNumber,
   discountPct: z.coerce.number().min(0).max(100).default(0),
+}).refine(data => data.productVariantId || data.customProductName, {
+  message: "Either productVariantId or customProductName must be provided",
+  path: ["productVariantId"]
 });
 
 export const taxInvoiceSchema = z.object({

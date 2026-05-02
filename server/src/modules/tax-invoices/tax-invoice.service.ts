@@ -17,7 +17,13 @@ import { postEntry } from "../vat-register/vat-register.service";
 
 export interface CreateTaxInvoiceInput {
   salesOrderId: string;
-  lineItems: { productVariantId: string; quantity: number; unitPrice: number; discountPct: number }[];
+  lineItems: { 
+    productVariantId?: string; 
+    customProductName?: string;
+    quantity: number; 
+    unitPrice: number; 
+    discountPct: number 
+  }[];
   invoiceType: "VAT" | "PAN" | "ESTIMATE";
   bsDate: string;
   fiscalYear: string;
@@ -103,7 +109,8 @@ export async function createTaxInvoice(
         status: "SENT",
         lineItems: {
           create: input.lineItems.map((item) => ({
-            productVariantId: item.productVariantId,
+            productVariantId: item.productVariantId || null,
+            customProductName: item.customProductName,
             quantity: item.quantity,
             unitPrice: item.unitPrice,
             discountPct: item.discountPct,
@@ -228,8 +235,11 @@ export async function buildCbmsPayload(invoiceId: string): Promise<CbmsPayload> 
     lineItems: invoice.lineItems.map((li) => {
       const lineTotal =
         li.quantity * Number(li.unitPrice) * (1 - Number(li.discountPct) / 100);
+      const productName = li.productVariant 
+        ? `${li.productVariant.product.name} / ${li.productVariant.variantName}`
+        : li.customProductName || "Custom Item";
       return {
-        productName: `${li.productVariant.product.name} / ${li.productVariant.variantName}`,
+        productName,
         quantity: li.quantity,
         unitPrice: Number(li.unitPrice),
         discountPct: Number(li.discountPct),

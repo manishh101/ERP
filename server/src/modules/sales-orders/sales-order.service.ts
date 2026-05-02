@@ -12,7 +12,8 @@ import { createTaxInvoice } from "../tax-invoices/tax-invoice.service";
 export async function createOrder(input: {
   customerId: string;
   lineItems: Array<{ 
-    productVariantId: string; 
+    productVariantId?: string; 
+    customProductName?: string;
     quantity: number; 
     unitPrice: number; 
     discountPct?: number;
@@ -69,7 +70,8 @@ export async function createOrder(input: {
         deliveryFloor: input.deliveryFloor,
         lineItems: {
           create: input.lineItems.map(item => ({
-            productVariantId: item.productVariantId,
+            productVariantId: item.productVariantId || null,
+            customProductName: item.customProductName,
             quantity: item.quantity,
             unitPrice: item.unitPrice,
             discountPct: item.discountPct ?? 0,
@@ -172,6 +174,7 @@ export async function createOrder(input: {
       salesOrderId: order.id,
       lineItems: input.lineItems.map(item => ({
         productVariantId: item.productVariantId,
+        customProductName: item.customProductName,
         quantity: item.quantity,
         unitPrice: item.unitPrice,
         discountPct: item.discountPct ?? 0,
@@ -198,6 +201,7 @@ export async function confirmOrder(orderId: string) {
 
     // Stock Reservation Logic (Bug 6 fix)
     for (const item of order.lineItems) {
+      if (!item.productVariantId) continue;
       const variant = await tx.productVariant.findUnique({
         where: { id: item.productVariantId }
       });
@@ -244,6 +248,7 @@ export async function cancelOrder(orderId: string) {
     if (order.status === "CONFIRMED" || order.status === "IN_WAREHOUSE" || order.status === "DISPATCHED" || order.status === "OUT_FOR_DELIVERY") {
       // Revert stock reservation
       for (const item of order.lineItems) {
+        if (!item.productVariantId) continue;
         const variant = await tx.productVariant.findUnique({
           where: { id: item.productVariantId }
         });

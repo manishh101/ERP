@@ -49,8 +49,10 @@ export function CreateInvoiceForm({ onClose, defaultSoId = "", defaultInvoiceTyp
     if (fullOrder.data?.lineItems && lineItems.length === 0) {
       setLineItems(
         fullOrder.data.lineItems.map((item: any) => ({
-          productVariantId: item.productVariantId,
-          productName: item.productVariant.product.name + (item.productVariant.variantName !== "Default" ? ` (${item.productVariant.variantName})` : ""),
+          productVariantId: item.productVariantId || "",
+          productName: item.productVariant 
+            ? item.productVariant.product.name + (item.productVariant.variantName !== "Default" ? ` (${item.productVariant.variantName})` : "")
+            : item.customProductName || "Custom Item",
           quantity: String(item.quantity),
           unitPrice: String(item.unitPrice),
           discountPct: String(item.discountPct || "0"),
@@ -105,7 +107,8 @@ export function CreateInvoiceForm({ onClose, defaultSoId = "", defaultInvoiceTyp
       await createInvoice.mutateAsync({
         soId: formData.soId,
         lineItems: lineItems.map(item => ({
-          productVariantId: item.productVariantId,
+          productVariantId: item.productVariantId || undefined,
+          customProductName: !item.productVariantId ? item.productName : undefined,
           quantity: Number(item.quantity),
           unitPrice: Number(item.unitPrice),
           discountPct: Number(item.discountPct)

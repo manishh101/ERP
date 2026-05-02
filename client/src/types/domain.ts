@@ -35,6 +35,13 @@ export type DashboardRecentSalesOrder = {
   total: number;
 };
 
+export type SalesOrderLineItem = {
+  id: string;
+  productVariantId?: string;
+  customProductName?: string;
+  quantity: number;
+};
+
 export type DashboardLowStockItem = {
   id: string;
   product: string;
