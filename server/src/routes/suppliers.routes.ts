@@ -7,6 +7,7 @@ import { idParamSchema, listQuerySchema, supplierInvoiceSchema, supplierSchema }
 import { getApAgingReport } from "../services/report.service";
 import { getPagination } from "../utils/pagination";
 import { toNumber } from "../utils/number";
+import { ApiError } from "../utils/api-error";
 
 export const suppliersRouter = Router();
 
@@ -184,3 +185,29 @@ suppliersRouter.get(
     });
   }),
 );
+
+suppliersRouter.delete(
+  "/:id",
+  requireRole(["ADMIN"]),
+  validate(idParamSchema, "params"),
+  asyncHandler(async (request, response) => {
+    const params = request.validated?.params as { id: string };
+
+    // Check for existing purchase orders
+    const poCount = await prisma.purchaseOrder.count({
+      where: { supplierId: params.id },
+    });
+
+    if (poCount > 0) {
+      throw new ApiError(400, "Cannot delete supplier with existing purchase orders.");
+    }
+
+    await prisma.supplier.delete({
+      where: { id: params.id },
+    });
+
+    response.json({ message: "Supplier deleted successfully" });
+  }),
+);
+
+export default suppliersRouter;

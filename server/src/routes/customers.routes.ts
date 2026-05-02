@@ -169,4 +169,28 @@ customersRouter.get(
   }),
 );
 
+customersRouter.delete(
+  "/:id",
+  requireRole(["ADMIN"]),
+  validate(idParamSchema, "params"),
+  asyncHandler(async (request, response) => {
+    const params = request.validated?.params as { id: string };
+
+    // Check for existing sales orders
+    const salesOrderCount = await prisma.salesOrder.count({
+      where: { customerId: params.id },
+    });
+
+    if (salesOrderCount > 0) {
+      throw new ApiError(400, "Cannot delete party with existing sales orders. Please archive or void orders first.");
+    }
+
+    await prisma.customer.delete({
+      where: { id: params.id },
+    });
+
+    response.json({ message: "Party deleted successfully" });
+  }),
+);
+
 export default customersRouter;

@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { toast } from "sonner";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import type { ColumnDef } from "@tanstack/react-table";
 import {
   ArrowLeft,
@@ -13,6 +14,7 @@ import {
   FileText,
   Plus,
   Banknote,
+  Trash2,
 } from "lucide-react";
 import { DataTable } from "@/components/shared/data-table";
 import { PageHeader } from "@/components/shared/page-header";
@@ -40,7 +42,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useCustomerQuery, useCustomerLedgerQuery } from "@/hooks/use-queries";
+import {
+  useCustomerQuery,
+  useCustomerLedgerQuery,
+  useDeleteCustomerMutation,
+} from "@/hooks/use-queries";
 import { getErrorMessage } from "@/lib/api";
 import { formatCurrency, formatDate, toNumber } from "@/lib/utils";
 import { CreateCustomerForm } from "@/components/sales/create-customer-form";
@@ -108,12 +114,29 @@ const salesOrderColumns: ColumnDef<any, unknown>[] = [
 
 export function PartyProfilePage() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const { data: customer, error, isLoading } = useCustomerQuery(id!);
   const { data: ledgerData } = useCustomerLedgerQuery(id!);
+  const deleteMutation = useDeleteCustomerMutation();
+
   const [isEditing, setIsEditing] = useState(false);
   const [isLedgerOpen, setIsLedgerOpen] = useState(false);
   const [isNewOrderOpen, setIsNewOrderOpen] = useState(false);
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+
+  const handleDelete = async () => {
+    try {
+      await deleteMutation.mutateAsync(id!);
+      toast.success("Profile deleted successfully");
+      navigate("/parties");
+    } catch (err) {
+      toast.error("Failed to delete profile", {
+        description: getErrorMessage(err),
+      });
+      console.error(err);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -205,6 +228,14 @@ export function PartyProfilePage() {
           >
             <Edit className="h-4 w-4" />
             {isEditing ? "Cancel" : "Edit"}
+          </Button>
+          <Button
+            variant="outline"
+            className="gap-2 text-destructive hover:bg-destructive/10"
+            onClick={() => setIsDeleteDialogOpen(true)}
+          >
+            <Trash2 className="h-4 w-4" />
+            Delete Profile
           </Button>
         </div>
       </div>
@@ -397,7 +428,6 @@ export function PartyProfilePage() {
         </SheetContent>
       </Sheet>
 
-      {/* Record Payment Dialog */}
       {isPaymentOpen && orders.length > 0 && (
         <RecordDepositModal
           orderId={orders[0]?.id ?? ""}
@@ -405,6 +435,35 @@ export function PartyProfilePage() {
           onClose={() => setIsPaymentOpen(false)}
         />
       )}
+
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Party Profile</DialogTitle>
+            <CardDescription>
+              Are you sure you want to delete **{customer.name}**? This action
+              cannot be undone. You can only delete parties with no existing
+              sales orders.
+            </CardDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-3 mt-4">
+            <Button
+              variant="outline"
+              onClick={() => setIsDeleteDialogOpen(false)}
+              disabled={deleteMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={deleteMutation.isPending}
+            >
+              {deleteMutation.isPending ? "Deleting..." : "Confirm Delete"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { toast } from "sonner";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import type { ColumnDef } from "@tanstack/react-table";
 import {
   ArrowLeft,
@@ -9,6 +10,7 @@ import {
   MapPin,
   Phone,
   Plus,
+  Trash2,
 } from "lucide-react";
 import { DataTable } from "@/components/shared/data-table";
 import { PageHeader } from "@/components/shared/page-header";
@@ -28,9 +30,18 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { useSupplierQuery } from "@/hooks/use-queries";
+import {
+  useSupplierQuery,
+  useDeleteSupplierMutation,
+} from "@/hooks/use-queries";
 import { getErrorMessage } from "@/lib/api";
 import { formatCurrency, formatDate, toNumber } from "@/lib/utils";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { CreateSupplierForm } from "@/components/purchasing/create-supplier-form";
 import { CreatePurchaseOrderForm } from "@/components/purchasing/create-po-form";
 
@@ -76,9 +87,26 @@ const purchaseOrderColumns: ColumnDef<any, unknown>[] = [
 
 export function SupplierProfilePage() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const { data: supplier, error, isLoading } = useSupplierQuery(id!);
+  const deleteMutation = useDeleteSupplierMutation();
+
   const [isEditing, setIsEditing] = useState(false);
   const [isNewPoOpen, setIsNewPoOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+
+  const handleDelete = async () => {
+    try {
+      await deleteMutation.mutateAsync(id!);
+      toast.success("Supplier deleted successfully");
+      navigate("/suppliers");
+    } catch (err) {
+      toast.error("Failed to delete supplier", {
+        description: getErrorMessage(err),
+      });
+      console.error(err);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -136,6 +164,14 @@ export function SupplierProfilePage() {
           >
             <Plus className="h-4 w-4" />
             New PO
+          </Button>
+          <Button
+            variant="outline"
+            className="gap-2 text-destructive hover:bg-destructive/10"
+            onClick={() => setIsDeleteDialogOpen(true)}
+          >
+            <Trash2 className="h-4 w-4" />
+            Delete Profile
           </Button>
         </div>
       </div>
@@ -249,6 +285,35 @@ export function SupplierProfilePage() {
           </div>
         </SheetContent>
       </Sheet>
+
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Supplier Profile</DialogTitle>
+            <CardDescription>
+              Are you sure you want to delete **{supplier.name}**? This action
+              cannot be undone. You can only delete suppliers with no existing
+              purchase orders.
+            </CardDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-3 mt-4">
+            <Button
+              variant="outline"
+              onClick={() => setIsDeleteDialogOpen(false)}
+              disabled={deleteMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={deleteMutation.isPending}
+            >
+              {deleteMutation.isPending ? "Deleting..." : "Confirm Delete"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -1135,6 +1135,21 @@ export function useCreateSupplierMutation() {
   });
 }
 
+export function useDeleteSupplierMutation() {
+  const { token } = useAuth();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest<{ message: string }>(`/suppliers/${id}`, {
+        method: "DELETE",
+        token: token!,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["suppliers"] });
+    },
+  });
+}
+
 export function useSuppliersQuery() {
   const { token } = useAuth();
 
@@ -1343,6 +1358,21 @@ export function useUpdateCustomerMutation() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["customers"] });
       queryClient.invalidateQueries({ queryKey: ["customer", variables.id] });
+    },
+  });
+}
+
+export function useDeleteCustomerMutation() {
+  const { token } = useAuth();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest<{ message: string }>(`/customers/${id}`, {
+        method: "DELETE",
+        token: token!,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
     },
   });
 }
