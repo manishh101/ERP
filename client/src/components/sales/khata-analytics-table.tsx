@@ -26,6 +26,7 @@ type MonthRow = {
 interface KhataAnalyticsTableProps {
   ledgerEntries: ArLedgerEntry[];
   salesOrders: Array<{
+    id?: string;
     orderDate?: string;
     grandTotal?: number | string;
     orderAmount?: number | string;

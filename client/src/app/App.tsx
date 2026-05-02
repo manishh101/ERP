@@ -15,10 +15,13 @@ import { ProductDetailPage } from "@/pages/ProductDetailPage";
 import { PartiesPage } from "@/pages/PartiesPage";
 import { PartyProfilePage } from "@/pages/PartyProfilePage";
 import { PurchasingPage } from "@/pages/PurchasingPage";
+import { PurchaseOrderDetailPage } from "@/pages/PurchaseOrderDetailPage";
 import { ReportingPage } from "@/pages/ReportingPage";
 import { SalesOrderDetailPage } from "@/pages/SalesOrderDetailPage";
 import { SalesPage } from "@/pages/SalesPage";
 import { SettingsPage } from "@/pages/SettingsPage";
+import { SuppliersPage } from "@/pages/SuppliersPage";
+import { SupplierProfilePage } from "@/pages/SupplierProfilePage";
 import { UsersPage } from "@/pages/UsersPage";
 
 function ProtectedAppShell() {
@@ -51,9 +54,12 @@ export function App() {
         <Route path="/inventory" element={<InventoryPage />} />
         <Route path="/inventory/products/:productId" element={<ProductDetailPage />} />
         <Route path="/purchasing" element={<PurchasingPage />} />
+        <Route path="/purchasing/:id" element={<PurchaseOrderDetailPage />} />
         {/* Parties directory */}
         <Route path="/parties" element={<PartiesPage />} />
         <Route path="/parties/:id" element={<PartyProfilePage />} />
+        <Route path="/suppliers" element={<SuppliersPage />} />
+        <Route path="/suppliers/:id" element={<SupplierProfilePage />} />
         <Route path="/sales" element={<SalesPage />} />
         <Route path="/sales/:id" element={<SalesOrderDetailPage />} />
         <Route path="/invoicing" element={<InvoicingPage />} />

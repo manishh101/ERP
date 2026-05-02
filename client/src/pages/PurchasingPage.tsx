@@ -14,29 +14,29 @@ import {
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import {
   usePurchaseOrderMatchMutation,
   usePurchaseOrdersQuery,
   useReceivePurchaseOrderMutation,
-  useSuppliersQuery,
 } from "@/hooks/use-queries";
 import { getErrorMessage } from "@/lib/api";
 import { formatCurrency, formatDate, formatNumber } from "@/lib/utils";
 import type {
   PurchaseOrderMatchSummary,
   PurchaseOrderRow,
-  SupplierRow,
 } from "@/types/domain";
-import { CreateSupplierForm } from "@/components/purchasing/create-supplier-form";
 import { CreatePurchaseOrderForm } from "@/components/purchasing/create-po-form";
+import { useNavigate } from "react-router-dom";
 
 export function PurchasingPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
 
-  const {
-    data: suppliers,
-    error: suppliersError,
-    isLoading: suppliersLoading,
-  } = useSuppliersQuery();
   const {
     data: purchaseOrders,
     error: purchaseOrdersError,
@@ -49,7 +49,6 @@ export function PurchasingPage() {
   const [matchResults, setMatchResults] = useState<
     Record<string, PurchaseOrderMatchSummary>
   >({});
-  const [createSupplierOpen, setCreateSupplierOpen] = useState(false);
   const [createPoOpen, setCreatePoOpen] = useState(false);
 
   const canRunMatch =
@@ -59,33 +58,6 @@ export function PurchasingPage() {
   const canReceive = user?.role === "ADMIN" || user?.role === "WAREHOUSE";
   const matchingPurchaseOrderId = matchPurchaseOrder.variables?.id ?? null;
   const receivingPurchaseOrderId = receivePurchaseOrder.variables?.id ?? null;
-
-  const supplierColumns: ColumnDef<SupplierRow>[] = useMemo(
-    () => [
-      { accessorKey: "name", header: "Supplier Name" },
-      { accessorKey: "country", header: "Country" },
-      { accessorKey: "leadTime", header: "Lead Time" },
-      {
-        accessorKey: "onTimeRate",
-        header: "On-time Rate",
-        cell: ({ row }) => (
-          <span className="font-semibold text-emerald-600">
-            {row.getValue("onTimeRate")}
-          </span>
-        ),
-      },
-      {
-        accessorKey: "spend",
-        header: () => <div className="text-right">Spend</div>,
-        cell: ({ row }) => (
-          <div className="text-right tabular-nums font-medium">
-            {formatCurrency(row.getValue("spend") as number)}
-          </div>
-        ),
-      },
-    ],
-    [],
-  );
 
   const poColumns: ColumnDef<PurchaseOrderRow>[] = useMemo(
     () => [
@@ -177,6 +149,10 @@ export function PurchasingPage() {
 
     return [
       {
+        label: "View Details",
+        onClick: () => navigate(`/purchasing/${order.id}`),
+      },
+      {
         label:
           matchPurchaseOrder.isPending && matchingPurchaseOrderId === order.id
             ? "Matching..."
@@ -234,69 +210,20 @@ export function PurchasingPage() {
     ];
   };
 
-  if (suppliersLoading) return <Skeleton className="h-[420px]" />;
-  if (suppliersError) {
-    return (
-      <Card>
-        <CardContent className="py-10">
-          <p className="font-semibold">Supplier data could not be loaded.</p>
-          <p className="mt-2 text-sm text-muted-foreground">
-            {getErrorMessage(suppliersError)}
-          </p>
-        </CardContent>
-      </Card>
-    );
-  }
-  if (!suppliers) return null;
+  if (purchaseOrdersLoading) return <Skeleton className="h-[420px]" />;
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Purchasing & Suppliers"
+        title="Purchase Orders"
         actions={[
           {
-            label: createSupplierOpen ? "Close Supplier Form" : "New Supplier",
-            onClick: () => {
-              setCreateSupplierOpen((c) => !c);
-              setCreatePoOpen(false);
-            },
-          },
-          {
-            label: createPoOpen ? "Close PO Form" : "New Purchase Order",
+            label: "New Purchase Order",
             variant: "default",
-            onClick: () => {
-              setCreatePoOpen((c) => !c);
-              setCreateSupplierOpen(false);
-            },
+            onClick: () => setCreatePoOpen(true),
           },
         ]}
       />
-
-      {createSupplierOpen && (
-        <CreateSupplierForm onClose={() => setCreateSupplierOpen(false)} />
-      )}
-      {createPoOpen && (
-        <CreatePurchaseOrderForm onClose={() => setCreatePoOpen(false)} />
-      )}
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Supplier Directory</CardTitle>
-          <CardDescription>
-            On-time delivery rate, average lead time, and total spend by
-            supplier.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <DataTable
-            columns={supplierColumns}
-            data={suppliers.items}
-            searchPlaceholder="Search suppliers..."
-            pageSize={10}
-            emptyMessage="No suppliers found."
-          />
-        </CardContent>
-      </Card>
 
       <Card>
         <CardHeader>
@@ -321,6 +248,7 @@ export function PurchasingPage() {
               columns={poColumns}
               data={purchaseOrders?.items || []}
               actions={poActions}
+              onRowClick={(row) => navigate(`/purchasing/${row.id}`)}
               searchPlaceholder="Search POs..."
               pageSize={15}
               emptyMessage="No purchase orders found."
@@ -335,6 +263,17 @@ export function PurchasingPage() {
           ) : null}
         </CardContent>
       </Card>
+
+      <Sheet open={createPoOpen} onOpenChange={setCreatePoOpen}>
+        <SheetContent className="sm:max-w-[90vw] overflow-y-auto p-0">
+          <SheetHeader className="px-6 pt-6">
+            <SheetTitle>Create Purchase Order</SheetTitle>
+          </SheetHeader>
+          <div className="px-6 pb-6">
+            <CreatePurchaseOrderForm onClose={() => setCreatePoOpen(false)} />
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

@@ -1191,6 +1191,33 @@ export function useSuppliersQuery() {
   });
 }
 
+export type RawSupplierProfile = {
+  id: string;
+  name: string;
+  country: string;
+  email?: string | null;
+  phone?: string | null;
+  address?: string | null;
+  leadTimeDays: number;
+  creditLimit: number | string;
+  outstandingBalance: number | string;
+  purchaseOrders: Array<any>;
+  supplierInvoices: Array<any>;
+};
+
+export function useSupplierQuery(id?: string) {
+  const { token } = useAuth();
+  return useQuery({
+    queryKey: ["supplier", id, token],
+    enabled: Boolean(token) && Boolean(id),
+    queryFn: async () => {
+      return apiRequest<RawSupplierProfile>(`/suppliers/${id}`, {
+        token: token!,
+      });
+    },
+  });
+}
+
 export type PurchaseOrderCreatePayload = {
   supplierId: string;
   status: string;
@@ -1239,6 +1266,20 @@ export function usePurchaseOrdersQuery() {
         ...response,
         items: response.items.map(mapPurchaseOrder),
       };
+    },
+  });
+}
+
+export function usePurchaseOrderQuery(id?: string) {
+  const { token } = useAuth();
+  return useQuery({
+    queryKey: ["purchase-order", id, token],
+    enabled: Boolean(token) && Boolean(id),
+    queryFn: async () => {
+      const response = await apiRequest<RawPurchaseOrder>(`/purchase-orders/${id}`, {
+        token: token!,
+      });
+      return mapPurchaseOrder(response);
     },
   });
 }

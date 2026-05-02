@@ -59,13 +59,13 @@ export const dashboardData: DashboardPayload = {
   ],
 };
 
-export const inventoryProducts: ProductRow[] = [
+export const inventoryProducts: ProductRow[] = ([
   { id: "p1", name: "Monarch Sofa", sku: "SOF-MON-001", category: "Sofa", material: "Walnut / Linen", status: "Active", stock: 14, margin: 38, valuation: 7840 },
   { id: "p2", name: "Aster Dining Set", sku: "DIN-AST-002", category: "Dining", material: "Oak / Stone", status: "Active", stock: 6, margin: 32, valuation: 3360 },
   { id: "p3", name: "Luna Bed Frame", sku: "BED-LUN-003", category: "Bedroom", material: "Ash / Upholstered", status: "Active", stock: 4, margin: 35, valuation: 2240 },
   { id: "p4", name: "Vela Executive Desk", sku: "OFF-VEL-004", category: "Office", material: "Steel / Walnut", status: "Active", stock: 9, margin: 41, valuation: 5040 },
   { id: "p5", name: "Harbor Lounge Chair", sku: "OUT-HAR-005", category: "Outdoor", material: "Teak / Rope", status: "Discontinued", stock: 2, margin: 28, valuation: 1120 },
-];
+] as any[]);
 
 export const suppliers: SupplierRow[] = [
   { id: "sup1", name: "Kathmandu Woodcraft", country: "Nepal", leadTime: "8 days", onTimeRate: "95%", spend: 48200 },
@@ -73,24 +73,24 @@ export const suppliers: SupplierRow[] = [
   { id: "sup3", name: "Pacific Foam Works", country: "China", leadTime: "21 days", onTimeRate: "83%", spend: 39800 },
 ];
 
-export const salesOrders: SalesOrderRow[] = [
+export const salesOrders: SalesOrderRow[] = ([
   { id: "SO-2026-0038", customer: "Evergreen Homes", status: "Out for Delivery", deliveryDate: "2026-03-22", balanceDue: 4200 },
   { id: "SO-2026-0037", customer: "Mia Thompson", status: "Deposit Paid", deliveryDate: "2026-03-24", balanceDue: 2100 },
   { id: "SO-2026-0036", customer: "Urban Nest Studio", status: "Confirmed", deliveryDate: "2026-03-26", balanceDue: 12940 },
   { id: "SO-2026-0035", customer: "Cedar Lane Hotels", status: "Delivered", deliveryDate: "2026-03-19", balanceDue: 0 },
-];
+] as any[]);
 
-export const invoices: TaxInvoiceRow[] = [
+export const invoices: TaxInvoiceRow[] = ([
   { id: "inv1", invoiceNumber: "INV-2026-0007", customer: "Evergreen Homes", status: "Sent", dueDate: "2026-03-28", amount: 8600, balance: 4200 },
   { id: "inv2", invoiceNumber: "INV-2026-0006", customer: "Mia Thompson", status: "Partially Paid", dueDate: "2026-03-29", amount: 3200, balance: 2100 },
   { id: "inv3", invoiceNumber: "INV-2026-0005", customer: "Cedar Lane Hotels", status: "Paid", dueDate: "2026-03-17", amount: 21450, balance: 0 },
-];
+] as any[]);
 
-export const deliveries: DeliveryRow[] = [
+export const deliveries: DeliveryRow[] = ([
   { id: "DL-101", customer: "Evergreen Homes", driver: "Sanjay Driver", status: "Scheduled", scheduledDate: "2026-03-22", route: "Lalitpur / Ring Road" },
   { id: "DL-102", customer: "Mia Thompson", driver: "Sanjay Driver", status: "Out for Delivery", scheduledDate: "2026-03-21", route: "Bhaktapur / Suryabinayak" },
   { id: "DL-103", customer: "Cedar Lane Hotels", driver: "Priya Transport", status: "Delivered", scheduledDate: "2026-03-19", route: "Pokhara / Lakeside" },
-];
+] as any[]);
 
 export const reportCatalog: ReportCard[] = [
   {
