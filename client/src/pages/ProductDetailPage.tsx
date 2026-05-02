@@ -485,7 +485,7 @@ export function ProductDetailPage() {
                 <p className="text-sm leading-relaxed text-foreground">{product.description}</p>
               </div>
               
-              {(product.height || product.width || product.length) && (
+              {(product.height || product.width || product.length) ? (
                 <div className="rounded-xl bg-primary/5 border border-primary/10 p-4">
                   <p className="text-xs font-semibold uppercase tracking-wider text-primary mb-2">Physical Dimensions</p>
                   <div className="grid grid-cols-3 gap-4">
@@ -504,7 +504,12 @@ export function ProductDetailPage() {
                   </div>
                   <p className="mt-3 text-[10px] text-muted-foreground italic">Standard unit: Inches (in)</p>
                 </div>
-              )}
+              ) : product.sizeLabel && product.sizeLabel !== "Standard" ? (
+                <div className="rounded-xl bg-primary/5 border border-primary/10 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-primary mb-2">Specification</p>
+                  <p className="text-lg font-bold">{product.sizeLabel}</p>
+                </div>
+              ) : null}
             </CardContent>
           </Card>
 

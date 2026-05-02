@@ -258,11 +258,18 @@ export function CreateSalesOrderForm({ onClose }: CreateSalesOrderFormProps) {
                     }}
                   >
                     <option value="">Select a Product</option>
-                    {products.data?.items.map(p => (
-                      <option key={p.id} value={p.id}>
-                        {p.name} ({p.sku}) {p.height || p.width || p.length ? `- ${p.height || 0}x${p.width || 0}x${p.length || 0}` : ""}
-                      </option>
-                    ))}
+                    {products.data?.items.map(p => {
+                      const sizeDisplay = p.sizeLabel && p.sizeLabel !== "Standard" 
+                        ? p.sizeLabel 
+                        : (p.height || p.width || p.length) 
+                          ? `${p.height || 0}x${p.width || 0}x${p.length || 0}`
+                          : "";
+                      return (
+                        <option key={p.id} value={p.id}>
+                          {p.name} ({p.sku}) {sizeDisplay ? `- ${sizeDisplay}` : ""}
+                        </option>
+                      );
+                    })}
                   </select>
                 </div>
                 <div className="md:col-span-2">

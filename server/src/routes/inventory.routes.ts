@@ -182,6 +182,7 @@ inventoryRouter.get(
         id: variant.id,
         product: variant.product.name,
         variant: variant.variantName,
+        category: variant.product.category,
         stockQuantity: variant.stockQuantity,
         unitCost,
         method: "weighted_average",

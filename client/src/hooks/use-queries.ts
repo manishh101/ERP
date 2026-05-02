@@ -76,6 +76,7 @@ type RawProduct = {
   variants: Array<{
     id: string;
     stockQuantity: number | string;
+    sizeLabel?: string | null;
   }>;
 };
 
@@ -96,6 +97,7 @@ type RawProductHistoryResponse = {
     id: string;
     variantName: string;
     stockQuantity: number | string;
+    sizeLabel?: string | null;
     inventoryItems: Array<{
       id: string;
       quantity: number | string;
@@ -285,6 +287,7 @@ type RawInventoryValuationResponse = {
     id: string;
     product: string;
     variant: string;
+    category: string;
     stockQuantity: number | string;
     unitCost: number | string;
     totalValue: number | string;
@@ -562,6 +565,7 @@ function mapProduct(product: RawProduct): ProductRow {
     height: toNumber(product.height),
     width: toNumber(product.width),
     length: toNumber(product.length),
+    sizeLabel: product.variants[0]?.sizeLabel ?? undefined,
   };
 }
 
@@ -630,6 +634,7 @@ function mapProductDetail(product: RawProductHistoryResponse): ProductDetailPayl
     height: toNumber(product.height),
     width: toNumber(product.width),
     length: toNumber(product.length),
+    sizeLabel: product.variants[0]?.sizeLabel ?? undefined,
     imageUrls: product.imageUrls ?? [],
     variantRows,
     metrics: [
@@ -888,6 +893,7 @@ function mapInventoryValuation(item: RawInventoryValuationResponse["items"][numb
     id: item.id,
     product: item.product,
     variant: item.variant,
+    category: item.category,
     stockQuantity: toNumber(item.stockQuantity),
     unitCost: toNumber(item.unitCost),
     totalValue: toNumber(item.totalValue),

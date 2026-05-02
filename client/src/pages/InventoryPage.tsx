@@ -120,6 +120,7 @@ export function InventoryPage() {
           product.category,
           product.material,
           product.status,
+          product.sizeLabel || "",
         ]
           .join(" ")
           .toLowerCase()
@@ -135,7 +136,20 @@ export function InventoryPage() {
 
   const featuredValuationItems = useMemo(() => {
     if (!inventoryValuation.data) return [];
-    return [...inventoryValuation.data.items]
+    const categories = new Map<string, { category: string; totalValue: number; quantity: number }>();
+    
+    for (const item of inventoryValuation.data.items) {
+      const existing = categories.get(item.category) || {
+        category: item.category,
+        totalValue: 0,
+        quantity: 0,
+      };
+      existing.totalValue += item.totalValue;
+      existing.quantity += item.stockQuantity;
+      categories.set(item.category, existing);
+    }
+
+    return [...categories.values()]
       .sort((left, right) => right.totalValue - left.totalValue)
       .slice(0, 4);
   }, [inventoryValuation.data]);
@@ -183,7 +197,8 @@ export function InventoryPage() {
         accessorKey: "size",
         header: "Size",
         cell: ({ row }) => {
-          const { height, width, length } = row.original;
+          const { height, width, length, sizeLabel } = row.original;
+          if (sizeLabel && sizeLabel !== "Standard") return sizeLabel;
           if (!height && !width && !length) return "-";
           return `${height || 0}x${width || 0}x${length || 0}`;
         },

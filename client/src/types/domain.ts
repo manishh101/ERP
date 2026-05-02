@@ -104,6 +104,7 @@ export type ProductRow = {
   warrantyMonths?: number;
   leadTimeDays?: number;
   isCustomizable?: boolean;
+  sizeLabel?: string;
 };
 
 export type PurchaseOrderLineRow = {
@@ -170,6 +171,7 @@ export type ProductDetailPayload = {
   height?: number;
   width?: number;
   length?: number;
+  sizeLabel?: string;
   imageUrls: string[];
   variantRows: ProductDetailVariantRow[];
   metrics: ProductDetailMetric[];
@@ -281,6 +283,7 @@ export type InventoryValuationRow = {
   id: string;
   product: string;
   variant: string;
+  category: string;
   stockQuantity: number;
   unitCost: number;
   totalValue: number;
