@@ -117,7 +117,7 @@ reportsRouter.get(
     const rows = orders.flatMap((order) =>
       order.lineItems
         .filter((line) => inDateRange(order.orderDate, query.startDate, query.endDate))
-        .filter((line) => !query.category || line.productVariant.product.category === query.category)
+        .filter((line) => !query.category || (line.productVariant && line.productVariant.product.category === query.category))
         .map((line) => {
           const revenue = line.quantity * toNumber(line.unitPrice);
           return {
@@ -125,9 +125,9 @@ reportsRouter.get(
             customer: order.customer.name,
             customerType: order.customer.type,
             salesperson: order.salesperson?.name ?? "Unassigned",
-            product: line.productVariant.product.name,
-            variant: line.productVariant.variantName,
-            category: line.productVariant.product.category,
+            product: line.productVariant ? line.productVariant.product.name : line.customProductName || "Custom Item",
+            variant: line.productVariant ? line.productVariant.variantName : "N/A",
+            category: line.productVariant ? line.productVariant.product.category : "Custom",
             quantity: line.quantity,
             revenue,
           };
@@ -206,12 +206,14 @@ reportsRouter.get(
       const revenue = line.quantity * toNumber(line.unitPrice);
       const cost =
         line.quantity *
-        (toNumber(line.productVariant.product.costPrice) + toNumber(line.productVariant.additionalCost));
+        (line.productVariant 
+          ? (toNumber(line.productVariant.product.costPrice) + toNumber(line.productVariant.additionalCost))
+          : toNumber(line.unitPrice) * 0.7);
 
       return {
-        sku: line.productVariant.skuVariant,
-        product: line.productVariant.product.name,
-        category: line.productVariant.product.category,
+        sku: line.productVariant ? line.productVariant.skuVariant : "CUSTOM",
+        product: line.productVariant ? line.productVariant.product.name : line.customProductName || "Custom Item",
+        category: line.productVariant ? line.productVariant.product.category : "Custom",
         revenue,
         cost,
         grossMargin: revenue - cost,

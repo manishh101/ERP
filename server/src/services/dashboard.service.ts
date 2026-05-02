@@ -174,7 +174,9 @@ export async function getTopEntities() {
     const productMap = new Map<string, number>();
     for (const order of allOrders) {
       for (const li of order.lineItems) {
-        const name = `${li.productVariant.product.name} / ${li.productVariant.variantName}`;
+        const name = li.productVariant 
+          ? `${li.productVariant.product.name} / ${li.productVariant.variantName}`
+          : li.customProductName || "Custom Item";
         productMap.set(name, (productMap.get(name) ?? 0) + li.quantity);
       }
     }
@@ -235,7 +237,9 @@ export async function getShowroomAnalytics(customerId: string): Promise<Showroom
       for (const order of filteredOrders) {
         for (const li of order.lineItems) {
           units += li.quantity;
-          value += li.quantity * toNumber(li.unitPrice) * (1 - toNumber(li.discountPct) / 100);
+          const lineGross = li.quantity * toNumber(li.unitPrice);
+          const discAmt = li.discountAmount ? toNumber(li.discountAmount) : lineGross * (toNumber(li.discountPct) / 100);
+          value += lineGross - discAmt;
         }
       }
       return { units, value };
@@ -392,8 +396,9 @@ export async function getDashboardSummary() {
       const revenue = lineItem.quantity * toNumber(lineItem.unitPrice);
       const cogs =
         lineItem.quantity *
-        (toNumber(lineItem.productVariant.product.costPrice) +
-          toNumber(lineItem.productVariant.additionalCost));
+        (lineItem.productVariant 
+          ? (toNumber(lineItem.productVariant.product.costPrice) + toNumber(lineItem.productVariant.additionalCost))
+          : toNumber(lineItem.unitPrice) * 0.7); // 70% estimated COGS for custom items if no variant
       bucket.revenue += revenue;
       bucket.cogs += cogs;
     });
@@ -416,7 +421,9 @@ export async function getDashboardSummary() {
   const topProductMap = new Map<string, number>();
   allSalesOrders.forEach((order) => {
     order.lineItems.forEach((lineItem) => {
-      const name = `${lineItem.productVariant.product.name} / ${lineItem.productVariant.variantName}`;
+      const name = lineItem.productVariant 
+        ? `${lineItem.productVariant.product.name} / ${lineItem.productVariant.variantName}`
+        : lineItem.customProductName || "Custom Item";
       topProductMap.set(name, (topProductMap.get(name) ?? 0) + lineItem.quantity);
     });
   });

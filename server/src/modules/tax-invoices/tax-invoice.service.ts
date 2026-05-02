@@ -22,7 +22,8 @@ export interface CreateTaxInvoiceInput {
     customProductName?: string;
     quantity: number; 
     unitPrice: number; 
-    discountPct: number 
+    discountPct: number;
+    discountAmount?: number;
   }[];
   invoiceType: "VAT" | "PAN" | "ESTIMATE";
   bsDate: string;
@@ -81,7 +82,11 @@ export async function createTaxInvoice(
         throw new ApiError(400, `PRD Golden Rule #3: invoiceAmount and vatAmount must be explicitly provided for ${input.invoiceType} invoice on order ${input.salesOrderId}. Auto-computation from line items is forbidden.`);
       }
       subtotal = input.lineItems.reduce(
-        (acc, item) => acc + item.quantity * item.unitPrice * (1 - item.discountPct / 100),
+        (acc, item) => {
+          const lineGross = item.quantity * item.unitPrice;
+          const lineDiscount = item.discountAmount !== undefined ? item.discountAmount : (lineGross * item.discountPct / 100);
+          return acc + (lineGross - lineDiscount);
+        },
         0
       );
       taxAmount = 0; // Since input.invoiceType is guaranteed to be 'ESTIMATE' here
@@ -114,6 +119,7 @@ export async function createTaxInvoice(
             quantity: item.quantity,
             unitPrice: item.unitPrice,
             discountPct: item.discountPct,
+            discountAmount: item.discountAmount ?? 0,
           })),
         },
       },
@@ -153,6 +159,7 @@ export interface CbmsLineItem {
   quantity: number;
   unitPrice: number;
   discountPct: number;
+  discountAmount: number;
   lineTotal: number;
 }
 
@@ -233,8 +240,9 @@ export async function buildCbmsPayload(invoiceId: string): Promise<CbmsPayload> 
     vatAmount: Number(invoice.taxAmount),
     totalAmount: Number(invoice.invoiceAmount),
     lineItems: invoice.lineItems.map((li) => {
-      const lineTotal =
-        li.quantity * Number(li.unitPrice) * (1 - Number(li.discountPct) / 100);
+      const lineGross = li.quantity * Number(li.unitPrice);
+      const lineDiscount = li.discountAmount ? Number(li.discountAmount) : (lineGross * Number(li.discountPct) / 100);
+      const lineTotal = lineGross - lineDiscount;
       const productName = li.productVariant 
         ? `${li.productVariant.product.name} / ${li.productVariant.variantName}`
         : li.customProductName || "Custom Item";
@@ -243,6 +251,7 @@ export async function buildCbmsPayload(invoiceId: string): Promise<CbmsPayload> 
         quantity: li.quantity,
         unitPrice: Number(li.unitPrice),
         discountPct: Number(li.discountPct),
+        discountAmount: Number(li.discountAmount),
         lineTotal,
       };
     }),

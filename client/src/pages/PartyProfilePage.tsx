@@ -387,7 +387,7 @@ export function PartyProfilePage() {
 
       {/* New Order Sheet */}
       <Sheet open={isNewOrderOpen} onOpenChange={setIsNewOrderOpen}>
-        <SheetContent className="sm:max-w-4xl overflow-y-auto p-0">
+        <SheetContent className="sm:max-w-[90vw] overflow-y-auto p-0">
           <SheetHeader className="px-6 pt-6">
             <SheetTitle>Create Sales Order</SheetTitle>
           </SheetHeader>

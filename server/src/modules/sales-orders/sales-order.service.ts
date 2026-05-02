@@ -17,6 +17,7 @@ export async function createOrder(input: {
     quantity: number; 
     unitPrice: number; 
     discountPct?: number;
+    discountAmount?: number;
     isCustom?: boolean;
     fabricColor?: string;
     woodFinish?: string;
@@ -41,8 +42,14 @@ export async function createOrder(input: {
     let orderAmount = 0;
     for (const item of input.lineItems) {
       const price = Number(item.unitPrice);
-      const discount = item.discountPct ? Number(item.discountPct) : 0;
-      orderAmount += item.quantity * price * (1 - discount / 100);
+      const qty = Number(item.quantity);
+      
+      if (item.discountAmount !== undefined) {
+        orderAmount += (qty * price) - Number(item.discountAmount);
+      } else {
+        const discount = item.discountPct ? Number(item.discountPct) : 0;
+        orderAmount += qty * price * (1 - discount / 100);
+      }
     }
 
     const deposit = input.depositAmount ? Number(input.depositAmount) : 0;
@@ -75,6 +82,7 @@ export async function createOrder(input: {
             quantity: item.quantity,
             unitPrice: item.unitPrice,
             discountPct: item.discountPct ?? 0,
+            discountAmount: item.discountAmount ?? 0,
             isCustom: item.isCustom ?? false,
             fabricColor: item.fabricColor,
             woodFinish: item.woodFinish,

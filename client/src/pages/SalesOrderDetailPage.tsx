@@ -70,8 +70,10 @@ export function SalesOrderDetailPage() {
   const computedTotal = lineItems.reduce((sum: number, li: any) => {
     const q = toNumber(li.quantity);
     const p = toNumber(li.unitPrice);
-    const d = toNumber(li.discountPct);
-    return sum + q * p * (1 - d / 100);
+    const discAmt = li.discountAmount !== undefined && li.discountAmount !== null
+      ? toNumber(li.discountAmount)
+      : q * p * (toNumber(li.discountPct) / 100);
+    return sum + (q * p - discAmt);
   }, 0);
   
   const computedPaid = payments.reduce((sum: number, p: any) => sum + toNumber(p.amount), 0);
@@ -226,7 +228,10 @@ export function SalesOrderDetailPage() {
                         const qty = toNumber(li.quantity);
                         const price = toNumber(li.unitPrice);
                         const disc = toNumber(li.discountPct);
-                        const lineTotal = qty * price * (1 - disc / 100);
+                        const discAmt = li.discountAmount !== undefined && li.discountAmount !== null
+                          ? toNumber(li.discountAmount)
+                          : qty * price * (disc / 100);
+                        const lineTotal = qty * price - discAmt;
                         const product = li.productVariant?.product;
                         const variant = li.productVariant;
 

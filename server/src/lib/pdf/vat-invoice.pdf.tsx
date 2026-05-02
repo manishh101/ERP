@@ -247,12 +247,15 @@ function InvoiceDocument({
 
   const invoiceNumber = invoice?.invoiceNumber;
 
-  // Maths
+  // Maths — prefer exact discountAmount over percentage to avoid rounding drift
   const subtotal = lineItems.reduce((acc: number, item: any) => {
     const qty = Number(item.quantity || 0);
     const unitPrice = Number(item.unitPrice || 0);
-    const discountPct = Number(item.discountPct || 0);
-    return acc + (qty * unitPrice * (1 - discountPct / 100));
+    const lineGross = qty * unitPrice;
+    const discAmt = item.discountAmount != null && Number(item.discountAmount) > 0
+      ? Number(item.discountAmount)
+      : lineGross * (Number(item.discountPct || 0) / 100);
+    return acc + (lineGross - discAmt);
   }, 0);
 
   const taxableAmount = subtotal;
@@ -347,7 +350,11 @@ function InvoiceDocument({
             const qty = Number(item.quantity || 0);
             const unitPrice = Number(item.unitPrice || 0);
             const discountPct = Number(item.discountPct || 0);
-            const lineTotal = qty * unitPrice * (1 - discountPct / 100);
+            const lineGross = qty * unitPrice;
+            const discAmt = item.discountAmount != null && Number(item.discountAmount) > 0
+              ? Number(item.discountAmount)
+              : lineGross * (discountPct / 100);
+            const lineTotal = lineGross - discAmt;
 
             return (
               <View style={[S.dataRow, idx % 2 === 1 ? S.dataRowAlt : {}]} key={item.id || idx}>

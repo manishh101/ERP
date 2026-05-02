@@ -23,12 +23,13 @@ export const salesOrdersRouter = Router();
 salesOrdersRouter.use(requireAuth);
 
 function calculateSalesOrderTotals(
-  lineItems: Array<{ quantity: number; unitPrice: number; discountPct: number }>,
+  lineItems: Array<{ quantity: number; unitPrice: number; discountPct: number; discountAmount?: number }>,
   depositAmount: number,
 ) {
   const subtotal = lineItems.reduce((sum, item) => {
-    const lineTotal = item.quantity * item.unitPrice;
-    return sum + lineTotal - lineTotal * (item.discountPct / 100);
+    const lineGross = item.quantity * item.unitPrice;
+    const lineDiscount = item.discountAmount !== undefined ? item.discountAmount : (lineGross * (item.discountPct / 100));
+    return sum + (lineGross - lineDiscount);
   }, 0);
 
   return {

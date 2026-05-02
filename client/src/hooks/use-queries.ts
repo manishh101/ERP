@@ -1360,6 +1360,7 @@ export type SalesOrderCreatePayload = {
     quantity: number;
     unitPrice: number;
     discountPct: number;
+    discountAmount: number;
     // Furniture line fields
     isCustom?: boolean;
     fabricColor?: string;
@@ -1504,6 +1505,7 @@ export type InvoiceCreatePayload = {
     quantity: number;
     unitPrice: number;
     discountPct: number;
+    discountAmount?: number;
   }>;
   invoiceType?: string;
   paymentMode?: string;

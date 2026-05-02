@@ -39,6 +39,7 @@ export function CreateInvoiceForm({ onClose, defaultSoId = "", defaultInvoiceTyp
     quantity: string;
     unitPrice: string;
     discountPct: string;
+    discountAmount: string;
   }>>([]);
 
   useEffect(() => {
@@ -56,6 +57,7 @@ export function CreateInvoiceForm({ onClose, defaultSoId = "", defaultInvoiceTyp
           quantity: String(item.quantity),
           unitPrice: String(item.unitPrice),
           discountPct: String(item.discountPct || "0"),
+          discountAmount: String(item.discountAmount || "0"),
         }))
       );
     }
@@ -65,8 +67,9 @@ export function CreateInvoiceForm({ onClose, defaultSoId = "", defaultInvoiceTyp
     const st = lineItems.reduce((acc, item) => {
       const q = Number(item.quantity) || 0;
       const p = Number(item.unitPrice) || 0;
-      const d = Number(item.discountPct) || 0;
-      return acc + (q * p * (1 - d / 100));
+      const lineGross = q * p;
+      const discAmt = Number(item.discountAmount) || 0;
+      return acc + (lineGross - discAmt);
     }, 0);
     return { subtotal: st };
   }, [lineItems]);
@@ -111,7 +114,8 @@ export function CreateInvoiceForm({ onClose, defaultSoId = "", defaultInvoiceTyp
           customProductName: !item.productVariantId ? item.productName : undefined,
           quantity: Number(item.quantity),
           unitPrice: Number(item.unitPrice),
-          discountPct: Number(item.discountPct)
+          discountPct: Number(item.discountPct),
+          discountAmount: Number(item.discountAmount),
         })),
         issueDate: formData.issueDate ? new Date(formData.issueDate).toISOString() : undefined,
         dueDate: formData.dueDate ? new Date(formData.dueDate).toISOString() : undefined,
@@ -251,8 +255,8 @@ export function CreateInvoiceForm({ onClose, defaultSoId = "", defaultInvoiceTyp
             {lineItems.map((item, index) => {
               const q = Number(item.quantity) || 0;
               const p = Number(item.unitPrice) || 0;
-              const d = Number(item.discountPct) || 0;
-              const rowTotal = q * p * (1 - d / 100);
+              const discAmt = Number(item.discountAmount) || 0;
+              const rowTotal = (q * p) - discAmt;
               
               return (
                 <div key={index} className="grid gap-3 md:grid-cols-12 items-center bg-white p-3 rounded-xl border border-border">

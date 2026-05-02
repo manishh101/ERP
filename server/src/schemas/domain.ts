@@ -171,6 +171,7 @@ export const salesOrderLineItemSchema = z.object({
   quantity: z.coerce.number().int().min(1),
   unitPrice: decimalNumber,
   discountPct: z.coerce.number().min(0).max(100).default(0),
+  discountAmount: decimalNumber.default(0),
   isCustom: z.boolean().default(false),
   fabricColor: z.string().optional(),
   woodFinish: z.string().optional(),
@@ -208,6 +209,7 @@ export const taxInvoiceLineItemSchema = z.object({
   quantity: z.coerce.number().int().min(1),
   unitPrice: decimalNumber,
   discountPct: z.coerce.number().min(0).max(100).default(0),
+  discountAmount: decimalNumber.default(0),
 }).refine(data => data.productVariantId || data.customProductName, {
   message: "Either productVariantId or customProductName must be provided",
   path: ["productVariantId"]

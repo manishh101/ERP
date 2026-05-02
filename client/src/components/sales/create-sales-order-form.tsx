@@ -41,12 +41,14 @@ export function CreateSalesOrderForm({ onClose }: CreateSalesOrderFormProps) {
     fabricColor: string;
     woodFinish: string;
     customizationNotes: string;
+    discountAmount: string;
   }>>([{ 
     productVariantId: "", 
     customProductName: undefined,
     quantity: "", 
     unitPrice: "", 
     discountPct: "0",
+    discountAmount: "0",
     isCustom: false,
     fabricColor: "",
     woodFinish: "",
@@ -80,6 +82,7 @@ export function CreateSalesOrderForm({ onClose }: CreateSalesOrderFormProps) {
           quantity: Number(item.quantity),
           unitPrice: Number(item.unitPrice),
           discountPct: Number(item.discountPct),
+          discountAmount: Number(item.discountAmount),
           isCustom: item.isCustom,
           fabricColor: item.fabricColor || undefined,
           woodFinish: item.woodFinish || undefined,
@@ -234,6 +237,7 @@ export function CreateSalesOrderForm({ onClose }: CreateSalesOrderFormProps) {
                   quantity: "", 
                   unitPrice: "", 
                   discountPct: "0",
+                  discountAmount: "0",
                   isCustom: false,
                   fabricColor: "",
                   woodFinish: "",
@@ -245,7 +249,9 @@ export function CreateSalesOrderForm({ onClose }: CreateSalesOrderFormProps) {
             </div>
           </div>
           {lineItems.map((item, index) => {
-            const rowTotal = toNumber(item.quantity) * toNumber(item.unitPrice) * (1 - (toNumber(item.discountPct) / 100));
+            const rowGross = toNumber(item.quantity) * toNumber(item.unitPrice);
+            const rowDiscAmt = toNumber(item.discountAmount);
+            const rowTotal = rowGross - rowDiscAmt;
             
             return (
               <div key={index} className="grid gap-3 md:grid-cols-12 items-center bg-white p-4 rounded-xl border border-border">
@@ -256,17 +262,13 @@ export function CreateSalesOrderForm({ onClose }: CreateSalesOrderFormProps) {
                       type="button"
                       className="text-[10px] text-primary hover:underline font-medium"
                       onClick={() => {
-                        const newItems = [...lineItems];
-                        if (newItems[index].customProductName === undefined) {
-                          // Switch to Manual
-                          newItems[index].productVariantId = undefined;
-                          newItems[index].customProductName = "";
-                        } else {
-                          // Switch to Catalog
-                          newItems[index].productVariantId = "";
-                          newItems[index].customProductName = undefined;
-                        }
-                        setLineItems(newItems);
+                        setLineItems(lineItems.map((it, idx) => 
+                          idx === index 
+                            ? (it.customProductName === undefined 
+                                ? { ...it, productVariantId: undefined, customProductName: "" } 
+                                : { ...it, productVariantId: "", customProductName: undefined })
+                            : it
+                        ));
                       }}
                     >
                       {item.customProductName !== undefined ? "Select from catalog" : "Enter manually"}
@@ -278,9 +280,9 @@ export function CreateSalesOrderForm({ onClose }: CreateSalesOrderFormProps) {
                       className="h-11 rounded-2xl border-primary/20 focus:border-primary"
                       value={item.customProductName}
                       onChange={(e) => {
-                        const newItems = [...lineItems];
-                        newItems[index].customProductName = e.target.value;
-                        setLineItems(newItems);
+                        setLineItems(lineItems.map((it, idx) => 
+                          idx === index ? { ...it, customProductName: e.target.value } : it
+                        ));
                       }}
                     />
                   ) : (
@@ -289,17 +291,17 @@ export function CreateSalesOrderForm({ onClose }: CreateSalesOrderFormProps) {
                       value={products.data?.items.find(p => p.defaultVariantId === item.productVariantId)?.id || ""}
                       onChange={(e) => {
                         const productId = e.target.value;
-                        const newItems = [...lineItems];
                         const selectedProduct = products.data?.items.find(p => p.id === productId);
-                        
-                        if (selectedProduct) {
-                          newItems[index].productVariantId = selectedProduct.defaultVariantId;
-                          newItems[index].unitPrice = String(selectedProduct.sellingPrice);
-                          if (!newItems[index].quantity) newItems[index].quantity = "1";
-                        } else {
-                          newItems[index].productVariantId = "";
-                        }
-                        setLineItems(newItems);
+                        setLineItems(lineItems.map((it, idx) => 
+                          idx === index 
+                            ? { 
+                                ...it, 
+                                productVariantId: selectedProduct?.defaultVariantId || "", 
+                                unitPrice: selectedProduct ? String(selectedProduct.sellingPrice) : it.unitPrice,
+                                quantity: (!it.quantity && selectedProduct) ? "1" : it.quantity
+                              } 
+                            : it
+                        ));
                       }}
                     >
                       <option value="">Select a Product</option>
@@ -326,9 +328,19 @@ export function CreateSalesOrderForm({ onClose }: CreateSalesOrderFormProps) {
                     className="h-11 rounded-2xl"
                     value={item.quantity} 
                     onChange={(e) => {
-                      const newItems = [...lineItems];
-                      newItems[index].quantity = e.target.value;
-                      setLineItems(newItems);
+                      const qtyStr = e.target.value;
+                      const qty = Number(qtyStr) || 0;
+                      const price = Number(item.unitPrice) || 0;
+                      
+                      setLineItems(lineItems.map((it, idx) => {
+                        if (idx !== index) return it;
+                        const updated = { ...it, quantity: qtyStr };
+                        if (qty * price > 0) {
+                          const pct = (Number(it.discountAmount) / (qty * price)) * 100;
+                          updated.discountPct = String(Math.round(pct * 100) / 100);
+                        }
+                        return updated;
+                      }));
                     }} 
                   />
                 </div>
@@ -341,13 +353,23 @@ export function CreateSalesOrderForm({ onClose }: CreateSalesOrderFormProps) {
                     className="h-11 rounded-2xl"
                     value={item.unitPrice} 
                     onChange={(e) => {
-                      const newItems = [...lineItems];
-                      newItems[index].unitPrice = e.target.value;
-                      setLineItems(newItems);
+                      const priceStr = e.target.value;
+                      const price = Number(priceStr) || 0;
+                      const qty = Number(item.quantity) || 0;
+                      
+                      setLineItems(lineItems.map((it, idx) => {
+                        if (idx !== index) return it;
+                        const updated = { ...it, unitPrice: priceStr };
+                        if (qty * price > 0) {
+                          const pct = (Number(it.discountAmount) / (qty * price)) * 100;
+                          updated.discountPct = String(Math.round(pct * 100) / 100);
+                        }
+                        return updated;
+                      }));
                     }} 
                   />
                 </div>
-                <div className="md:col-span-2">
+                <div className="md:col-span-1">
                   <label className="text-[10px] font-bold uppercase text-muted-foreground ml-1 mb-1 block">Disc %</label>
                   <Input 
                     placeholder="0" 
@@ -356,17 +378,71 @@ export function CreateSalesOrderForm({ onClose }: CreateSalesOrderFormProps) {
                     className="h-11 rounded-2xl"
                     value={item.discountPct} 
                     onChange={(e) => {
-                      const newItems = [...lineItems];
-                      newItems[index].discountPct = e.target.value;
-                      setLineItems(newItems);
+                      const pct = e.target.value;
+                      const qty = Number(item.quantity) || 0;
+                      const price = Number(item.unitPrice) || 0;
+                      
+                      setLineItems(lineItems.map((it, idx) => {
+                        if (idx !== index) return it;
+                        const amt = (qty * price) * (Number(pct) / 100);
+                        return { 
+                          ...it, 
+                          discountPct: pct, 
+                          discountAmount: String(Math.round(amt * 100) / 100) 
+                        };
+                      }));
+                    }} 
+                  />
+                </div>
+                <div className="md:col-span-1">
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground ml-1 mb-1 block">Disc Amt</label>
+                  <Input 
+                    placeholder="0" 
+                    type="number"
+                    step="1"
+                    className="h-11 rounded-2xl"
+                    value={item.discountAmount} 
+                    onChange={(e) => {
+                      const amt = e.target.value;
+                      const qty = Number(item.quantity) || 0;
+                      const price = Number(item.unitPrice) || 0;
+                      
+                      setLineItems(lineItems.map((it, idx) => {
+                        if (idx !== index) return it;
+                        const updated = { ...it, discountAmount: amt };
+                        if (qty * price > 0) {
+                          const pct = (Number(amt) / (qty * price)) * 100;
+                          updated.discountPct = String(Math.round(pct * 100) / 100);
+                        }
+                        return updated;
+                      }));
                     }} 
                   />
                 </div>
                 <div className="md:col-span-2">
                   <label className="text-[10px] font-bold uppercase text-muted-foreground ml-1 mb-1 block">Line Total</label>
-                  <div className="h-11 flex items-center px-4 bg-primary/10 rounded-2xl text-sm font-bold text-primary">
-                    {formatCurrency(rowTotal)}
-                  </div>
+                  <Input 
+                    type="number"
+                    step="0.01"
+                    className="h-11 rounded-2xl font-bold"
+                    value={((Number(item.quantity) || 0) * (Number(item.unitPrice) || 0) - (Number(item.discountAmount) || 0)).toFixed(2)}
+                    onChange={(e) => {
+                      const newTotal = Number(e.target.value);
+                      const qty = Number(item.quantity) || 0;
+                      const price = Number(item.unitPrice) || 0;
+                      
+                      setLineItems(lineItems.map((it, idx) => {
+                        if (idx !== index) return it;
+                        const newAmt = (qty * price) - newTotal;
+                        const updated = { ...it, discountAmount: String(Math.round(newAmt * 100) / 100) };
+                        if (qty * price > 0) {
+                          const pct = (newAmt / (qty * price)) * 100;
+                          updated.discountPct = String(Math.round(pct * 100) / 100);
+                        }
+                        return updated;
+                      }));
+                    }}
+                  />
                 </div>
                 <div className="md:col-span-1 flex justify-end pt-5">
                   <Button 
@@ -441,7 +517,7 @@ export function CreateSalesOrderForm({ onClose }: CreateSalesOrderFormProps) {
                 <span className="text-sm text-muted-foreground mr-4">Total Order Value:</span>
                 <span className="text-xl font-bold text-primary">
                   {formatCurrency(lineItems.reduce((sum, item) => 
-                    sum + (toNumber(item.quantity) * toNumber(item.unitPrice) * (1 - (toNumber(item.discountPct) / 100))), 0))}
+                    sum + ((toNumber(item.quantity) * toNumber(item.unitPrice)) - toNumber(item.discountAmount)), 0))}
                 </span>
               </div>
             </div>
