@@ -57,6 +57,7 @@ type RawDashboardPayload = {
 type RawProduct = {
   id: string;
   name: string;
+  description?: string | null;
   sku: string;
   imageUrls: string[];
   category: string;
@@ -548,6 +549,7 @@ function mapProduct(product: RawProduct): ProductRow {
   return {
     id: product.id,
     name: product.name,
+    description: product.description || "No product description has been added yet.",
     sku: product.sku,
     category: product.category,
     material: product.material ?? "Standard finish",

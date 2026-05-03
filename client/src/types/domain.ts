@@ -91,6 +91,7 @@ export type TableColumn<T> = {
 export type ProductRow = {
   id: string;
   name: string;
+  description: string;
   sku: string;
   category: string;
   material: string;

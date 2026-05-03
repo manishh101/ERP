@@ -439,7 +439,7 @@ const customers = await Promise.all(customersInput.map((customer) => prisma.cust
       "costPrice": 11250,
       "sellingPrice": 15000,
       "description": "1 locker",
-      "size": "72x36x19"
+      "size": "72x38x19"
     },
     {
       "name": "Dressing -R (EP)",
@@ -472,7 +472,7 @@ const customers = await Promise.all(customersInput.map((customer) => prisma.cust
       "costPrice": 16500,
       "sellingPrice": 22000,
       "description": "1 locker, 1 secret chamber, 1 Drawer, Mirror",
-      "size": "72x48x19"
+      "size": "72x40x19"
     },
     {
       "name": "Three Door Almirah- R (EP)",
@@ -527,7 +527,7 @@ const customers = await Promise.all(customersInput.map((customer) => prisma.cust
       "costPrice": 7725,
       "sellingPrice": 10300,
       "description": "",
-      "size": "68x34x17"
+      "size": "66x34x17"
     },
     {
       "name": "One Locker Office Almirah- HV (EP)",
@@ -538,7 +538,7 @@ const customers = await Promise.all(customersInput.map((customer) => prisma.cust
       "costPrice": 8625,
       "sellingPrice": 11500,
       "description": "",
-      "size": "68x34x17"
+      "size": "66x34x17"
     },
     {
       "name": "Bookcase - 4 shelves (EP)",
@@ -615,7 +615,7 @@ const customers = await Promise.all(customersInput.map((customer) => prisma.cust
       "costPrice": 10875,
       "sellingPrice": 14500,
       "description": "",
-      "size": "78x38x19"
+      "size": "76x36x19"
     },
     {
       "name": "Filing Cabinet - 3 Drawer (EP)",
@@ -623,8 +623,8 @@ const customers = await Promise.all(customersInput.map((customer) => prisma.cust
       "category": "Filling Cabinet Series",
       "material": "Steel",
       "color": "Enamel Paint",
-      "costPrice": 12038,
-      "sellingPrice": 16050,
+      "costPrice": 13537,
+      "sellingPrice": 18050,
       "description": "",
       "size": "42x18x24"
     },
@@ -777,8 +777,8 @@ const customers = await Promise.all(customersInput.map((customer) => prisma.cust
       "category": "Household Almirah",
       "material": "Steel",
       "color": "Powder Coated",
-      "costPrice": 15600,
-      "sellingPrice": 20800,
+      "costPrice": 20100,
+      "sellingPrice": 26800,
       "description": "2 Locker, 1Secret Chamber, Double Mirror",
       "size": "72x42x19"
     },
@@ -788,8 +788,8 @@ const customers = await Promise.all(customersInput.map((customer) => prisma.cust
       "category": "Household Almirah",
       "material": "Steel",
       "color": "Powder Coated",
-      "costPrice": 15225,
-      "sellingPrice": 20300,
+      "costPrice": 21975,
+      "sellingPrice": 29300,
       "description": "1 Locker, chudi box, 1 Secret chamber, Double Mirror",
       "size": "72x42x19"
     },
@@ -835,7 +835,7 @@ const customers = await Promise.all(customersInput.map((customer) => prisma.cust
       "costPrice": 16425,
       "sellingPrice": 21900,
       "description": "One Locker, Double Drawer, Chudi, Maruti lock",
-      "size": "72x38x19"
+      "size": "72x36x19"
     },
     {
       "name": "Three Door Dressing (PC)",
@@ -876,8 +876,8 @@ const customers = await Promise.all(customersInput.map((customer) => prisma.cust
       "category": "Household Almirah",
       "material": "Steel",
       "color": "Powder Coated",
-      "costPrice": 21525,
-      "sellingPrice": 28700,
+      "costPrice": 20025,
+      "sellingPrice": 26700,
       "description": "1 Secret chamber",
       "size": "72x54x19"
     },
@@ -887,8 +887,8 @@ const customers = await Promise.all(customersInput.map((customer) => prisma.cust
       "category": "Office Items",
       "material": "Steel",
       "color": "Powder Coated",
-      "costPrice": 9638,
-      "sellingPrice": 12850,
+      "costPrice": 9712,
+      "sellingPrice": 12950,
       "description": "",
       "size": "66x34x17"
     },
@@ -912,7 +912,7 @@ const customers = await Promise.all(customersInput.map((customer) => prisma.cust
       "costPrice": 12675,
       "sellingPrice": 16900,
       "description": "",
-      "size": "78x36x19"
+      "size": "78x38x19"
     },
     {
       "name": "Bookcase - 4 shelves (PC)",

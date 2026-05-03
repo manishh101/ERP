@@ -52,6 +52,8 @@ type DataTableProps<T> = {
   detailHref?: (row: T) => string;
   emptyMessage?: string;
   hideSearch?: boolean;
+  hidePagination?: boolean;
+  maxHeight?: string;
 };
 
 export function DataTable<T extends { id: string }>({
@@ -65,6 +67,8 @@ export function DataTable<T extends { id: string }>({
   detailHref,
   emptyMessage = "No records found.",
   hideSearch = false,
+  hidePagination = false,
+  maxHeight,
 }: DataTableProps<T>) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
@@ -160,7 +164,7 @@ export function DataTable<T extends { id: string }>({
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
     initialState: {
-      pagination: { pageSize },
+      pagination: { pageSize: hidePagination ? 99999 : pageSize },
     },
   });
 
@@ -200,7 +204,10 @@ export function DataTable<T extends { id: string }>({
       )}
 
       {/* Table */}
-      <div className="overflow-x-auto">
+      <div
+        className="overflow-x-auto"
+        style={hidePagination && maxHeight ? { maxHeight, overflowY: "auto" } : undefined}
+      >
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
@@ -271,30 +278,39 @@ export function DataTable<T extends { id: string }>({
       </div>
 
       {/* Pagination */}
-      <div className="flex items-center justify-between border-t px-4 py-3">
-        <p className="text-sm text-muted-foreground">
-          Page {table.getState().pagination.pageIndex + 1} of{" "}
-          {table.getPageCount()} · {table.getFilteredRowModel().rows.length} records
-        </p>
-        <div className="flex items-center gap-1">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => table.previousPage()}
-            disabled={!table.getCanPreviousPage()}
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => table.nextPage()}
-            disabled={!table.getCanNextPage()}
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
+      {!hidePagination && (
+        <div className="flex items-center justify-between border-t px-4 py-3">
+          <p className="text-sm text-muted-foreground">
+            Page {table.getState().pagination.pageIndex + 1} of{" "}
+            {table.getPageCount()} · {table.getFilteredRowModel().rows.length} records
+          </p>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => table.previousPage()}
+              disabled={!table.getCanPreviousPage()}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => table.nextPage()}
+              disabled={!table.getCanNextPage()}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
-      </div>
+      )}
+      {hidePagination && (
+        <div className="border-t px-4 py-2">
+          <p className="text-sm text-muted-foreground">
+            {table.getFilteredRowModel().rows.length} records
+          </p>
+        </div>
+      )}
     </div>
   );
 }

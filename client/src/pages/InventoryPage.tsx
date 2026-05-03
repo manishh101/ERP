@@ -179,7 +179,7 @@ export function InventoryPage() {
     () => [
       {
         accessorKey: "name",
-        header: "Product / SKU",
+        header: "Product",
         cell: ({ row }) => {
           const firstImage = row.original.imageUrls?.[0];
           return (
@@ -203,12 +203,21 @@ export function InventoryPage() {
                   {row.original.name}
                 </Link>
                 <div className="text-xs text-muted-foreground">
-                  {row.original.sku}
+                  {row.original.description}
                 </div>
               </div>
             </div>
           );
         },
+      },
+      {
+        accessorKey: "sku",
+        header: "SKU",
+        cell: ({ row }) => (
+          <span className="font-mono text-xs text-muted-foreground">
+            {row.getValue("sku")}
+          </span>
+        ),
       },
       {
         accessorKey: "category",
@@ -556,9 +565,10 @@ export function InventoryPage() {
           <DataTable
             columns={productColumns}
             data={filteredProducts}
-            pageSize={10}
             emptyMessage="No products matched your search."
             hideSearch
+            hidePagination
+            maxHeight="65vh"
           />
         </CardContent>
       </Card>
