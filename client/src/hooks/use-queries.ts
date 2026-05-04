@@ -206,6 +206,7 @@ type RawSalesOrder = {
   assemblyNotes?: string | null;
   deliveryFloor?: number | string | null;
   customer: {
+    id: string;
     name: string;
     type: string;
   };
@@ -1469,16 +1470,16 @@ export function useCreateSalesOrderMutation() {
   });
 }
 
-export function useSalesOrdersQuery() {
+export function useSalesOrdersQuery(pageSize: number = 100) {
   const { token } = useAuth();
 
   return useQuery({
-    queryKey: ["sales-orders", token],
+    queryKey: ["sales-orders", token, pageSize],
     enabled: Boolean(token),
     queryFn: async () => {
       const response = await apiRequest<PaginatedResponse<RawSalesOrder>>("/sales-orders", {
         token: token!,
-        query: { pageSize: 100 },
+        query: { pageSize },
       });
 
       return {

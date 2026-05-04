@@ -33,27 +33,29 @@ function RecentSalesOrdersCard({ rows }: { rows: any[] }) {
 export function DashboardPage() {
   const { data, error, isLoading } = useDashboardQuery();
   const { data: customersData } = useCustomersQuery();
-  const { data: salesOrdersData } = useSalesOrdersQuery();
+  const { data: salesOrdersData } = useSalesOrdersQuery(10000);
 
   const orders = salesOrdersData?.items ?? [];
 
-  // ─── Extract Available Months (using orderDate for consistency with revenue chart) ───
+  // ─── Extract Available Months (last 12 months) ───
   const availableMonths = useMemo(() => {
-    const months = new Set<string>();
-    orders.forEach((o) => {
-      try {
-        const dStr = o.orderDate;
-        if (!dStr) return;
-        const d = new NepaliDate(new Date(dStr));
-        const m = d.getMonth();
-        const y = d.getYear();
-        months.add(`${y}-${String(m).padStart(2, "0")}|${getNepaliMonthName(m)} ${y}`);
-      } catch {}
-    });
-    return Array.from(months)
-      .sort((a, b) => b.localeCompare(a)) // sort descending
-      .map((m) => ({ key: m.split("|")[0], label: m.split("|")[1] }));
-  }, [orders]);
+    const months = [];
+    const now = new NepaliDate();
+    let currentM = now.getMonth();
+    let currentY = now.getYear();
+    for (let i = 0; i < 12; i++) {
+        let m = currentM - i;
+        let y = currentY;
+        while (m < 0) {
+            m += 12;
+            y -= 1;
+        }
+        const key = `${y}-${String(m).padStart(2, "0")}`;
+        const label = `${getNepaliMonthName(m)} ${y}`;
+        months.push({ key, label });
+    }
+    return months;
+  }, []);
 
   const [selectedMonth, setSelectedMonth] = useState<string>("ALL");
 
