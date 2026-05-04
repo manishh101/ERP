@@ -25,7 +25,7 @@ import { CheckCircle2 } from "lucide-react";
 export function PaymentsPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
-  const { data, isLoading } = usePaymentsQuery(page, 20, search);
+  const { data, isLoading } = usePaymentsQuery(page, 500, search);
   const { token } = useAuth();
   const [recordOpen, setRecordOpen] = useState(false);
 
@@ -117,7 +117,8 @@ export function PaymentsPage() {
           data={data?.items || []}
           isLoading={isLoading}
           emptyMessage="No payments found. Click 'Record Payment' to add one."
-          searchPlaceholder="Search by reference..."
+          searchPlaceholder="Search by reference or customer..."
+          pageSize={50}
         />
       </div>
 

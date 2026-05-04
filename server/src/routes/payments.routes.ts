@@ -27,14 +27,28 @@ paymentsRouter.get(
   asyncHandler(async (request, response) => {
     const query = request.validated?.query as { page: number; pageSize: number; search?: string };
 
-    const where: any = {
-      reference: query.search
-        ? {
-          contains: query.search,
-          mode: "insensitive" as const,
+    const where: any = query.search
+      ? {
+          OR: [
+            { reference: { contains: query.search, mode: "insensitive" as const } },
+            {
+              salesOrder: {
+                customer: { name: { contains: query.search, mode: "insensitive" as const } },
+              },
+            },
+            {
+              supplierInvoice: {
+                supplier: { name: { contains: query.search, mode: "insensitive" as const } },
+              },
+            },
+            {
+              purchaseOrder: {
+                supplier: { name: { contains: query.search, mode: "insensitive" as const } },
+              },
+            },
+          ],
         }
-        : undefined,
-    };
+      : {};
 
     const [items, total] = await Promise.all([
       prisma.payment.findMany({

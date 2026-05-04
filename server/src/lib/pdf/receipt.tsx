@@ -395,37 +395,37 @@ function ReceiptDocument({ payments, companyProfile }: { payments: any[]; compan
           </View>
         </View>
 
-        {/* ── Line Items Table (for sales order payments) ───────── */}
-        {hasLineItems && (
+        {/* ── Orders Table (for sales order payments) ───────── */}
+        {isSalesPayment && payments.length > 0 && (
           <View style={{ marginBottom: 8 }}>
             <View style={S.tableHeaderRow} fixed>
-              <Text style={[S.thText, S.cNo]}>No.</Text>
-              <Text style={[S.thText, S.cDesc]}>Description</Text>
-              <Text style={[S.thText, S.cQty]}>Qty</Text>
-              <Text style={[S.thText, S.cRate]}>Unit Price</Text>
-              <Text style={[S.thText, S.cAmt]}>Amount (NPR)</Text>
+              <Text style={[S.thText, { width: "8%" }]}>No.</Text>
+              <Text style={[S.thText, { width: "24%" }]}>Order No</Text>
+              <Text style={[S.thText, { width: "15%" }]}>Date</Text>
+              <Text style={[S.thText, { width: "10%", textAlign: "center" }]}>Qty</Text>
+              <Text style={[S.thText, { width: "15%", textAlign: "right" }]}>Amount</Text>
+              <Text style={[S.thText, { width: "14%", textAlign: "right" }]}>Paid</Text>
+              <Text style={[S.thText, { width: "14%", textAlign: "right" }]}>Balance</Text>
             </View>
 
-            {lineItems.map((item: any, idx: number) => {
-              const qty = Number(item.quantity || 0);
-              const unitPrice = Number(item.unitPrice || 0);
-              const lineTotal = Number(item.lineTotal || qty * unitPrice);
+            {payments.map((p: any, idx: number) => {
+              const order = p.salesOrder;
+              if (!order) return null;
+              
+              const totalQty = order.lineItems?.reduce((sum: number, item: any) => sum + Number(item.quantity || 0), 0) || 0;
+              const orderAmount = Number(order.orderAmount || 0);
+              const paidInThisTx = Number(p.amount || 0);
+              const remainingBalance = Number(order.balanceDue || 0);
+              
               return (
-                <View style={[S.dataRow, idx % 2 === 1 ? S.dataRowAlt : {}]} key={item.id || idx}>
-                  <Text style={[S.tdMuted, S.cNo]}>{idx + 1}</Text>
-                  <View style={S.cDesc}>
-                    <Text style={S.tdBold}>
-                      {item.productVariant?.product?.name ?? item.customProductName ?? "Item"}
-                    </Text>
-                    {item.productVariant?.variantName && item.productVariant.variantName !== "Default" && (
-                      <Text style={[S.tdMuted, { marginTop: 2 }]}>
-                        {item.productVariant.variantName}
-                      </Text>
-                    )}
-                  </View>
-                  <Text style={[S.tdText, S.cQty]}>{qty}</Text>
-                  <Text style={[S.tdText, S.cRate]}>{fmt(unitPrice)}</Text>
-                  <Text style={[S.tdBold, S.cAmt]}>{fmt(lineTotal)}</Text>
+                <View style={[S.dataRow, idx % 2 === 1 ? S.dataRowAlt : {}]} key={order.id || idx}>
+                  <Text style={[S.tdMuted, { width: "8%" }]}>{idx + 1}</Text>
+                  <Text style={[S.tdBold, { width: "24%" }]}>{order.id.slice(0, 12).toUpperCase()}</Text>
+                  <Text style={[S.tdText, { width: "15%" }]}>{fmtDate(order.orderDate)}</Text>
+                  <Text style={[S.tdText, { width: "10%", textAlign: "center" }]}>{totalQty}</Text>
+                  <Text style={[S.tdText, { width: "15%", textAlign: "right" }]}>{fmt(orderAmount)}</Text>
+                  <Text style={[S.tdBold, { width: "14%", textAlign: "right", color: "#16a34a" }]}>{fmt(paidInThisTx)}</Text>
+                  <Text style={[S.tdBold, { width: "14%", textAlign: "right", color: remainingBalance > 0 ? "#dc2626" : "#111111" }]}>{fmt(remainingBalance)}</Text>
                 </View>
               );
             })}
@@ -435,7 +435,7 @@ function ReceiptDocument({ payments, companyProfile }: { payments: any[]; compan
         {/* ── Totals ──────────────────────────────────────────── */}
         <View style={S.summarySection}>
           <View style={S.summaryTable}>
-            {hasLineItems && (
+            {isSalesPayment && (
               <>
                 <View style={S.summaryRow}>
                   <Text style={S.summaryLabel}>{orders.length > 1 ? "Combined Order Total" : "Order Total"}</Text>
