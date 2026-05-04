@@ -37,12 +37,12 @@ export function DashboardPage() {
 
   const orders = salesOrdersData?.items ?? [];
 
-  // ─── Extract Available Months ───
+  // ─── Extract Available Months (using orderDate for consistency with revenue chart) ───
   const availableMonths = useMemo(() => {
     const months = new Set<string>();
     orders.forEach((o) => {
       try {
-        const dStr = o.deliveryDate;
+        const dStr = o.orderDate;
         if (!dStr) return;
         const d = new NepaliDate(new Date(dStr));
         const m = d.getMonth();
@@ -63,7 +63,7 @@ export function DashboardPage() {
       ? orders
       : orders.filter((o) => {
           try {
-            const dStr = o.deliveryDate;
+            const dStr = o.orderDate;
             if (!dStr) return false;
             const d = new NepaliDate(new Date(dStr));
             const key = `${d.getYear()}-${String(d.getMonth()).padStart(2, "0")}`;
@@ -121,7 +121,11 @@ export function DashboardPage() {
       },
       {
         label: "Net Profit",
-        value: formatCurrency(revenue - totalCogs),
+        value: formatCurrency(
+          selectedMonth === "ALL" && data?.netProfit !== undefined
+            ? data.netProfit         // Server-side single source of truth
+            : revenue - totalCogs    // Filtered view falls back to client calculation
+        ),
         change: "Margin",
         tone: (revenue - totalCogs) > 0 ? "positive" : "negative",
       },
@@ -144,7 +148,7 @@ export function DashboardPage() {
       ? orders 
       : orders.filter((o) => {
           try {
-            const dStr = o.deliveryDate;
+            const dStr = o.orderDate;
             if (!dStr) return false;
             const d = new NepaliDate(new Date(dStr));
             const key = `${d.getYear()}-${String(d.getMonth()).padStart(2, "0")}`;
@@ -171,7 +175,7 @@ export function DashboardPage() {
     if (selectedMonth === "ALL") return orders;
     return orders.filter((o) => {
       try {
-        const dStr = o.deliveryDate;
+        const dStr = o.orderDate;
         if (!dStr) return false;
         const d = new NepaliDate(new Date(dStr));
         const key = `${d.getYear()}-${String(d.getMonth()).padStart(2, "0")}`;
@@ -267,6 +271,7 @@ export function DashboardPage() {
           <ArAgingTable
             data={data.arAging}
             customers={customersData?.items ?? []}
+            arAgingByCustomer={data.arAgingByCustomer}
           />
         )}
       </div>

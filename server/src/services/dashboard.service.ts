@@ -1,6 +1,5 @@
 import { prisma } from "../config/prisma";
 import { withCache, CACHE_KEYS } from "../config/redis";
-import { getProfitAndLoss } from "./report.service";
 import { getAraAgingReport } from "./report.service";
 import { toNumber } from "../utils/number";
 import NepaliDate from "nepali-datetime";
@@ -24,10 +23,11 @@ function endOfPreviousMonth() {
   return new Date(date.getFullYear(), date.getMonth(), 0, 23, 59, 59, 999);
 }
 
-function startOfCurrentYear() {
-  // Nepal fiscal year starts Shrawan 1 (mid-July). Use calendar year as approximation.
-  const date = new Date();
-  return new Date(date.getFullYear(), 0, 1);
+function startOfCurrentFiscalYear() {
+  // Nepal fiscal year starts Shrawan 1 (BS month index 3, ~mid-July AD).
+  const nd = new NepaliDate(new Date());
+  const bsYear = nd.getMonth() >= 3 ? nd.getYear() : nd.getYear() - 1;
+  return new NepaliDate(bsYear, 3, 1).getDateObject();
 }
 
 function formatCurrency(value: number) {
@@ -44,53 +44,51 @@ function formatCurrency(value: number) {
 // ---------------------------------------------------------------------------
 
 export async function getFinancialSummary(period: "today" | "month" | "year" = "month") {
-  const cacheKey = CACHE_KEYS.FINANCIAL_SUMMARY_MONTH;
+  // NOTE: Caching is handled by the route handler (dashboard.routes.ts).
+  // Do NOT add withCache here — the route already caches per-period correctly.
+  let since: Date;
+  const now = new Date();
 
-  return withCache(cacheKey, 900, async () => {
-    let since: Date;
-    const now = new Date();
+  if (period === "today") {
+    since = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  } else if (period === "month") {
+    since = startOfCurrentMonth();
+  } else {
+    since = startOfCurrentFiscalYear();
+  }
 
-    if (period === "today") {
-      since = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    } else if (period === "month") {
-      since = startOfCurrentMonth();
-    } else {
-      since = startOfCurrentYear();
-    }
+  const [received, pendingOrders] = await Promise.all([
+    // Amount Received: sum of all payments in the period linked to sales orders
+    prisma.payment.aggregate({
+      where: {
+        salesOrderId: { not: null },
+        paymentDate: { gte: since },
+      },
+      _sum: { amount: true },
+    }),
+    // Amount Pending (AR): total outstanding balance across all showrooms
+    prisma.salesOrder.findMany({
+      where: {
+        balanceDue: { gt: 0 },
+        status: { not: "CANCELLED" },
+      },
+      select: { balanceDue: true },
+    }),
+  ]);
 
-    const [received, pendingOrders] = await Promise.all([
-      // Amount Received: sum of all payments in the period linked to sales orders
-      prisma.payment.aggregate({
-        where: {
-          salesOrderId: { not: null },
-          paymentDate: { gte: since },
-        },
-        _sum: { amount: true },
-      }),
-      // Amount Pending (AR): total outstanding balance across all showrooms
-      prisma.salesOrder.findMany({
-        where: {
-          balanceDue: { gt: 0 },
-          status: { not: "CANCELLED" },
-        },
-        select: { balanceDue: true },
-      }),
-    ]);
+  const amountReceived = toNumber(received._sum.amount ?? 0);
+  const amountPending = pendingOrders.reduce(
+    (sum, o) => sum + toNumber(o.balanceDue),
+    0
+  );
 
-    const amountReceived = toNumber(received._sum.amount ?? 0);
-    const amountPending = pendingOrders.reduce(
-      (sum, o) => sum + toNumber(o.balanceDue),
-      0
-    );
-
-    return {
-      period,
-      amountReceived,
-      amountPending,
-      amountReceivedFormatted: formatCurrency(amountReceived),
-      amountPendingFormatted: formatCurrency(amountPending),
-    };
-  });
+  return {
+    period,
+    amountReceived,
+    amountPending,
+    amountReceivedFormatted: formatCurrency(amountReceived),
+    amountPendingFormatted: formatCurrency(amountPending),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -214,7 +212,7 @@ export async function getShowroomAnalytics(customerId: string): Promise<Showroom
     });
     if (!customer) throw new Error(`Customer ${customerId} not found`);
 
-    const yearStart = startOfCurrentYear();
+    const yearStart = startOfCurrentFiscalYear();
     const monthStart = startOfCurrentMonth();
     const prevMonthStart = startOfPreviousMonth();
     const prevMonthEnd = endOfPreviousMonth();
@@ -387,20 +385,37 @@ export async function getDashboardSummary() {
     return { month: label, inflow: 0, outflow: 0 };
   });
 
+  // Also compute total COGS across all orders for server-side Net Profit
+  let allTimeTotalRevenue = 0;
+  let allTimeTotalCogs = 0;
+  let mtdNetProfit = 0;
+
   allSalesOrders.forEach((order) => {
+    const isMtd = order.orderDate >= monthStart;
     const bucket = revenueVsCogs.find(
       (item) => item.month === new NepaliDate(order.orderDate).format("MMMM")
     );
-    if (!bucket) return;
     order.lineItems.forEach((lineItem) => {
-      const revenue = lineItem.quantity * toNumber(lineItem.unitPrice);
+      // Apply discounts to revenue (Fix #7)
+      const lineGross = lineItem.quantity * toNumber(lineItem.unitPrice);
+      const discAmt = lineItem.discountAmount
+        ? toNumber(lineItem.discountAmount)
+        : lineGross * (toNumber(lineItem.discountPct) / 100);
+      const revenue = lineGross - discAmt;
       const cogs =
         lineItem.quantity *
         (lineItem.productVariant 
           ? (toNumber(lineItem.productVariant.product.costPrice) + toNumber(lineItem.productVariant.additionalCost))
           : toNumber(lineItem.unitPrice) * 0.7); // 70% estimated COGS for custom items if no variant
-      bucket.revenue += revenue;
-      bucket.cogs += cogs;
+      if (bucket) {
+        bucket.revenue += revenue;
+        bucket.cogs += cogs;
+      }
+      allTimeTotalRevenue += revenue;
+      allTimeTotalCogs += cogs;
+      if (isMtd) {
+        mtdNetProfit += (revenue - cogs);
+      }
     });
   });
 
@@ -440,10 +455,20 @@ export async function getDashboardSummary() {
     },
   });
 
-  const profitAndLoss = await getProfitAndLoss(monthStart, new Date());
-
   // AR Aging buckets — now included in main summary for dashboard widget
   const arAging = await getArAgingBuckets();
+
+  // Per-customer aging buckets from server-side days-overdue calculation (Fix #5)
+  const arAgingRows = await getAraAgingReport();
+  const arAgingByCustomer: Record<string, string> = {};
+  for (const row of arAgingRows) {
+    // If a customer has multiple orders in different buckets, keep the worst (oldest)
+    const existing = arAgingByCustomer[row.customer];
+    const BUCKET_ORDER = ["0-30", "31-60", "61-90", "90+"];
+    if (!existing || BUCKET_ORDER.indexOf(row.bucket) > BUCKET_ORDER.indexOf(existing)) {
+      arAgingByCustomer[row.customer] = row.bucket;
+    }
+  }
 
   return {
     kpis: [
@@ -485,24 +510,26 @@ export async function getDashboardSummary() {
       },
       {
         label: "Net Profit (MTD)",
-        value: formatCurrency(profitAndLoss.netProfit),
+        value: formatCurrency(mtdNetProfit),
         change: "Current month",
-        tone: profitAndLoss.netProfit >= 0 ? "positive" : "negative",
+        tone: mtdNetProfit >= 0 ? "positive" : "negative",
       },
     ],
     revenueVsCogs,
     cashFlow: cashFlowSeries,
     topProducts: topSellingProducts,
     arAging, // AR Aging buckets added to summary response
+    arAgingByCustomer, // Per-customer aging buckets by days overdue (Fix #5)
+    // Server-side COGS/Net Profit (Fix #2) — single source of truth
+    totalRevenue: allTimeTotalRevenue,
+    totalCogs: allTimeTotalCogs,
+    netProfit: allTimeTotalRevenue - allTimeTotalCogs,
     recentSalesOrders: recentSalesOrders.map((order) => ({
       id: order.id,
       customer: order.customer.name,
       status: order.status,
       deliveryDate: order.deliveryDate?.toISOString() ?? order.orderDate.toISOString(),
-      total: order.lineItems.reduce(
-        (sum, item) => sum + item.quantity * toNumber(item.unitPrice),
-        0
-      ),
+      total: toNumber(order.orderAmount), // Fix #8: Use orderAmount, not raw line sum
     })),
     lowStockItems: lowStockItems.map((variant) => ({
       id: variant.id,

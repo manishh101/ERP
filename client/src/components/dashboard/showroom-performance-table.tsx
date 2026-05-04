@@ -58,7 +58,7 @@ function buildMetrics(
   orders: SalesOrderRow[],
   customers: RawCustomer[],
 ): ShowroomMetric[] {
-  const customerById = new Map(customers.map((c) => [c.name, c]));
+  const customerById = new Map(customers.map((c) => [c.id, c]));
 
   const map = new Map<
     string,
@@ -68,8 +68,8 @@ function buildMetrics(
   for (const order of orders) {
     if (order.customerType !== "SHOWROOM") continue;
 
-    const existing = map.get(order.customer) ?? {
-      id: "",
+    const existing = map.get(order.customerId) ?? {
+      id: order.customerId,
       name: order.customer,
       orderCount: 0,
       totalValue: 0,
@@ -84,19 +84,15 @@ function buildMetrics(
     existing.orders.push(order);
 
     // Use the live outstanding balance from customer list (most accurate)
-    const cust = customerById.get(order.customer);
+    const cust = customerById.get(order.customerId);
     existing.totalDue = cust
       ? toNumber(cust.outstandingBalance)
       : existing.totalDue;
 
-    map.set(order.customer, existing);
+    map.set(order.customerId, existing);
   }
 
-  const idMap = new Map(customers.map((c) => [c.name, c.id]));
-  const metrics = Array.from(map.values()).map((m) => ({
-    ...m,
-    id: idMap.get(m.name) ?? m.name,
-  }));
+  const metrics = Array.from(map.values());
 
   const grandTotal = metrics.reduce((s, m) => s + m.totalValue, 0);
 
@@ -117,7 +113,7 @@ function groupByNepaliMonth(orders: SalesOrderRow[]): MonthBucket[] {
   const map = new Map<string, MonthBucket>();
 
   for (const order of orders) {
-    const dateStr = order.deliveryDate ?? "";
+    const dateStr = order.orderDate ?? "";
     let key = "unknown";
     let label = "Unknown";
 

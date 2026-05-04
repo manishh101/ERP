@@ -13,10 +13,12 @@ import {
 import type { AgingBuckets } from "@/types/domain";
 import type { RawCustomer } from "@/hooks/use-queries";
 
-// ─── Types ─────────────────────────────────────────────────────────────────
+// ─── Types ───────────────────────────────────────────────────────────────────────
 interface ArAgingTableProps {
   data: AgingBuckets;
   customers: RawCustomer[];
+  /** Server-side per-customer aging buckets by days overdue. Key = customer name. */
+  arAgingByCustomer?: Record<string, string>;
 }
 
 // ─── Bucket Config ──────────────────────────────────────────────────────────
@@ -76,7 +78,7 @@ const BUCKETS = [
 ] as const;
 
 // ─── Component ──────────────────────────────────────────────────────────────
-export function ArAgingTable({ data, customers }: ArAgingTableProps) {
+export function ArAgingTable({ data, customers, arAgingByCustomer }: ArAgingTableProps) {
   const [typeFilter, setTypeFilter] = useState<"ALL" | "SHOWROOM" | "RETAIL">("ALL");
   const total = data.totalOutstanding;
 
@@ -90,7 +92,8 @@ export function ArAgingTable({ data, customers }: ArAgingTableProps) {
       type: c.type,
       outstanding: toNumber(c.outstandingBalance),
       creditLimit: toNumber(c.creditLimit),
-      riskBucket: (() => {
+      // Use server-side days-overdue bucket if available, fall back to credit utilization
+      riskBucket: arAgingByCustomer?.[c.name] ?? (() => {
         const pct = toNumber(c.outstandingBalance) / Math.max(toNumber(c.creditLimit), 1);
         if (pct > 0.9) return "90+";
         if (pct > 0.6) return "61-90";

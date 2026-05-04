@@ -204,30 +204,4 @@ export async function getTaxSummary(startDate?: Date, endDate?: Date) {
   return { outputTax, inputTax, netPayable: outputTax - inputTax };
 }
 
-export async function getCustomerLedger(customerId: string, startDate?: Date, endDate?: Date) {
-  const entries = await prisma.arLedger.findMany({
-    where: {
-      customerId,
-      entryDate: buildDateRange(startDate, endDate),
-    },
-    include: {
-      salesOrder: { select: { id: true, orderDate: true } },
-      payment: { select: { id: true, method: true, reference: true } },
-    },
-    orderBy: { entryDate: "asc" },
-  });
-
-  return entries.map((entry) => ({
-    id: entry.id,
-    date: entry.entryDate,
-    bsDate: entry.bsDate,
-    type: entry.entryType,        // "DEBIT" | "CREDIT"
-    reference: entry.salesOrder?.id ?? entry.payment?.reference ?? entry.id,
-    narration: entry.narration ?? "",
-    debit: entry.entryType === "DEBIT" ? toNumber(entry.amount) : 0,
-    credit: entry.entryType === "CREDIT" ? toNumber(entry.amount) : 0,
-    balance: toNumber(entry.runningBalance),
-  }));
-}
-
 

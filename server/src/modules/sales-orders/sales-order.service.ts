@@ -55,14 +55,14 @@ export async function createOrder(input: {
     const deposit = input.depositAmount ? Number(input.depositAmount) : 0;
     const balanceDue = orderAmount - deposit;
 
-    // 2. Create SalesOrder
+    // 2. Create SalesOrder with correct initial financial state
     const order = await tx.salesOrder.create({
       data: {
         customerId: input.customerId,
-        status: "CONFIRMED", // Start as confirmed if created with items
+        status: deposit >= orderAmount ? "PAID" : deposit > 0 ? "DEPOSIT_PAID" : "CONFIRMED",
         orderAmount: orderAmount,
-        paidAmount: 0, // Will be updated by recordPayment if deposit > 0
-        balanceDue: orderAmount, // Will be updated by recordPayment if deposit > 0
+        paidAmount: deposit,
+        balanceDue: Math.max(orderAmount - deposit, 0),
         orderDate: new Date(),
         deliveryDate: input.deliveryDate,
         bsDate: input.bsDate,
@@ -129,14 +129,7 @@ export async function createOrder(input: {
         },
       });
 
-      const newPaidAmount = deposit;
-      const newBalanceDue = Math.max(orderAmount - deposit, 0);
-      const newStatus = newBalanceDue <= 0 ? "PAID" : "DEPOSIT_PAID";
-
-      await tx.salesOrder.update({
-        where: { id: order.id },
-        data: { paidAmount: newPaidAmount, balanceDue: newBalanceDue, status: newStatus },
-      });
+      // No need to update salesOrder paidAmount/balanceDue/status — already set correctly at creation
 
       // Post the AR credit for the deposit
       const lastArEntry = await tx.arLedger.findFirst({

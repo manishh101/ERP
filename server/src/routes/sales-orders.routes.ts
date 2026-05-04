@@ -164,6 +164,21 @@ salesOrdersRouter.patch(
       ? calculateSalesOrderTotals(body.lineItems, body.depositAmount ?? 0)
       : undefined;
 
+    // Sync paidAmount from actual Payment records to ensure Net Collection KPI accuracy
+    const sumPaid = await prisma.payment.aggregate({
+      where: { salesOrderId: params.id },
+      _sum: { amount: true },
+    });
+    const syncedPaidAmount = toNumber(sumPaid._sum.amount ?? 0);
+
+    // Compute the correct balanceDue from the new orderAmount minus actual payments
+    const newOrderAmount = totals?.subtotal;
+    const existing = newOrderAmount === undefined
+      ? await prisma.salesOrder.findUnique({ where: { id: params.id }, select: { orderAmount: true } })
+      : null;
+    const effectiveOrderAmount = newOrderAmount ?? toNumber(existing?.orderAmount ?? 0);
+    const syncedBalanceDue = Math.max(effectiveOrderAmount - syncedPaidAmount, 0);
+
     const salesOrder = await prisma.salesOrder.update({
       where: { id: params.id },
       data: {
@@ -171,9 +186,10 @@ salesOrdersRouter.patch(
         assignedWarehouseId: body.assignedWarehouseId,
         salespersonId: body.salespersonId,
         status: body.status,
-        orderAmount: totals?.subtotal,
+        orderAmount: newOrderAmount,
         depositAmount: body.depositAmount,
-        balanceDue: totals?.balanceDue,
+        paidAmount: syncedPaidAmount,
+        balanceDue: syncedBalanceDue,
         deliveryDate: body.deliveryDate,
         notes: body.notes,
         ...(body.lineItems

@@ -52,6 +52,11 @@ type RawDashboardPayload = {
     variant: string;
     quantity: number | string;
   }>;
+  // Server-side centralized metrics
+  totalRevenue?: number;
+  totalCogs?: number;
+  netProfit?: number;
+  arAgingByCustomer?: Record<string, string>;
 };
 
 type RawProduct = {
@@ -677,10 +682,12 @@ function normalizeNumberArray(value: unknown) {
 function mapSalesOrder(order: RawSalesOrder): SalesOrderRow {
   return {
     id: order.id,
+    customerId: order.customer.id,
     customer: order.customer.name,
     customerType: order.customer.type,
     status: formatEnumLabel(order.status),
     rawStatus: order.status,
+    orderDate: order.orderDate,
     deliveryDate: order.deliveryDate ?? order.orderDate,
     total: toNumber(order.orderAmount),
     balanceDue: toNumber(order.balanceDue),

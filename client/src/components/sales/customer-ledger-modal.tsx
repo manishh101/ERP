@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useCustomerLedgerQuery } from "@/hooks/use-queries";
 import { useAuth } from "@/components/auth/auth-provider";
@@ -14,6 +15,7 @@ import {
 import { DataTable } from "@/components/shared/data-table";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { ArLedgerEntry } from "@/types/domain";
+import { NepaliDatePickerInput } from "@/components/ui/nepali-date-picker-input";
 
 type CustomerLedgerModalProps = {
   customerId: string;
@@ -65,7 +67,9 @@ const ledgerColumns: ColumnDef<ArLedgerEntry, unknown>[] = [
 
 export function CustomerLedgerModal({ customerId, customerName, onClose }: CustomerLedgerModalProps) {
   const { token } = useAuth();
-  const { data: ledger, isLoading } = useCustomerLedgerQuery(customerId);
+  const [startDate, setStartDate] = useState<Date>();
+  const [endDate, setEndDate] = useState<Date>();
+  const { data: ledger, isLoading } = useCustomerLedgerQuery(customerId, { startDate, endDate });
 
   const handleDownloadPdf = async () => {
     try {
@@ -80,7 +84,10 @@ export function CustomerLedgerModal({ customerId, customerName, onClose }: Custo
       if (!response.ok) throw new Error('Failed to get download token');
       const { token: downloadToken } = await response.json();
 
-      const url = `${baseUrl}/reports/customer-ledger/${customerId}/pdf?token=${downloadToken}`;
+      let url = `${baseUrl}/reports/customer-ledger/${customerId}/pdf?token=${downloadToken}`;
+      if (startDate) url += `&startDate=${startDate.toISOString()}`;
+      if (endDate) url += `&endDate=${endDate.toISOString()}`;
+      
       window.open(url, "_blank");
     } catch (error) {
       console.error('Download error:', error);
@@ -96,7 +103,35 @@ export function CustomerLedgerModal({ customerId, customerName, onClose }: Custo
           <SheetDescription>{customerName}</SheetDescription>
         </SheetHeader>
 
-        <div className="mt-6">
+        <div className="mt-6 flex flex-col gap-4">
+          <div className="flex gap-4 items-center">
+            <div className="w-48">
+              <label className="text-xs text-muted-foreground mb-1 block">From Date</label>
+              <NepaliDatePickerInput 
+                value={startDate} 
+                onChange={setStartDate} 
+                placeholder="Start Date"
+              />
+            </div>
+            <div className="w-48">
+              <label className="text-xs text-muted-foreground mb-1 block">To Date</label>
+              <NepaliDatePickerInput 
+                value={endDate} 
+                onChange={setEndDate} 
+                placeholder="End Date"
+              />
+            </div>
+            {(startDate || endDate) && (
+              <Button 
+                variant="ghost" 
+                className="mt-5 text-muted-foreground"
+                onClick={() => { setStartDate(undefined); setEndDate(undefined); }}
+              >
+                Clear
+              </Button>
+            )}
+          </div>
+
           {isLoading ? (
             <div className="space-y-3">
               <Skeleton className="h-10 w-full" />
@@ -118,7 +153,7 @@ export function CustomerLedgerModal({ customerId, customerName, onClose }: Custo
             </div>
           ) : (
             <div className="py-16 text-center text-muted-foreground">
-              No transactions found for this party.
+              No transactions found for this party in the selected date range.
             </div>
           )}
         </div>

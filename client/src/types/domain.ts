@@ -79,6 +79,11 @@ export type DashboardPayload = {
   recentSalesOrders: DashboardRecentSalesOrder[];
   lowStockItems: DashboardLowStockItem[];
   arAging?: AgingBuckets; // AR Aging buckets (PRD §5.1)
+  // Server-side centralized metrics (single source of truth)
+  totalRevenue?: number;
+  totalCogs?: number;
+  netProfit?: number;
+  arAgingByCustomer?: Record<string, string>; // customerName → bucket ("0-30", "31-60", etc.)
 };
 
 export type TableColumn<T> = {
@@ -208,10 +213,12 @@ export type TaxRateRow = {
 
 export type SalesOrderRow = {
   id: string;
+  customerId: string;
   customer: string;
   customerType: string;
   status: string;
   rawStatus: string;
+  orderDate: string;
   deliveryDate: string;
   total: number;
   balanceDue: number;
