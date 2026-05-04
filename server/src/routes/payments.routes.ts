@@ -221,6 +221,8 @@ paymentsRouter.get("/:id/receipt", asyncHandler(async (request, response) => {
               },
             },
           },
+          purchaseOrder: { include: { supplier: true } },
+          supplierInvoice: { include: { supplier: true } },
         },
         orderBy: { createdAt: "asc" },
       });
