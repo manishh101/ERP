@@ -1504,8 +1504,12 @@ export function useCreateSalesOrderMutation() {
         body: payload,
       });
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["sales-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
+      if (variables.customerId) {
+        queryClient.invalidateQueries({ queryKey: ["customer", variables.customerId] });
+      }
     },
   });
 }
@@ -1694,6 +1698,8 @@ export function useRecordPaymentMutation() {
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["ar-ledger"] });
       queryClient.invalidateQueries({ queryKey: ["payments"] });
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
+      queryClient.invalidateQueries({ queryKey: ["customer"] });
     },
   });
 }

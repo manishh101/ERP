@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
+import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -136,16 +137,11 @@ export function CreateSalesOrderForm({ onClose }: CreateSalesOrderFormProps) {
                 + New Customer
               </Button>
             </div>
-            <select 
-              className="flex h-12 w-full rounded-xl border border-border bg-white px-4 text-sm"
-              value={formData.customerId}
-              onChange={(e) => setFormData({ ...formData, customerId: e.target.value })}
-            >
-              <option value="">Select a customer</option>
-              {customers.data?.items.map(c => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
+            <CustomerPicker 
+              customers={customers.data?.items ?? []} 
+              selectedId={formData.customerId}
+              onSelect={(customerId) => setFormData({ ...formData, customerId })}
+            />
           </div>
           <div className="space-y-2">
             <label className="text-sm font-semibold">Status</label>
@@ -535,5 +531,98 @@ export function CreateSalesOrderForm({ onClose }: CreateSalesOrderFormProps) {
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+/* ─── Searchable Customer Picker ─────────────────────────────────────────────── */
+
+function CustomerPicker({
+  customers,
+  selectedId,
+  onSelect,
+}: {
+  customers: any[];
+  selectedId: string;
+  onSelect: (id: string) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [isOpen, setIsOpen] = useState(false);
+
+  const filteredCustomers = useMemo(() => {
+    if (!query.trim()) return customers;
+    const q = query.toLowerCase();
+    return customers.filter((c) => c.name.toLowerCase().includes(q) || c.phone?.toLowerCase().includes(q));
+  }, [customers, query]);
+
+  const selectedCustomer = customers.find((c) => c.id === selectedId);
+
+  return (
+    <div className="relative">
+      {/* Selected Customer Chip */}
+      {selectedCustomer ? (
+        <div className="flex h-12 items-center justify-between rounded-xl border border-primary/30 bg-primary/5 px-4">
+          <div className="min-w-0 flex-1 flex flex-col justify-center">
+            <p className="text-sm font-semibold text-primary truncate leading-tight">{selectedCustomer.name}</p>
+            {selectedCustomer.phone && (
+              <p className="text-[10px] text-muted-foreground leading-tight">{selectedCustomer.phone}</p>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => onSelect("")}
+            className="ml-3 shrink-0 text-xs text-muted-foreground hover:text-destructive transition-colors"
+          >
+            Change
+          </button>
+        </div>
+      ) : (
+        /* Search Input */
+        <div className="relative">
+          <Search className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search customer..."
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setIsOpen(true);
+            }}
+            onFocus={() => setIsOpen(true)}
+            onBlur={() => {
+              // Delay hiding to allow click events on the list
+              setTimeout(() => setIsOpen(false), 200);
+            }}
+            className="pl-10 h-12 rounded-xl bg-white"
+          />
+          {/* Dropdown List */}
+          {isOpen && (
+            <div className="absolute z-50 mt-1 w-full max-h-56 overflow-y-auto rounded-xl border border-border bg-white shadow-lg divide-y divide-border">
+              {filteredCustomers.length === 0 ? (
+                <p className="py-4 text-center text-sm text-muted-foreground">
+                  No customers found.
+                </p>
+              ) : (
+                filteredCustomers.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => {
+                      onSelect(c.id);
+                      setIsOpen(false);
+                      setQuery("");
+                    }}
+                    className="flex w-full items-center justify-between px-4 py-2.5 text-left hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium truncate">{c.name}</p>
+                      {c.phone && <p className="text-xs text-muted-foreground">{c.phone}</p>}
+                    </div>
+                  </button>
+                ))
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
