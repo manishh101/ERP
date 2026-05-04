@@ -25,6 +25,7 @@ import type {
   SalesOrderRow,
   UserRole,
   UserRow,
+  PaymentRow,
 } from "@/types/domain";
 
 type PaginatedResponse<T> = {
@@ -252,6 +253,18 @@ type RawDelivery = {
   assemblyCharge?: number | string | null;
   floorDelivery?: boolean;
   assemblyService?: boolean;
+};
+
+type RawPayment = {
+  id: string;
+  amount: number | string;
+  method: string;
+  paymentDate: string;
+  bsDate?: string | null;
+  reference?: string | null;
+  salesOrder?: { id: string; customer?: { name: string } } | null;
+  purchaseOrder?: { id: string; supplier?: { name: string } } | null;
+  supplierInvoice?: { id: string; invoiceNumber: string; supplier?: { name: string } } | null;
 };
 
 type RawInventoryRecord = {
@@ -750,6 +763,33 @@ function mapDelivery(delivery: RawDelivery): DeliveryRow {
     assemblyCharge: toNumber(delivery.assemblyCharge),
     floorDelivery: delivery.floorDelivery ?? false,
     assemblyService: delivery.assemblyService ?? false,
+  };
+}
+
+function mapPayment(data: RawPayment): PaymentRow {
+  let relatedEntity = "-";
+  let relatedEntityId = "-";
+
+  if (data.salesOrder) {
+    relatedEntity = `Sales Order (Customer: ${data.salesOrder.customer?.name || 'Unknown'})`;
+    relatedEntityId = data.salesOrder.id;
+  } else if (data.supplierInvoice) {
+    relatedEntity = `Supplier Invoice ${data.supplierInvoice.invoiceNumber} (Supplier: ${data.supplierInvoice.supplier?.name || 'Unknown'})`;
+    relatedEntityId = data.supplierInvoice.id;
+  } else if (data.purchaseOrder) {
+    relatedEntity = `Purchase Order (Supplier: ${data.purchaseOrder.supplier?.name || 'Unknown'})`;
+    relatedEntityId = data.purchaseOrder.id;
+  }
+
+  return {
+    id: data.id,
+    amount: toNumber(data.amount),
+    method: data.method,
+    date: String(data.paymentDate),
+    bsDate: data.bsDate || "-",
+    reference: data.reference || "-",
+    relatedEntity,
+    relatedEntityId,
   };
 }
 
@@ -1653,6 +1693,27 @@ export function useRecordPaymentMutation() {
       queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["ar-ledger"] });
+      queryClient.invalidateQueries({ queryKey: ["payments"] });
+    },
+  });
+}
+
+export function usePaymentsQuery(page = 1, pageSize = 50, search = "") {
+  const { token } = useAuth();
+
+  return useQuery({
+    queryKey: ["payments", token, page, pageSize, search],
+    enabled: Boolean(token),
+    queryFn: async () => {
+      const response = await apiRequest<PaginatedResponse<RawPayment>>("/payments", {
+        token: token!,
+        query: { page, pageSize, search },
+      });
+
+      return {
+        ...response,
+        items: response.items.map(mapPayment),
+      };
     },
   });
 }

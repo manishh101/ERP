@@ -257,6 +257,17 @@ export type ArLedgerEntry = {
   balance: number;
 };
 
+export type PaymentRow = {
+  id: string;
+  date: string;
+  bsDate: string;
+  reference: string;
+  amount: number;
+  method: string;
+  relatedEntity: string;
+  relatedEntityId: string;
+};
+
 export type VatRegisterEntry = {
   id: string;
   date: string;

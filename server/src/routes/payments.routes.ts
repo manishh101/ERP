@@ -41,8 +41,8 @@ paymentsRouter.get(
         where,
         include: {
           salesOrder: { include: { customer: true } },
-          purchaseOrder: true,
-          supplierInvoice: true,
+          purchaseOrder: { include: { supplier: true } },
+          supplierInvoice: { include: { supplier: true } },
         },
         orderBy: {
           paymentDate: "desc",
@@ -163,30 +163,70 @@ paymentsRouter.get("/:id/receipt", asyncHandler(async (request, response) => {
 
   try {
     const { id } = idParamSchema.parse(request.params);
-    const [payment, companyProfile] = await Promise.all([
-      prisma.payment.findUnique({
-        where: { id },
-        include: {
-          salesOrder: {
-            include: {
-              customer: true
-            }
-          },
-          supplierInvoice: {
-            include: {
-              supplier: true,
+    const companyProfile = await prisma.companyProfile.findFirst();
+
+    // 1. Fetch the requested payment
+    const payment = await prisma.payment.findUnique({
+      where: { id },
+      include: {
+        salesOrder: {
+          include: {
+            customer: true,
+            lineItems: {
+              include: {
+                productVariant: {
+                  include: { product: true },
+                },
+              },
             },
           },
         },
-      }),
-      prisma.companyProfile.findFirst(),
-    ]);
+        purchaseOrder: { include: { supplier: true } },
+        supplierInvoice: { include: { supplier: true } },
+      },
+    });
 
     if (!payment) {
       throw new ApiError(404, "Payment not found");
     }
 
-    const buffer = await renderReceiptPdfBuffer({ payment, companyProfile });
+    // 2. Group payments if this is a sales order payment
+    let groupedPayments = [payment];
+
+    if (payment.salesOrder) {
+      const timeMin = new Date(payment.createdAt.getTime() - 5000);
+      const timeMax = new Date(payment.createdAt.getTime() + 5000);
+
+      groupedPayments = await prisma.payment.findMany({
+        where: {
+          createdAt: {
+            gte: timeMin,
+            lte: timeMax,
+          },
+          method: payment.method,
+          salesOrder: {
+            customerId: payment.salesOrder.customer.id,
+          },
+        },
+        include: {
+          salesOrder: {
+            include: {
+              customer: true,
+              lineItems: {
+                include: {
+                  productVariant: {
+                    include: { product: true },
+                  },
+                },
+              },
+            },
+          },
+        },
+        orderBy: { createdAt: "asc" },
+      });
+    }
+
+    const buffer = await renderReceiptPdfBuffer({ payments: groupedPayments, companyProfile });
     response.setHeader("Content-Type", "application/pdf");
     response.setHeader("Content-Disposition", `inline; filename=receipt-${payment.id}.pdf`);
     response.send(buffer);

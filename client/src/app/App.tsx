@@ -11,6 +11,7 @@ import { InvoicingPage } from "@/pages/InvoicingPage";
 import { EstimateBillsPage } from "@/pages/EstimateBillsPage";
 import { LoginPage } from "@/pages/LoginPage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
+import { PaymentsPage } from "@/pages/PaymentsPage";
 import { ProductDetailPage } from "@/pages/ProductDetailPage";
 import { PartiesPage } from "@/pages/PartiesPage";
 import { PartyProfilePage } from "@/pages/PartyProfilePage";
@@ -64,6 +65,7 @@ export function App() {
         <Route path="/sales/:id" element={<SalesOrderDetailPage />} />
         <Route path="/invoicing" element={<InvoicingPage />} />
         <Route path="/estimates" element={<EstimateBillsPage />} />
+        <Route path="/payments" element={<PaymentsPage />} />
         <Route path="/accounting" element={<AccountingPage />} />
         <Route path="/accounting/ledger" element={<ArLedgerPage />} />
         <Route path="/accounting/vat" element={<VatRegisterPage />} />

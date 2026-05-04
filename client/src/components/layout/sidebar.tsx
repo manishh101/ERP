@@ -58,7 +58,8 @@ const navigation: NavSection[] = [
   {
     title: "Finance",
     items: [
-      { label: "Payments", href: "/accounting", icon: Wallet, roles: ["ADMIN", "ACCOUNTANT"] },
+      { label: "Accounting Dashboard", href: "/accounting", icon: LayoutDashboard, roles: ["ADMIN", "ACCOUNTANT"] },
+      { label: "Payments", href: "/payments", icon: Wallet, roles: ["ADMIN", "ACCOUNTANT"] },
       { label: "VAT/PAN Bills", href: "/invoicing", icon: Receipt, roles: ["ADMIN", "ACCOUNTANT"] },
       { label: "Estimate Bills", href: "/estimates", icon: FileText, roles: ["ADMIN", "ACCOUNTANT", "SALES"] },
       { label: "VAT Register", href: "/accounting/vat", icon: ClipboardList, roles: ["ADMIN", "ACCOUNTANT"] },
