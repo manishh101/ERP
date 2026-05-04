@@ -421,7 +421,7 @@ function ReceiptDocument({ payments, companyProfile }: { payments: any[]; compan
                 <View style={[S.dataRow, idx % 2 === 1 ? S.dataRowAlt : {}]} key={order.id || idx}>
                   <Text style={[S.tdMuted, { width: "8%" }]}>{idx + 1}</Text>
                   <Text style={[S.tdBold, { width: "24%" }]}>{order.id.slice(0, 12).toUpperCase()}</Text>
-                  <Text style={[S.tdText, { width: "15%" }]}>{fmtDate(order.orderDate)}</Text>
+                  <Text style={[S.tdText, { width: "15%" }]}>{order.bsDate || fmtDate(order.orderDate)}</Text>
                   <Text style={[S.tdText, { width: "10%", textAlign: "center" }]}>{totalQty}</Text>
                   <Text style={[S.tdText, { width: "15%", textAlign: "right" }]}>{fmt(orderAmount)}</Text>
                   <Text style={[S.tdBold, { width: "14%", textAlign: "right", color: "#16a34a" }]}>{fmt(paidInThisTx)}</Text>
