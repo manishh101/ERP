@@ -38,6 +38,8 @@ export const listQuerySchema = paginationSchema.extend({
   warehouseId: z.string().optional(),
   startDate: z.coerce.date().optional(),
   endDate: z.coerce.date().optional(),
+  year: z.string().optional(),
+  month: z.string().optional(),
 });
 
 export const productVariantInputSchema = z.object({

@@ -47,10 +47,20 @@ salesOrdersRouter.get(
       pageSize: number;
       status?: string;
       search?: string;
+      year?: string;
+      month?: string;
     };
+
+    let bsDateFilter = undefined;
+    if (query.year) {
+      bsDateFilter = {
+        startsWith: query.month ? `${query.year}-${query.month.padStart(2, "0")}` : `${query.year}-`,
+      };
+    }
 
     const where: any = {
       status: query.status || undefined,
+      bsDate: bsDateFilter,
       customer: query.search
         ? {
             name: {

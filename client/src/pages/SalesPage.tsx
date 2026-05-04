@@ -33,6 +33,7 @@ import { CreateCustomerForm } from "@/components/sales/create-customer-form";
 import { CreateSalesOrderForm } from "@/components/sales/create-sales-order-form";
 import { CustomerLedgerModal } from "@/components/sales/customer-ledger-modal";
 import { RecordDepositModal } from "@/components/sales/record-deposit-modal";
+import { YearMonthFilter } from "@/components/shared/year-month-filter";
 import type { SalesOrderRow } from "@/types/domain";
 
 const orderColumns: ColumnDef<SalesOrderRow, unknown>[] = [
@@ -60,7 +61,9 @@ const orderColumns: ColumnDef<SalesOrderRow, unknown>[] = [
 ];
 
 export function SalesPage() {
-  const { data, error, isLoading } = useSalesOrdersQuery();
+  const [filterYear, setFilterYear] = useState("");
+  const [filterMonth, setFilterMonth] = useState("");
+  const { data, error, isLoading } = useSalesOrdersQuery(500, filterYear, filterMonth);
   const { data: customersData, isLoading: customersLoading } =
     useCustomersQuery();
   const { mutate: cancelOrder, isPending: isCancelling } =
@@ -137,24 +140,43 @@ export function SalesPage() {
       />
 
       <div className="space-y-6">
-        <div className="flex items-center gap-2 rounded-lg border border-border/50 bg-muted/30 p-0.5 w-fit">
-          {(["ALL", "SHOWROOM", "RETAIL"] as const).map((t) => (
-            <button
-              key={t}
-              onClick={() => setTypeFilter(t)}
-              className={`px-4 py-1.5 text-xs font-semibold rounded-md transition-all ${
-                typeFilter === t
-                  ? "bg-white text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {t === "ALL"
-                ? "All Orders"
-                : t === "SHOWROOM"
-                  ? "Showroom Orders"
-                  : "Retail Orders"}
-            </button>
-          ))}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2 rounded-lg border border-border/50 bg-muted/30 p-0.5 w-fit">
+            {(["ALL", "SHOWROOM", "RETAIL"] as const).map((t) => (
+              <button
+                key={t}
+                onClick={() => setTypeFilter(t)}
+                className={`px-4 py-1.5 text-xs font-semibold rounded-md transition-all ${
+                  typeFilter === t
+                    ? "bg-white text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {t === "ALL"
+                  ? "All Orders"
+                  : t === "SHOWROOM"
+                    ? "Showroom Orders"
+                    : "Retail Orders"}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <YearMonthFilter
+              year={filterYear}
+              month={filterMonth}
+              onYearChange={(y) => { setFilterYear(y); setFilterMonth(""); }}
+              onMonthChange={setFilterMonth}
+            />
+            {(filterYear || filterMonth) && (
+              <button
+                onClick={() => { setFilterYear(""); setFilterMonth(""); }}
+                className="text-xs text-muted-foreground underline hover:text-foreground"
+              >
+                Clear filter
+              </button>
+            )}
+          </div>
         </div>
 
         <Card>
@@ -247,6 +269,7 @@ export function SalesPage() {
                 )
               }
               searchPlaceholder="Search orders..."
+              pageSize={50}
             />
           </CardContent>
         </Card>

@@ -25,10 +25,20 @@ paymentsRouter.get(
   "/",
   validate(listQuerySchema, "query"),
   asyncHandler(async (request, response) => {
-    const query = request.validated?.query as { page: number; pageSize: number; search?: string };
+    const query = request.validated?.query as { page: number; pageSize: number; search?: string; year?: string; month?: string };
+
+    let bsDateFilter = undefined;
+    if (query.year) {
+      bsDateFilter = {
+        startsWith: query.month ? `${query.year}-${String(query.month).padStart(2, "0")}` : `${query.year}-`,
+      };
+    }
+
+    const baseWhere: any = { bsDate: bsDateFilter };
 
     const where: any = query.search
       ? {
+          ...baseWhere,
           OR: [
             { reference: { contains: query.search, mode: "insensitive" as const } },
             {
@@ -48,7 +58,7 @@ paymentsRouter.get(
             },
           ],
         }
-      : {};
+      : baseWhere;
 
     const [items, total] = await Promise.all([
       prisma.payment.findMany({

@@ -1514,16 +1514,16 @@ export function useCreateSalesOrderMutation() {
   });
 }
 
-export function useSalesOrdersQuery(pageSize: number = 100) {
+export function useSalesOrdersQuery(pageSize: number = 100, year?: string, month?: string) {
   const { token } = useAuth();
 
   return useQuery({
-    queryKey: ["sales-orders", token, pageSize],
+    queryKey: ["sales-orders", token, pageSize, year, month],
     enabled: Boolean(token),
     queryFn: async () => {
       const response = await apiRequest<PaginatedResponse<RawSalesOrder>>("/sales-orders", {
         token: token!,
-        query: { pageSize },
+        query: { pageSize, ...(year ? { year } : {}), ...(month ? { month } : {}) },
       });
 
       return {
@@ -1704,16 +1704,16 @@ export function useRecordPaymentMutation() {
   });
 }
 
-export function usePaymentsQuery(page = 1, pageSize = 50, search = "") {
+export function usePaymentsQuery(page = 1, pageSize = 50, search = "", year = "", month = "") {
   const { token } = useAuth();
 
   return useQuery({
-    queryKey: ["payments", token, page, pageSize, search],
+    queryKey: ["payments", token, page, pageSize, search, year, month],
     enabled: Boolean(token),
     queryFn: async () => {
       const response = await apiRequest<PaginatedResponse<RawPayment>>("/payments", {
         token: token!,
-        query: { page, pageSize, search },
+        query: { page, pageSize, search, ...(year ? { year } : {}), ...(month ? { month } : {}) },
       });
 
       return {

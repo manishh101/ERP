@@ -4,6 +4,7 @@ import { usePaymentsQuery, useSalesOrdersQuery, useRecordPaymentMutation } from 
 import type { PaymentCreatePayload } from "@/hooks/use-queries";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
+import { YearMonthFilter } from "@/components/shared/year-month-filter";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { formatCurrency, formatDate, toNumber } from "@/lib/utils";
@@ -25,7 +26,9 @@ import { CheckCircle2 } from "lucide-react";
 export function PaymentsPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
-  const { data, isLoading } = usePaymentsQuery(page, 500, search);
+  const [filterYear, setFilterYear] = useState("");
+  const [filterMonth, setFilterMonth] = useState("");
+  const { data, isLoading } = usePaymentsQuery(page, 500, search, filterYear, filterMonth);
   const { token } = useAuth();
   const [recordOpen, setRecordOpen] = useState(false);
 
@@ -110,6 +113,23 @@ export function PaymentsPage() {
           },
         ]}
       />
+
+      <div className="flex items-center gap-3 flex-wrap mb-2">
+        <YearMonthFilter
+          year={filterYear}
+          month={filterMonth}
+          onYearChange={(y) => { setFilterYear(y); setFilterMonth(""); }}
+          onMonthChange={setFilterMonth}
+        />
+        {(filterYear || filterMonth) && (
+          <button
+            onClick={() => { setFilterYear(""); setFilterMonth(""); }}
+            className="text-xs text-muted-foreground underline hover:text-foreground"
+          >
+            Clear filter
+          </button>
+        )}
+      </div>
 
       <div className="rounded-xl border border-border bg-white shadow-sm overflow-hidden">
         <DataTable
