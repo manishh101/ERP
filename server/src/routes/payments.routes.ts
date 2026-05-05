@@ -69,7 +69,7 @@ paymentsRouter.get(
           supplierInvoice: { include: { supplier: true } },
         },
         orderBy: {
-          paymentDate: "desc",
+          createdAt: "desc",
         },
         ...getPagination(query.page, query.pageSize),
       }),

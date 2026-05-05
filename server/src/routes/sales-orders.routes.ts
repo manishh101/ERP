@@ -91,7 +91,7 @@ salesOrdersRouter.get(
           delivery: true,
         },
         orderBy: {
-          orderDate: "desc",
+          createdAt: "desc",
         },
         ...getPagination(query.page, query.pageSize),
       }),
