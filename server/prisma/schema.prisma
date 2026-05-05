@@ -80,6 +80,8 @@ enum PaymentMethod {
   CASH
   CARD
   BANK
+  CHEQUE
+  QR
   INSTALLMENT
 }
 
