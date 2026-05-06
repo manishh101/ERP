@@ -194,13 +194,14 @@ const S = StyleSheet.create({
   signatureArea: {
     marginTop: 80,
     flexDirection: "row",
-    justifyContent: "flex-end",
+    justifyContent: "space-between",
   },
   signatureLine: {
-    width: "35%",
+    width: "40%",
     borderTopWidth: 1,
     borderTopColor: "#111111",
-    paddingTop: 6,
+    borderTopStyle: "dashed" as any,
+    paddingTop: 2,
     alignItems: "center",
   },
   signatureText: {
@@ -411,7 +412,10 @@ function InvoiceDocument({
 
         <View style={S.signatureArea}>
           <View style={S.signatureLine}>
-            <Text style={S.signatureText}>Authorized Signature</Text>
+            <Text style={S.signatureText}>Customer&apos;s Signature</Text>
+          </View>
+          <View style={S.signatureLine}>
+            <Text style={S.signatureText}>Authorized Signatory</Text>
           </View>
         </View>
 
