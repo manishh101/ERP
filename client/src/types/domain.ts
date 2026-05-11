@@ -131,10 +131,13 @@ export type PurchaseOrderLineRow = {
 
 export type PurchaseOrderRow = {
   id: string;
+  supplierId: string;
   supplier: string;
   status: string;
   orderDate: string;
   expectedDelivery: string | null;
+  shippingTerms?: string;
+  notes?: string;
   totalAmount: number;
   receipts: number;
   supplierInvoices: number;

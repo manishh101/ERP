@@ -60,12 +60,12 @@ export const dashboardData: DashboardPayload = {
 };
 
 export const inventoryProducts: ProductRow[] = ([
-  { id: "p1", name: "Monarch Sofa", sku: "SOF-MON-001", category: "Sofa", material: "Walnut / Linen", status: "Active", stock: 14, margin: 38, valuation: 7840 },
-  { id: "p2", name: "Aster Dining Set", sku: "DIN-AST-002", category: "Dining", material: "Oak / Stone", status: "Active", stock: 6, margin: 32, valuation: 3360 },
-  { id: "p3", name: "Luna Bed Frame", sku: "BED-LUN-003", category: "Bedroom", material: "Ash / Upholstered", status: "Active", stock: 4, margin: 35, valuation: 2240 },
-  { id: "p4", name: "Vela Executive Desk", sku: "OFF-VEL-004", category: "Office", material: "Steel / Walnut", status: "Active", stock: 9, margin: 41, valuation: 5040 },
-  { id: "p5", name: "Harbor Lounge Chair", sku: "OUT-HAR-005", category: "Outdoor", material: "Teak / Rope", status: "Discontinued", stock: 2, margin: 28, valuation: 1120 },
-] as any[]);
+  { id: "p1", name: "Monarch Sofa", description: "Upholstered three-seat sofa with walnut frame.", sku: "SOF-MON-001", category: "Sofa", material: "Walnut / Linen", status: "Active", stock: 14, margin: 38, valuation: 7840, sellingPrice: 1120, defaultVariantId: "p1-v1" },
+  { id: "p2", name: "Aster Dining Set", description: "Six-seat dining set for premium residential interiors.", sku: "DIN-AST-002", category: "Dining", material: "Oak / Stone", status: "Active", stock: 6, margin: 32, valuation: 3360, sellingPrice: 1680, defaultVariantId: "p2-v1" },
+  { id: "p3", name: "Luna Bed Frame", description: "Queen bed frame with upholstered headboard.", sku: "BED-LUN-003", category: "Bedroom", material: "Ash / Upholstered", status: "Active", stock: 4, margin: 35, valuation: 2240, sellingPrice: 980, defaultVariantId: "p3-v1" },
+  { id: "p4", name: "Vela Executive Desk", description: "Executive desk with cable management and storage.", sku: "OFF-VEL-004", category: "Office", material: "Steel / Walnut", status: "Active", stock: 9, margin: 41, valuation: 5040, sellingPrice: 1260, defaultVariantId: "p4-v1" },
+  { id: "p5", name: "Harbor Lounge Chair", description: "Outdoor lounge chair with weather-resistant weave.", sku: "OUT-HAR-005", category: "Outdoor", material: "Teak / Rope", status: "Discontinued", stock: 2, margin: 28, valuation: 1120, sellingPrice: 560, defaultVariantId: "p5-v1" },
+]);
 
 export const suppliers: SupplierRow[] = [
   { id: "sup1", name: "Kathmandu Woodcraft", country: "Nepal", leadTime: "8 days", onTimeRate: "95%", spend: 48200 },
@@ -74,23 +74,23 @@ export const suppliers: SupplierRow[] = [
 ];
 
 export const salesOrders: SalesOrderRow[] = ([
-  { id: "SO-2026-0038", customer: "Evergreen Homes", status: "Out for Delivery", deliveryDate: "2026-03-22", balanceDue: 4200 },
-  { id: "SO-2026-0037", customer: "Mia Thompson", status: "Deposit Paid", deliveryDate: "2026-03-24", balanceDue: 2100 },
-  { id: "SO-2026-0036", customer: "Urban Nest Studio", status: "Confirmed", deliveryDate: "2026-03-26", balanceDue: 12940 },
-  { id: "SO-2026-0035", customer: "Cedar Lane Hotels", status: "Delivered", deliveryDate: "2026-03-19", balanceDue: 0 },
-] as any[]);
+  { id: "SO-2026-0038", customerId: "cus-1", customer: "Evergreen Homes", customerType: "BUSINESS", status: "Out for Delivery", rawStatus: "OUT_FOR_DELIVERY", orderDate: "2026-03-10", deliveryDate: "2026-03-22", total: 8600, balanceDue: 4200, paidAmount: 4400, cogs: 5310 },
+  { id: "SO-2026-0037", customerId: "cus-2", customer: "Mia Thompson", customerType: "RETAIL", status: "Deposit Paid", rawStatus: "DEPOSIT_PAID", orderDate: "2026-03-11", deliveryDate: "2026-03-24", total: 3200, balanceDue: 2100, paidAmount: 1100, cogs: 1850 },
+  { id: "SO-2026-0036", customerId: "cus-3", customer: "Urban Nest Studio", customerType: "BUSINESS", status: "Confirmed", rawStatus: "CONFIRMED", orderDate: "2026-03-12", deliveryDate: "2026-03-26", total: 12940, balanceDue: 12940, paidAmount: 0, cogs: 7710 },
+  { id: "SO-2026-0035", customerId: "cus-4", customer: "Cedar Lane Hotels", customerType: "BUSINESS", status: "Delivered", rawStatus: "DELIVERED", orderDate: "2026-03-08", deliveryDate: "2026-03-19", total: 21450, balanceDue: 0, paidAmount: 21450, cogs: 13640 },
+]);
 
 export const invoices: TaxInvoiceRow[] = ([
-  { id: "inv1", invoiceNumber: "INV-2026-0007", customer: "Evergreen Homes", status: "Sent", dueDate: "2026-03-28", amount: 8600, balance: 4200 },
-  { id: "inv2", invoiceNumber: "INV-2026-0006", customer: "Mia Thompson", status: "Partially Paid", dueDate: "2026-03-29", amount: 3200, balance: 2100 },
-  { id: "inv3", invoiceNumber: "INV-2026-0005", customer: "Cedar Lane Hotels", status: "Paid", dueDate: "2026-03-17", amount: 21450, balance: 0 },
-] as any[]);
+  { id: "inv1", soId: "SO-2026-0038", invoiceNumber: "INV-2026-0007", customer: "Evergreen Homes", status: "Sent", dueDate: "2026-03-28", amount: 8600, balance: 4200, invoiceType: "TAX" },
+  { id: "inv2", soId: "SO-2026-0037", invoiceNumber: "INV-2026-0006", customer: "Mia Thompson", status: "Partially Paid", dueDate: "2026-03-29", amount: 3200, balance: 2100, invoiceType: "TAX" },
+  { id: "inv3", soId: "SO-2026-0035", invoiceNumber: "INV-2026-0005", customer: "Cedar Lane Hotels", status: "Paid", dueDate: "2026-03-17", amount: 21450, balance: 0, invoiceType: "TAX" },
+]);
 
 export const deliveries: DeliveryRow[] = ([
-  { id: "DL-101", customer: "Evergreen Homes", driver: "Sanjay Driver", status: "Scheduled", scheduledDate: "2026-03-22", route: "Lalitpur / Ring Road" },
-  { id: "DL-102", customer: "Mia Thompson", driver: "Sanjay Driver", status: "Out for Delivery", scheduledDate: "2026-03-21", route: "Bhaktapur / Suryabinayak" },
-  { id: "DL-103", customer: "Cedar Lane Hotels", driver: "Priya Transport", status: "Delivered", scheduledDate: "2026-03-19", route: "Pokhara / Lakeside" },
-] as any[]);
+  { id: "DL-101", customer: "Evergreen Homes", driver: "Sanjay Driver", status: "Scheduled", scheduledDate: "2026-03-22", route: "Lalitpur / Ring Road", deliveryAddress: "Lalitpur, Ring Road", floor: 2, deliveryCharge: 1200, assemblyCharge: 500, floorDelivery: true, assemblyService: true },
+  { id: "DL-102", customer: "Mia Thompson", driver: "Sanjay Driver", status: "Out for Delivery", scheduledDate: "2026-03-21", route: "Bhaktapur / Suryabinayak", deliveryAddress: "Bhaktapur, Suryabinayak", floor: 1, deliveryCharge: 900, assemblyCharge: 0, floorDelivery: true, assemblyService: false },
+  { id: "DL-103", customer: "Cedar Lane Hotels", driver: "Priya Transport", status: "Delivered", scheduledDate: "2026-03-19", route: "Pokhara / Lakeside", deliveryAddress: "Pokhara, Lakeside", floor: 3, deliveryCharge: 1800, assemblyCharge: 650, floorDelivery: true, assemblyService: true },
+]);
 
 export const reportCatalog: ReportCard[] = [
   {

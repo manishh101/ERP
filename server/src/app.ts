@@ -1,5 +1,6 @@
 import cors from "cors";
-import express from "express";
+import compression from "compression";
+import express, { type Express } from "express";
 import helmet from "helmet";
 import morgan from "morgan";
 import rateLimit from "express-rate-limit";
@@ -7,12 +8,13 @@ import { env } from "./config/env";
 import { errorHandler } from "./middleware/error-handler";
 import { registerRoutes } from "./routes";
 
-export function createApp() {
+export function createApp(): Express {
   const app = express();
 
   // Security & Logging
   app.use(helmet());
-  app.use(morgan("dev"));
+  app.use(compression() as any);
+  app.use(morgan(env.NODE_ENV === "production" ? "combined" : "dev"));
   
   const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes

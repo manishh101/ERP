@@ -147,20 +147,20 @@ export function PurchaseOrderDetailPage() {
                 <div>
                   <p className="text-muted-foreground">Expected Delivery</p>
                   <p className="font-medium">
-                    {(order as any).expectedDelivery
-                      ? formatDate((order as any).expectedDelivery)
+                    {order.expectedDelivery
+                      ? formatDate(order.expectedDelivery)
                       : "—"}
                   </p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">Shipping Terms</p>
-                  <p className="font-medium">{(order as any).shippingTerms || "—"}</p>
+                  <p className="font-medium">{order.shippingTerms || "—"}</p>
                 </div>
               </div>
-              {(order as any).notes && (
+              {order.notes && (
                 <div className="mt-4 text-sm">
                   <p className="text-muted-foreground">Notes</p>
-                  <p>{(order as any).notes}</p>
+                  <p>{order.notes}</p>
                 </div>
               )}
             </CardContent>
@@ -249,7 +249,7 @@ export function PurchaseOrderDetailPage() {
             <CardContent className="space-y-2 text-sm">
               <p className="font-semibold text-lg">{order.supplier}</p>
               <Button variant="link" className="p-0 h-auto" asChild>
-                <Link to={`/suppliers/${(order as any).supplierId}`}>
+                <Link to={`/suppliers/${order.supplierId}`}>
                   View Supplier Profile
                 </Link>
               </Button>

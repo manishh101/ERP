@@ -157,9 +157,12 @@ type RawSupplierMetrics = {
 
 type RawPurchaseOrder = {
   id: string;
+  supplierId: string;
   status: string;
   orderDate: string;
   expectedDelivery?: string | null;
+  shippingTerms?: string | null;
+  notes?: string | null;
   totalAmount: number | string;
   supplier: {
     name: string;
@@ -887,10 +890,13 @@ function mapPurchaseOrder(order: RawPurchaseOrder): PurchaseOrderRow {
 
   return {
     id: order.id,
+    supplierId: order.supplierId,
     supplier: order.supplier.name,
     status: formatEnumLabel(order.status),
     orderDate: order.orderDate,
     expectedDelivery: order.expectedDelivery ?? null,
+    shippingTerms: order.shippingTerms ?? undefined,
+    notes: order.notes ?? undefined,
     totalAmount: toNumber(order.totalAmount),
     receipts: order.goodsReceipts?.length ?? 0,
     supplierInvoices: order.supplierInvoices?.length ?? 0,
