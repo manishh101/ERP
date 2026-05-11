@@ -1,0 +1,38 @@
+{
+  "version": 2,
+  "buildCommand": "npm run build --workspace client",
+  "outputDirectory": "client/dist",
+  "installCommand": "npm install",
+  "framework": "vite",
+  "regions": ["iad1"],
+  "env": {
+    "VITE_API_URL": {
+      "description": "API endpoint for frontend (e.g., https://api.yourdomain.com/api or https://furniture-erp-api.onrender.com/api)"
+    }
+  },
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Frame-Options",
+          "value": "SAMEORIGIN"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-XSS-Protection",
+          "value": "1; mode=block"
+        }
+      ]
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
