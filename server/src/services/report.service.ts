@@ -29,7 +29,7 @@ export async function getAraAgingReport() {
     },
   });
 
-  return orders.map((order) => {
+  return orders.map((order: any) => {
     const balance = toNumber(order.balanceDue);
     const dueDate = order.deliveryDate ?? order.orderDate;
     const daysOverdue = Math.max(
@@ -60,7 +60,7 @@ export async function getApAgingReport() {
     },
   });
 
-  return invoices.map((invoice) => {
+  return invoices.map((invoice: any) => {
     const balance = toNumber(invoice.totalAmount) - toNumber(invoice.amountPaid);
     const dueDate = invoice.dueDate ?? invoice.issueDate;
     const daysOverdue = Math.max(
@@ -137,9 +137,9 @@ export async function getBalanceSheet() {
   });
 
   return {
-    assets: accounts.filter((account) => account.type === "ASSET"),
-    liabilities: accounts.filter((account) => account.type === "LIABILITY"),
-    equity: accounts.filter((account) => account.type === "EQUITY"),
+    assets: accounts.filter((account: any) => account.type === "ASSET"),
+    liabilities: accounts.filter((account: any) => account.type === "LIABILITY"),
+    equity: accounts.filter((account: any) => account.type === "EQUITY"),
   };
 }
 
@@ -148,7 +148,7 @@ export async function getTrialBalance() {
     orderBy: [{ code: "asc" }],
   });
 
-  return accounts.map((account) => ({
+  return accounts.map((account: any) => ({
     code: account.code,
     name: account.name,
     type: account.type,
@@ -175,12 +175,12 @@ export async function getCashFlow(startDate?: Date, endDate?: Date) {
   ]);
 
   const operatingInflows = payments
-    .filter((payment) => payment.salesOrderId)
-    .reduce((sum, payment) => sum + toNumber(payment.amount), 0);
-  const operatingOutflows = expenses.reduce((sum, expense) => sum + toNumber(expense.amount), 0);
+    .filter((payment: any) => payment.salesOrderId)
+    .reduce((sum: number, payment: any) => sum + toNumber(payment.amount), 0);
+  const operatingOutflows = expenses.reduce((sum: number, expense: any) => sum + toNumber(expense.amount), 0);
   const financingOutflows = payments
-    .filter((payment) => payment.purchaseOrderId || payment.supplierInvoiceId)
-    .reduce((sum, payment) => sum + toNumber(payment.amount), 0);
+    .filter((payment: any) => payment.purchaseOrderId || payment.supplierInvoiceId)
+    .reduce((sum: number, payment: any) => sum + toNumber(payment.amount), 0);
 
   return {
     operating: operatingInflows - operatingOutflows,
@@ -198,8 +198,8 @@ export async function getTaxSummary(startDate?: Date, endDate?: Date) {
     where: { issueDate: buildDateRange(startDate, endDate) },
   });
 
-  const outputTax = vatEntries.reduce((sum, e) => sum + toNumber(e.outputVat), 0);
-  const inputTax = supplierInvoices.reduce((sum, inv) => sum + toNumber(inv.taxAmount), 0);
+  const outputTax = vatEntries.reduce((sum: number, e: any) => sum + toNumber(e.outputVat), 0);
+  const inputTax = supplierInvoices.reduce((sum: number, inv: any) => sum + toNumber(inv.taxAmount), 0);
 
   return { outputTax, inputTax, netPayable: outputTax - inputTax };
 }

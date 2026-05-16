@@ -531,7 +531,7 @@ export async function getDashboardSummary() {
       deliveryDate: order.deliveryDate?.toISOString() ?? order.orderDate.toISOString(),
       total: toNumber(order.orderAmount), // Fix #8: Use orderAmount, not raw line sum
     })),
-    lowStockItems: lowStockItems.map((variant) => ({
+    lowStockItems: lowStockItems.map((variant: any) => ({
       id: variant.id,
       product: variant.product.name,
       variant: variant.variantName,

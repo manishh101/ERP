@@ -13,6 +13,9 @@ RUN npm ci
 # Copy source
 COPY server ./server
 
+# Generate Prisma client (needed for TypeScript types)
+RUN npx prisma generate --schema=server/prisma/schema.prisma
+
 # Build
 RUN npm run build --workspace server
 
@@ -30,6 +33,10 @@ COPY server/package*.json server/
 
 # Install production dependencies only
 RUN npm ci --omit=dev
+
+# Copy Prisma schema and generate client for runtime
+COPY server/prisma ./server/prisma
+RUN npx prisma generate --schema=server/prisma/schema.prisma
 
 # Copy built application from builder
 COPY --from=builder /app/server/dist ./server/dist
