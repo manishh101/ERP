@@ -339,7 +339,7 @@ const LedgerDocument = ({
           </Text>
           <Text
             style={S.footerText}
-            render={({ pageNumber, totalPages }) =>
+            render={({ pageNumber, totalPages }: { pageNumber: number; totalPages: number }) =>
               `${company.name}  ·  Page ${pageNumber} of ${totalPages}`
             }
           />
