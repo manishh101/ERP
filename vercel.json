@@ -5,11 +5,6 @@
   "installCommand": "npm install",
   "framework": "vite",
   "regions": ["iad1"],
-  "env": {
-    "VITE_API_URL": {
-      "description": "API endpoint for frontend (e.g., https://api.yourdomain.com/api or https://furniture-erp-api.onrender.com/api)"
-    }
-  },
   "headers": [
     {
       "source": "/(.*)",
