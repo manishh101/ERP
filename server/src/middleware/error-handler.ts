@@ -22,7 +22,20 @@ export function errorHandler(
     });
   }
 
-  console.error(error);
+  // Log full error details for server-side debugging
+  console.error("[ErrorHandler]", {
+    message: (error as Error)?.message,
+    name: (error as Error)?.name,
+    stack: (error as Error)?.stack,
+  });
+
+  // Detect Prisma connection / query errors to give a clearer signal
+  const errName = (error as Error)?.name ?? "";
+  if (errName.includes("PrismaClient") || errName.includes("Prisma")) {
+    return response.status(503).json({
+      message: "Database connection error — please check DATABASE_URL and network connectivity",
+    });
+  }
 
   return response.status(500).json({
     message: "Internal server error",

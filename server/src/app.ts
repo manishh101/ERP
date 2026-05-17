@@ -24,9 +24,12 @@ export function createApp(): Express {
   });
   app.use("/api", limiter as any);
 
+  // Support comma-separated CORS origins for split deployments (e.g. Vercel + Render)
+  const allowedOrigins = env.CORS_ORIGIN.split(",").map((o) => o.trim());
+
   app.use(
     cors({
-      origin: env.CORS_ORIGIN,
+      origin: allowedOrigins.length === 1 ? allowedOrigins[0] : allowedOrigins,
       credentials: true,
     }),
   );
