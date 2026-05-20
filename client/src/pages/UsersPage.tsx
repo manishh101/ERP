@@ -24,7 +24,7 @@ type InviteFormState = {
 const initialInviteForm: InviteFormState = {
   name: "",
   email: "",
-  password: "Password123!",
+  password: "",
   role: "SALES",
   isActive: true,
 };
@@ -162,6 +162,14 @@ export function UsersPage() {
             <div className="md:col-span-2 flex gap-3">
               <Button
                 onClick={async () => {
+                  if (!inviteForm.name || !inviteForm.email || !inviteForm.password) {
+                    toast.error("Validation failed", { description: "Please fill all required fields." });
+                    return;
+                  }
+                  if (inviteForm.password.length < 8) {
+                    toast.error("Validation failed", { description: "Password must be at least 8 characters long." });
+                    return;
+                  }
                   try {
                     await inviteUser.mutateAsync(inviteForm);
                     setInviteForm(initialInviteForm);

@@ -21,8 +21,13 @@ export function UserInviteForm({ onClose }: UserInviteFormProps) {
   });
 
   const handleSubmit = async () => {
-    if (!formData.name || !formData.email) {
-      toast("Validation failed", { description: "Please provide a name and email for the new user." });
+    if (!formData.name || !formData.email || !formData.password) {
+      toast("Validation failed", { description: "Please provide all required fields." });
+      return;
+    }
+
+    if (formData.password.length < 8) {
+      toast("Validation failed", { description: "Password must be at least 8 characters long." });
       return;
     }
 
@@ -30,7 +35,7 @@ export function UserInviteForm({ onClose }: UserInviteFormProps) {
       await inviteUser.mutateAsync({
         name: formData.name,
         email: formData.email,
-        password: formData.password || "Password123!", // Default password for now
+        password: formData.password,
         role: formData.role as any,
         isActive: true,
       });
@@ -81,10 +86,10 @@ export function UserInviteForm({ onClose }: UserInviteFormProps) {
         </div>
 
         <div className="space-y-2">
-          <label className="text-sm font-medium">Temp Password (Default: Password123!)</label>
+          <label className="text-sm font-medium">Temp Password *</label>
           <Input 
             type="password"
-            placeholder="Leave blank for default" 
+            placeholder="Min 8 characters" 
             value={formData.password} 
             onChange={(e) => setFormData({ ...formData, password: e.target.value })} 
           />

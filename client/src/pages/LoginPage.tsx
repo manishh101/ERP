@@ -12,8 +12,8 @@ export function LoginPage() {
   const navigate = useNavigate();
   
   const { login, status } = useAuth();
-  const [email, setEmail] = useState("admin@manishsteel.com.np");
-  const [password, setPassword] = useState("Password123!");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

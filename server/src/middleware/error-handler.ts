@@ -29,9 +29,18 @@ export function errorHandler(
     stack: (error as Error)?.stack,
   });
 
-  // Detect Prisma connection / query errors to give a clearer signal
+  // Detect Prisma connection / query errors or network-related database issues to give a clearer signal
   const errName = (error as Error)?.name ?? "";
-  if (errName.includes("PrismaClient") || errName.includes("Prisma")) {
+  const errMsg = (error as Error)?.message ?? "";
+  if (
+    errName.includes("Prisma") ||
+    errName.includes("PrismaClient") ||
+    errMsg.includes("Prisma") ||
+    errMsg.includes("database") ||
+    errMsg.includes("connection") ||
+    errMsg.includes("ECONNREFUSED") ||
+    errMsg.includes("ETIMEDOUT")
+  ) {
     return response.status(503).json({
       message: "Database connection error — please check DATABASE_URL and network connectivity",
     });
