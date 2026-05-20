@@ -17,7 +17,7 @@ COPY server ./server
 RUN npx prisma generate --schema=server/prisma/schema.prisma
 
 # Build
-RUN npm run build --workspace server
+RUN npx tsc -p server/tsconfig.json --ignoreDeprecations 6.0
 
 # Runtime stage
 FROM node:22-alpine
