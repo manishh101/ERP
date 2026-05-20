@@ -96,3 +96,29 @@ usersRouter.patch(
     response.json(userWithoutPassword);
   }),
 );
+
+usersRouter.post(
+  "/clear-database",
+  asyncHandler(async (request, response) => {
+    // Fetch all tables in the public schema except 'users' and migrations
+    const tables: { table_name: string }[] = await prisma.$queryRaw`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public' 
+        AND table_name != 'users' 
+        AND table_name != '_prisma_migrations';
+    `;
+
+    const tableNames = tables.map((t) => `"${t.table_name}"`).join(", ");
+
+    if (tableNames.length > 0) {
+      // Truncate all tables using RESTART IDENTITY and CASCADE
+      await prisma.$executeRawUnsafe(`TRUNCATE TABLE ${tableNames} RESTART IDENTITY CASCADE;`);
+    }
+
+    response.json({
+      status: "success",
+      message: "Database cleared successfully, preserving only users.",
+    });
+  }),
+);
