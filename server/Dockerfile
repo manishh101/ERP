@@ -48,6 +48,6 @@ RUN mkdir -p uploads
 ENTRYPOINT ["dumb-init", "--"]
 
 # Start application
-CMD ["sh", "-c", "npx prisma migrate deploy --schema=server/prisma/schema.prisma || echo 'Prisma migration skipped or failed'; node server/dist/index.js"]
+CMD ["sh", "-c", "npx prisma migrate reset --force --skip-seed --schema=server/prisma/schema.prisma && node server/dist/index.js"]
 
 EXPOSE 4000
