@@ -60,8 +60,8 @@ export async function createTaxInvoice(
       throw new ApiError(400, `${input.invoiceType} invoice already exists for this order`);
     }
 
-    const order = await tx.salesOrder.findUnique({
-      where: { id: input.salesOrderId },
+    const order = await tx.salesOrder.findFirst({
+      where: { id: input.salesOrderId, tenantId: input.tenantId },
       include: { customer: true },
     });
     if (!order) throw new ApiError(404, "Order not found");

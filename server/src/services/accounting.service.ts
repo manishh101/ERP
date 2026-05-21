@@ -87,12 +87,10 @@ export async function createBalancedJournalEntry(input: {
 }
 
 async function requireAccountByCode(tenantId: string, code: string) {
-  const account = await prisma.account.findUnique({
+  const account = await prisma.account.findFirst({
     where: {
-      code_tenantId: {
-        code,
-        tenantId,
-      },
+      code,
+      tenantId,
     },
   });
 

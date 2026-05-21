@@ -30,7 +30,7 @@ const S = StyleSheet.create({
     paddingHorizontal: 44,
     fontSize: 9,
     fontFamily: "Helvetica",
-    color: "#111111",
+    color: "#000000",
     backgroundColor: "#ffffff",
   },
 
@@ -42,30 +42,30 @@ const S = StyleSheet.create({
     marginBottom: 16,
     paddingBottom: 12,
     borderBottomWidth: 2,
-    borderBottomColor: "#111111",
+    borderBottomColor: "#000000",
   },
   companyName: {
     fontSize: 12,
     fontFamily: "Helvetica-Bold",
-    color: "#111111",
+    color: "#000000",
     marginBottom: 2,
   },
   companyMeta: {
     fontSize: 8,
-    color: "#555555",
+    color: "#000000",
     lineHeight: 1.5,
   },
   docTitle: {
     fontSize: 20,
     fontFamily: "Helvetica-Bold",
-    color: "#111111",
+    color: "#000000",
     textTransform: "uppercase",
     letterSpacing: 1,
     textAlign: "right",
   },
   docMeta: {
     fontSize: 8,
-    color: "#555555",
+    color: "#000000",
     textAlign: "right",
     marginTop: 3,
     lineHeight: 1.6,
@@ -78,7 +78,7 @@ const S = StyleSheet.create({
   billToLabel: {
     fontSize: 7,
     fontFamily: "Helvetica-Bold",
-    color: "#777777",
+    color: "#000000",
     letterSpacing: 1,
     textTransform: "uppercase",
     marginBottom: 4,
@@ -86,12 +86,12 @@ const S = StyleSheet.create({
   billToName: {
     fontSize: 11,
     fontFamily: "Helvetica-Bold",
-    color: "#111111",
+    color: "#000000",
     marginBottom: 2,
   },
   billToMeta: {
     fontSize: 8.5,
-    color: "#444444",
+    color: "#000000",
     lineHeight: 1.6,
   },
 
@@ -101,14 +101,14 @@ const S = StyleSheet.create({
     flexDirection: "row",
     borderTopWidth: 1,
     borderBottomWidth: 1,
-    borderColor: "#111111",
+    borderColor: "#000000",
     paddingVertical: 6,
     backgroundColor: "#ffffff",
   },
   thText: {
     fontSize: 7.5,
     fontFamily: "Helvetica-Bold",
-    color: "#111111",
+    color: "#000000",
     textTransform: "uppercase",
     letterSpacing: 0.4,
   },
@@ -132,9 +132,9 @@ const S = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "#f5f5f5",
   },
-  tdText: { fontSize: 8.5, color: "#111111" },
-  tdBold: { fontSize: 8.5, color: "#111111", fontFamily: "Helvetica-Bold" },
-  tdMuted: { fontSize: 8, color: "#666666" },
+  tdText: { fontSize: 8.5, color: "#000000" },
+  tdBold: { fontSize: 8.5, color: "#000000", fontFamily: "Helvetica-Bold" },
+  tdMuted: { fontSize: 8, color: "#000000" },
 
   // Column widths
   cDate: { width: "13%" },
@@ -149,7 +149,7 @@ const S = StyleSheet.create({
     flexDirection: "row",
     paddingVertical: 6,
     borderTopWidth: 1.5,
-    borderTopColor: "#111111",
+    borderTopColor: "#000000",
     marginTop: 2,
   },
   totalsLabel: {
@@ -174,17 +174,17 @@ const S = StyleSheet.create({
     marginTop: 18,
     paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: "#cccccc",
+    borderTopColor: "#000000",
   },
   closingLabel: {
     fontSize: 8.5,
-    color: "#555555",
+    color: "#000000",
     marginRight: 12,
   },
   closingAmount: {
     fontSize: 16,
     fontFamily: "Helvetica-Bold",
-    color: "#111111",
+    color: "#000000",
   },
 
   // ── Fixed page footer (repeats on every page) ─────────────────────────
@@ -194,12 +194,12 @@ const S = StyleSheet.create({
     left: 44,
     right: 44,
     borderTopWidth: 1,
-    borderTopColor: "#cccccc",
+    borderTopColor: "#000000",
     paddingTop: 7,
     flexDirection: "row",
     justifyContent: "space-between",
   },
-  footerText: { fontSize: 7.5, color: "#888888" },
+  footerText: { fontSize: 7.5, color: "#000000" },
 });
 
 // ─── Types ────────────────────────────────────────────────────────────────────

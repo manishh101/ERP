@@ -9,7 +9,9 @@
     "lint": "tsc --noEmit -p tsconfig.json",
     "generate": "prisma generate",
     "migrate": "prisma migrate dev",
-    "seed": "tsx prisma/seed.ts"
+    "seed": "tsx prisma/seed.ts",
+    "seed:enamel": "tsx prisma/seed-enamel-only.ts",
+    "seed:powder": "tsx prisma/seed-powder-only.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

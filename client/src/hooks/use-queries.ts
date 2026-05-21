@@ -1612,11 +1612,14 @@ export function useRecordSalesOrderDepositMutation() {
 export function useUpdateSalesOrderStatusMutation() {
   const { token } = useAuth();
   return useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+    mutationFn: async ({ id, status, deliveryDate }: { id: string; status: string; deliveryDate?: string }) => {
       return apiRequest<any>(`/sales-orders/${id}`, {
         method: "PATCH",
         token: token!,
-        body: { status },
+        body: {
+          status,
+          ...(deliveryDate ? { deliveryDate } : {}),
+        },
       });
     },
     onSuccess: () => {

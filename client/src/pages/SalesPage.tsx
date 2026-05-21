@@ -21,6 +21,14 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   useSalesOrdersQuery,
   useCustomersQuery,
   useCancelSalesOrderMutation,
@@ -34,6 +42,7 @@ import { CreateSalesOrderForm } from "@/components/sales/create-sales-order-form
 import { CustomerLedgerModal } from "@/components/sales/customer-ledger-modal";
 import { RecordDepositModal } from "@/components/sales/record-deposit-modal";
 import { YearMonthFilter } from "@/components/shared/year-month-filter";
+import { NepaliDatePickerInput } from "@/components/ui/nepali-date-picker-input";
 import type { SalesOrderRow } from "@/types/domain";
 
 const orderColumns: ColumnDef<SalesOrderRow, unknown>[] = [
@@ -73,6 +82,8 @@ export function SalesPage() {
   const [depositModalOpen, setDepositModalOpen] = useState(false);
   const [createCustomerOpen, setCreateCustomerOpen] = useState(false);
   const [createSalesOrderOpen, setCreateSalesOrderOpen] = useState(false);
+  const [deliverModalOpen, setDeliverModalOpen] = useState(false);
+  const [deliverDate, setDeliverDate] = useState<string>(new Date().toISOString().split("T")[0]);
   const [ledgerCustomer, setLedgerCustomer] = useState<{
     id: string;
     name: string;
@@ -224,17 +235,8 @@ export function SalesPage() {
                           variant="default"
                           size="sm"
                           onClick={() => {
-                            updateStatus(
-                              { id: selectedOrderId, status: "DELIVERED" },
-                              {
-                                onSuccess: () =>
-                                  toast.success("Order marked as delivered"),
-                                onError: (error) =>
-                                  toast.error("Update failed", {
-                                    description: getErrorMessage(error),
-                                  }),
-                              },
-                            );
+                            setDeliverDate(new Date().toISOString().split("T")[0]);
+                            setDeliverModalOpen(true);
                           }}
                           disabled={isUpdating}
                         >
@@ -300,6 +302,53 @@ export function SalesPage() {
           }
         }}
       />
+
+      <Dialog open={deliverModalOpen} onOpenChange={setDeliverModalOpen}>
+        <DialogContent className="sm:max-w-xl max-h-[95vh]">
+          <DialogHeader>
+            <DialogTitle>Mark Delivered</DialogTitle>
+            <DialogDescription>
+              Choose the delivery date to record against this order.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <label className="text-sm font-semibold">Delivery Date</label>
+            <NepaliDatePickerInput
+              value={deliverDate}
+              onChange={(date) => setDeliverDate(date.toISOString().split("T")[0])}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeliverModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (!selectedOrderId) {
+                  return;
+                }
+
+                updateStatus(
+                  { id: selectedOrderId, status: "DELIVERED", deliveryDate: deliverDate },
+                  {
+                    onSuccess: () => {
+                      setDeliverModalOpen(false);
+                      toast.success("Order marked as delivered");
+                    },
+                    onError: (error) =>
+                      toast.error("Update failed", {
+                        description: getErrorMessage(error),
+                      }),
+                  },
+                );
+              }}
+              disabled={isUpdating}
+            >
+              {isUpdating ? "Updating..." : "Confirm Delivered"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {ledgerCustomer && (
         <CustomerLedgerModal

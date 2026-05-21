@@ -24,7 +24,7 @@ const S = StyleSheet.create({
     paddingHorizontal: 44,
     fontSize: 9,
     fontFamily: "Helvetica",
-    color: "#111111",
+    color: "#000000",
     backgroundColor: "#ffffff",
   },
 
@@ -36,30 +36,30 @@ const S = StyleSheet.create({
     marginBottom: 16,
     paddingBottom: 12,
     borderBottomWidth: 2,
-    borderBottomColor: "#111111",
+    borderBottomColor: "#000000",
   },
   companyName: {
     fontSize: 14,
     fontFamily: "Helvetica-Bold",
-    color: "#111111",
+    color: "#000000",
     marginBottom: 2,
   },
   companyMeta: {
     fontSize: 8,
-    color: "#555555",
+    color: "#000000",
     lineHeight: 1.5,
   },
   docTitle: {
     fontSize: 18,
     fontFamily: "Helvetica-Bold",
-    color: "#111111",
+    color: "#000000",
     textTransform: "uppercase",
     letterSpacing: 1,
     textAlign: "right",
   },
   docMeta: {
     fontSize: 8,
-    color: "#555555",
+    color: "#000000",
     textAlign: "right",
     marginTop: 3,
     lineHeight: 1.6,
@@ -77,7 +77,7 @@ const S = StyleSheet.create({
   infoLabel: {
     fontSize: 7,
     fontFamily: "Helvetica-Bold",
-    color: "#777777",
+    color: "#000000",
     letterSpacing: 1,
     textTransform: "uppercase",
     marginBottom: 4,
@@ -85,12 +85,12 @@ const S = StyleSheet.create({
   infoName: {
     fontSize: 11,
     fontFamily: "Helvetica-Bold",
-    color: "#111111",
+    color: "#000000",
     marginBottom: 2,
   },
   infoText: {
     fontSize: 8.5,
-    color: "#444444",
+    color: "#000000",
     lineHeight: 1.6,
   },
   infoRow: {
@@ -104,14 +104,14 @@ const S = StyleSheet.create({
     flexDirection: "row",
     borderTopWidth: 1,
     borderBottomWidth: 1,
-    borderColor: "#111111",
+    borderColor: "#000000",
     paddingVertical: 6,
     backgroundColor: "#ffffff",
   },
   thText: {
     fontSize: 7.5,
     fontFamily: "Helvetica-Bold",
-    color: "#111111",
+    color: "#000000",
     textTransform: "uppercase",
     letterSpacing: 0.4,
   },
@@ -125,9 +125,9 @@ const S = StyleSheet.create({
   dataRowAlt: {
     backgroundColor: "#fafafa",
   },
-  tdText: { fontSize: 8.5, color: "#111111" },
-  tdBold: { fontSize: 8.5, color: "#111111", fontFamily: "Helvetica-Bold" },
-  tdMuted: { fontSize: 8, color: "#666666" },
+  tdText: { fontSize: 8.5, color: "#000000" },
+  tdBold: { fontSize: 8.5, color: "#000000", fontFamily: "Helvetica-Bold" },
+  tdMuted: { fontSize: 8, color: "#000000" },
 
   // Column widths
   cNo: { width: "8%" },
@@ -152,25 +152,25 @@ const S = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#eeeeee",
   },
-  summaryLabel: { fontSize: 8.5, color: "#555555" },
-  summaryValue: { fontSize: 8.5, color: "#111111", textAlign: "right" },
+  summaryLabel: { fontSize: 8.5, color: "#000000" },
+  summaryValue: { fontSize: 8.5, color: "#000000", textAlign: "right" },
   totalRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     paddingVertical: 6,
     borderTopWidth: 1.5,
-    borderTopColor: "#111111",
+    borderTopColor: "#000000",
     marginTop: 2,
   },
   totalLabel: {
     fontSize: 10,
     fontFamily: "Helvetica-Bold",
-    color: "#111111",
+    color: "#000000",
   },
   totalValue: {
     fontSize: 10,
     fontFamily: "Helvetica-Bold",
-    color: "#111111",
+    color: "#000000",
     textAlign: "right",
   },
 
@@ -178,7 +178,7 @@ const S = StyleSheet.create({
   wordsVal: {
     fontSize: 9,
     fontFamily: "Helvetica-Bold",
-    color: "#111111",
+    color: "#000000",
     marginTop: 16,
     textTransform: "uppercase",
   },
@@ -194,14 +194,14 @@ const S = StyleSheet.create({
   noteLabel: {
     fontSize: 7,
     fontFamily: "Helvetica-Bold",
-    color: "#777777",
+    color: "#000000",
     letterSpacing: 1,
     textTransform: "uppercase",
     marginBottom: 3,
   },
   noteText: {
     fontSize: 8.5,
-    color: "#444444",
+    color: "#000000",
     lineHeight: 1.5,
   },
 
@@ -214,14 +214,14 @@ const S = StyleSheet.create({
   signatureLine: {
     width: "35%",
     borderTopWidth: 1,
-    borderTopColor: "#111111",
+    borderTopColor: "#000000",
     paddingTop: 6,
     alignItems: "center",
   },
   signatureText: {
     fontSize: 8,
     fontFamily: "Helvetica-Bold",
-    color: "#111111",
+    color: "#000000",
   },
 
   // Footer
@@ -231,18 +231,18 @@ const S = StyleSheet.create({
     left: 44,
     right: 44,
     borderTopWidth: 1,
-    borderTopColor: "#cccccc",
+    borderTopColor: "#000000",
     paddingTop: 7,
     flexDirection: "row",
     justifyContent: "center",
   },
-  footerText: { fontSize: 7.5, color: "#888888" },
+  footerText: { fontSize: 7.5, color: "#000000" },
 
   // Payment status badge
   statusBadge: {
     paddingVertical: 3,
     paddingHorizontal: 10,
-    backgroundColor: "#111111",
+    backgroundColor: "#000000",
     alignSelf: "flex-end",
     marginTop: 4,
   },
