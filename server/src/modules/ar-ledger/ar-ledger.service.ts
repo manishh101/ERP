@@ -8,8 +8,9 @@ import { Prisma } from "@prisma/client";
  */
 
 export async function postDebit(
-  tx: Prisma.TransactionClient,
+  tx: any,
   input: {
+    tenantId: string;
     customerId: string;
     salesOrderId: string;
     amount: number;
@@ -30,6 +31,7 @@ export async function postDebit(
   // 2. Create ArLedger entry
   return tx.arLedger.create({
     data: {
+      tenantId: input.tenantId,
       customerId: input.customerId,
       salesOrderId: input.salesOrderId,
       entryType: "DEBIT",
@@ -44,8 +46,9 @@ export async function postDebit(
 }
 
 export async function postCredit(
-  tx: Prisma.TransactionClient,
+  tx: any,
   input: {
+    tenantId: string;
     customerId: string;
     salesOrderId: string;
     paymentId: string;
@@ -67,6 +70,7 @@ export async function postCredit(
   // 2. Create ArLedger entry
   return tx.arLedger.create({
     data: {
+      tenantId: input.tenantId,
       customerId: input.customerId,
       salesOrderId: input.salesOrderId,
       paymentId: input.paymentId,
@@ -100,6 +104,7 @@ export interface LedgerPayload {
 }
 
 export async function getCustomerLedger(
+  tenantId: string,
   customerId: string,
   startDate?: Date,
   endDate?: Date
@@ -109,6 +114,7 @@ export async function getCustomerLedger(
   if (startDate) {
     const previousEntries = await prisma.arLedger.findMany({
       where: {
+        tenantId,
         customerId,
         entryDate: { lt: startDate },
       },
@@ -123,6 +129,7 @@ export async function getCustomerLedger(
   // 2. Fetch entries within range
   const entries = await prisma.arLedger.findMany({
     where: {
+      tenantId,
       customerId,
       entryDate: {
         ...(startDate ? { gte: startDate } : {}),

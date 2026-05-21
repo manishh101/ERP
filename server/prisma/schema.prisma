@@ -5,7 +5,6 @@ generator client {
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
 }
 
 enum ProductStatus {
@@ -126,10 +125,55 @@ enum StockAdjustmentReason {
   FOUND
 }
 
+model Tenant {
+  id                   String                @id @default(cuid())
+  name                 String
+  createdAt            DateTime              @default(now()) @map("created_at")
+  updatedAt            DateTime              @updatedAt @map("updated_at")
+  users                User[]
+  products             Product[]
+  productVariants      ProductVariant[]
+  warehouses           Warehouse[]
+  inventoryItems       Inventory[]
+  suppliers            Supplier[]
+  purchaseOrders       PurchaseOrder[]
+  poLineItems          PurchaseOrderLineItem[]
+  goodsReceipts        GoodsReceipt[]
+  goodsReceiptLines    GoodsReceiptLine[]
+  supplierInvoices     SupplierInvoice[]
+  customers            Customer[]
+  salesOrders          SalesOrder[]
+  soLineItems          SalesOrderLineItem[]
+  taxInvoices          TaxInvoice[]
+  taxInvoiceLineItems  TaxInvoiceLineItem[]
+  payments             Payment[]
+  expenses             Expense[]
+  accounts             Account[]
+  journalEntries       JournalEntry[]
+  journalEntryLines    JournalEntryLine[]
+  deliveries           Delivery[]
+  stockMovements       StockMovement[]
+  taxRates             TaxRate[]
+  companyProfile       CompanyProfile?
+  currencySetting      CurrencySetting?
+  notificationSetting  NotificationSetting?
+  invoiceTemplate      InvoiceTemplate?
+  bankStatementImports BankStatementImport[]
+  bankStatementLines   BankStatementLine[]
+  arLedgers            ArLedger[]
+  vatRegisters         VatRegister[]
+  invoiceCounters      InvoiceCounter[]
+  receiptCounters      ReceiptCounter[]
+  auditLogs            AuditLog[]
+  estimateCounters     EstimateCounter[]
+}
+
 model Product {
   id                String           @id @default(cuid())
+  tenantId          String           @map("tenant_id")
+  tenant            Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   name              String
-  sku               String           @unique
+  sku               String
   category          String
   description       String?
   costPrice         Decimal          @map("cost_price") @db.Decimal(14, 2)
@@ -156,15 +200,18 @@ model Product {
   taxRate           TaxRate?         @relation(fields: [taxRateId], references: [id])
   variants          ProductVariant[]
 
+  @@unique([sku, tenantId])
   @@index([category])
   @@map("products")
 }
 
 model ProductVariant {
   id                  String                  @id @default(cuid())
+  tenantId            String                  @map("tenant_id")
+  tenant              Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   productId           String                  @map("product_id")
   variantName         String                  @map("variant_name")
-  skuVariant          String                  @unique @map("sku_variant")
+  skuVariant          String                  @map("sku_variant")
   additionalCost      Decimal                 @default(0) @map("additional_cost") @db.Decimal(14, 2)
   stockQuantity       Int                     @default(0) @map("stock_quantity")
   fabricColor         String?                 @map("fabric_color")
@@ -180,12 +227,15 @@ model ProductVariant {
   stockMovements      StockMovement[]
   taxInvoiceLineItems TaxInvoiceLineItem[]
 
+  @@unique([skuVariant, tenantId])
   @@index([productId])
   @@map("product_variants")
 }
 
 model Warehouse {
   id                  String          @id @default(cuid())
+  tenantId            String          @map("tenant_id")
+  tenant              Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   name                String
   location            String
   type                WarehouseType
@@ -201,22 +251,27 @@ model Warehouse {
 
 model Inventory {
   id               String          @id @default(cuid())
+  tenantId         String          @map("tenant_id")
+  tenant           Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   productVariantId String          @map("product_variant_id")
   warehouseId      String          @map("warehouse_id")
   quantity         Int
   status           InventoryStatus @default(IN_STOCK)
-  serialNumber     String?         @unique @map("serial_number")
+  serialNumber     String?         @map("serial_number")
   createdAt        DateTime        @default(now()) @map("created_at")
   updatedAt        DateTime        @updatedAt @map("updated_at")
   productVariant   ProductVariant  @relation(fields: [productVariantId], references: [id], onDelete: Cascade)
   warehouse        Warehouse       @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
 
+  @@unique([serialNumber, tenantId])
   @@index([productVariantId, warehouseId])
   @@map("inventory")
 }
 
 model Supplier {
   id               String            @id @default(cuid())
+  tenantId         String            @map("tenant_id")
+  tenant           Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   name             String
   contact          String
   email            String?
@@ -236,6 +291,8 @@ model Supplier {
 
 model PurchaseOrder {
   id               String                  @id @default(cuid())
+  tenantId         String                  @map("tenant_id")
+  tenant           Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   supplierId       String                  @map("supplier_id")
   createdById      String?                 @map("created_by_id")
   status           PurchaseOrderStatus     @default(DRAFT)
@@ -259,6 +316,8 @@ model PurchaseOrder {
 
 model PurchaseOrderLineItem {
   id               String             @id @default(cuid())
+  tenantId         String             @map("tenant_id")
+  tenant           Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   poId             String             @map("po_id")
   productVariantId String             @map("product_variant_id")
   quantity         Int
@@ -277,6 +336,8 @@ model PurchaseOrderLineItem {
 
 model GoodsReceipt {
   id              String             @id @default(cuid())
+  tenantId        String             @map("tenant_id")
+  tenant          Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   purchaseOrderId String             @map("purchase_order_id")
   receivedById    String?            @map("received_by_id")
   receivedDate    DateTime           @default(now()) @map("received_date")
@@ -294,6 +355,8 @@ model GoodsReceipt {
 
 model GoodsReceiptLine {
   id               String                @id @default(cuid())
+  tenantId         String                @map("tenant_id")
+  tenant           Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   goodsReceiptId   String                @map("goods_receipt_id")
   poLineItemId     String                @map("po_line_item_id")
   quantityReceived Int                   @map("quantity_received")
@@ -306,9 +369,11 @@ model GoodsReceiptLine {
 
 model SupplierInvoice {
   id              String                @id @default(cuid())
+  tenantId        String                @map("tenant_id")
+  tenant          Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   supplierId      String                @map("supplier_id")
   purchaseOrderId String?               @map("purchase_order_id")
-  invoiceNumber   String                @unique @map("invoice_number")
+  invoiceNumber   String                @map("invoice_number")
   issueDate       DateTime              @default(now()) @map("issue_date")
   dueDate         DateTime?             @map("due_date")
   status          SupplierInvoiceStatus @default(RECEIVED)
@@ -323,12 +388,15 @@ model SupplierInvoice {
   purchaseOrder   PurchaseOrder?        @relation(fields: [purchaseOrderId], references: [id], onDelete: SetNull)
   payments        Payment[]
 
+  @@unique([invoiceNumber, tenantId])
   @@index([supplierId, status])
   @@map("supplier_invoices")
 }
 
 model Customer {
   id                 String        @id @default(cuid())
+  tenantId           String        @map("tenant_id")
+  tenant             Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   name               String
   email              String?
   phone              String?
@@ -353,6 +421,8 @@ model Customer {
 
 model SalesOrder {
   id                  String               @id @default(cuid())
+  tenantId            String               @map("tenant_id")
+  tenant              Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   customerId          String               @map("customer_id")
   assignedWarehouseId String?              @map("assigned_warehouse_id")
   salespersonId       String?              @map("salesperson_id")
@@ -387,6 +457,8 @@ model SalesOrder {
 
 model SalesOrderLineItem {
   id                 String         @id @default(cuid())
+  tenantId           String         @map("tenant_id")
+  tenant             Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   soId               String         @map("so_id")
   productVariantId   String?        @map("product_variant_id")
   customProductName  String?        @map("custom_product_name")
@@ -408,10 +480,11 @@ model SalesOrderLineItem {
 }
 
 model TaxInvoice {
-  paymentMode   String?              @map("payment_mode")
   id            String               @id @default(cuid())
+  tenantId      String               @map("tenant_id")
+  tenant        Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   soId          String               @map("so_id")
-  invoiceNumber String               @unique @map("invoice_number")
+  invoiceNumber String               @map("invoice_number")
   invoiceType   String?              @map("invoice_type")
   issueDate     DateTime             @default(now()) @map("issue_date")
   dueDate       DateTime?            @map("due_date")
@@ -422,30 +495,34 @@ model TaxInvoice {
   bsDate        String?              @map("bs_date")
   printed       Boolean              @default(false)
   notes         String?
+  paymentMode   String?              @map("payment_mode")
   createdAt     DateTime             @default(now()) @map("created_at")
   updatedAt     DateTime             @updatedAt @map("updated_at")
   salesOrder    SalesOrder           @relation(fields: [soId], references: [id], onDelete: Cascade)
   vatRegister   VatRegister?
   lineItems     TaxInvoiceLineItem[]
 
+  @@unique([invoiceNumber, tenantId])
   @@index([soId])
   @@index([status, dueDate])
   @@map("tax_invoices")
 }
 
 model TaxInvoiceLineItem {
-  id               String         @id @default(cuid())
-  invoiceId        String         @map("invoice_id")
-  productVariantId String?        @map("product_variant_id")
-  customProductName String?       @map("custom_product_name")
-  quantity         Int
-  unitPrice        Decimal        @map("unit_price") @db.Decimal(14, 2)
-  discountPct      Decimal        @default(0) @map("discount_pct") @db.Decimal(5, 2)
-  discountAmount   Decimal        @default(0) @map("discount_amount") @db.Decimal(14, 2)
-  createdAt        DateTime       @default(now()) @map("created_at")
-  updatedAt        DateTime       @updatedAt @map("updated_at")
-  taxInvoice       TaxInvoice     @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  productVariant   ProductVariant? @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
+  id                String         @id @default(cuid())
+  tenantId          String         @map("tenant_id")
+  tenant            Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  invoiceId         String         @map("invoice_id")
+  productVariantId  String?        @map("product_variant_id")
+  customProductName String?        @map("custom_product_name")
+  quantity          Int
+  unitPrice         Decimal        @map("unit_price") @db.Decimal(14, 2)
+  discountPct       Decimal        @default(0) @map("discount_pct") @db.Decimal(5, 2)
+  discountAmount    Decimal        @default(0) @map("discount_amount") @db.Decimal(14, 2)
+  createdAt         DateTime       @default(now()) @map("created_at")
+  updatedAt         DateTime       @updatedAt @map("updated_at")
+  taxInvoice        TaxInvoice     @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  productVariant    ProductVariant? @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
 
   @@index([invoiceId])
   @@map("tax_invoice_line_items")
@@ -453,6 +530,8 @@ model TaxInvoiceLineItem {
 
 model Payment {
   id                String              @id @default(cuid())
+  tenantId          String              @map("tenant_id")
+  tenant            Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   salesOrderId      String?             @map("sales_order_id")
   purchaseOrderId   String?             @map("purchase_order_id")
   supplierInvoiceId String?             @map("supplier_invoice_id")
@@ -475,6 +554,8 @@ model Payment {
 
 model Expense {
   id          String    @id @default(cuid())
+  tenantId    String    @map("tenant_id")
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   category    String
   amount      Decimal   @db.Decimal(14, 2)
   date        DateTime
@@ -490,7 +571,9 @@ model Expense {
 
 model Account {
   id           String             @id @default(cuid())
-  code         String             @unique
+  tenantId     String             @map("tenant_id")
+  tenant       Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  code         String
   name         String
   type         AccountType
   balance      Decimal            @default(0) @db.Decimal(14, 2)
@@ -498,11 +581,14 @@ model Account {
   updatedAt    DateTime           @updatedAt @map("updated_at")
   journalLines JournalEntryLine[]
 
+  @@unique([code, tenantId])
   @@map("accounts")
 }
 
 model JournalEntry {
   id          String             @id @default(cuid())
+  tenantId    String             @map("tenant_id")
+  tenant      Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   date        DateTime
   description String
   reference   String?
@@ -519,6 +605,8 @@ model JournalEntry {
 
 model JournalEntryLine {
   id             String       @id @default(cuid())
+  tenantId       String       @map("tenant_id")
+  tenant         Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   journalEntryId String       @map("journal_entry_id")
   accountId      String       @map("account_id")
   debit          Decimal      @default(0) @db.Decimal(14, 2)
@@ -532,6 +620,8 @@ model JournalEntryLine {
 
 model Delivery {
   id              String         @id @default(cuid())
+  tenantId        String         @map("tenant_id")
+  tenant          Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   soId            String         @unique @map("so_id")
   driverId        String?        @map("driver_id")
   status          DeliveryStatus @default(SCHEDULED)
@@ -557,6 +647,8 @@ model Delivery {
 
 model StockMovement {
   id               String                 @id @default(cuid())
+  tenantId         String                 @map("tenant_id")
+  tenant           Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   productVariantId String                 @map("product_variant_id")
   warehouseId      String                 @map("warehouse_id")
   userId           String?                @map("user_id")
@@ -577,6 +669,8 @@ model StockMovement {
 
 model TaxRate {
   id              String    @id @default(cuid())
+  tenantId        String    @map("tenant_id")
+  tenant          Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   name            String
   category        String
   rate            Decimal   @db.Decimal(5, 2)
@@ -591,6 +685,8 @@ model TaxRate {
 
 model CompanyProfile {
   id          String   @id @default(cuid())
+  tenantId    String   @unique @map("tenant_id")
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   name        String
   logoUrl     String?  @map("logo_url")
   address     String
@@ -608,6 +704,8 @@ model CompanyProfile {
 
 model CurrencySetting {
   id                   String   @id @default(cuid())
+  tenantId             String   @unique @map("tenant_id")
+  tenant               Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   baseCurrency         String   @map("base_currency")
   supportedCurrencies  Json     @map("supported_currencies")
   multiCurrencyEnabled Boolean  @default(false) @map("multi_currency_enabled")
@@ -619,6 +717,8 @@ model CurrencySetting {
 
 model NotificationSetting {
   id                     String   @id @default(cuid())
+  tenantId               String   @unique @map("tenant_id")
+  tenant                 Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   overdueInvoiceDays     Json     @map("overdue_invoice_days")
   lowStockEnabled        Boolean  @default(true) @map("low_stock_enabled")
   deliveryUpdatesEnabled Boolean  @default(true) @map("delivery_updates_enabled")
@@ -631,6 +731,8 @@ model NotificationSetting {
 
 model InvoiceTemplate {
   id           String   @id @default(cuid())
+  tenantId     String   @unique @map("tenant_id")
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   primaryColor String   @default("#7c5c45") @map("primary_color")
   footerText   String   @default("Thank you for your business.") @map("footer_text")
   paymentTerms String   @default("Payment due within 14 days.") @map("payment_terms")
@@ -642,6 +744,8 @@ model InvoiceTemplate {
 
 model BankStatementImport {
   id             String              @id @default(cuid())
+  tenantId       String              @map("tenant_id")
+  tenant         Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   fileName       String              @map("file_name")
   importedAt     DateTime            @default(now()) @map("imported_at")
   totalLines     Int                 @default(0) @map("total_lines")
@@ -653,6 +757,8 @@ model BankStatementImport {
 
 model BankStatementLine {
   id                  String              @id @default(cuid())
+  tenantId            String              @map("tenant_id")
+  tenant              Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   importId            String              @map("import_id")
   matchedPaymentId    String?             @map("matched_payment_id")
   transactionDate     DateTime            @map("transaction_date")
@@ -669,9 +775,12 @@ model BankStatementLine {
 
 model User {
   id                    String          @id @default(cuid())
+  tenantId              String          @map("tenant_id")
+  tenant                Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   name                  String
   email                 String          @unique
-  passwordHash          String          @map("password_hash")
+  passwordHash          String?         @map("password_hash")
+  googleId              String?         @unique @map("google_id")
   role                  UserRole
   isActive              Boolean         @default(true) @map("is_active")
   createdAt             DateTime        @default(now()) @map("created_at")
@@ -689,6 +798,8 @@ model User {
 
 model ArLedger {
   id             String   @id @default(cuid())
+  tenantId       String   @map("tenant_id")
+  tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   customerId     String   @map("customer_id")
   salesOrderId   String   @map("sales_order_id")
   paymentId      String?  @map("payment_id")
@@ -710,6 +821,8 @@ model ArLedger {
 
 model VatRegister {
   id            String   @id @default(cuid())
+  tenantId      String   @map("tenant_id")
+  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   taxInvoiceId  String   @unique @map("tax_invoice_id")
   customerId    String   @map("customer_id")
   taxableAmount Decimal  @map("taxable_amount") @db.Decimal(14, 2)
@@ -728,30 +841,36 @@ model VatRegister {
 
 model InvoiceCounter {
   id         String @id @default(cuid())
-  fiscalYear String @unique @map("fiscal_year") // "2081/82"
+  tenantId   String @map("tenant_id")
+  tenant     Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  fiscalYear String @map("fiscal_year") // "2081/82"
   lastSeq    Int    @default(0) @map("last_seq")
 
+  @@unique([fiscalYear, tenantId])
   @@map("invoice_counters")
 }
 
 model ReceiptCounter {
   id         String @id @default(cuid())
-  fiscalYear String @unique @map("fiscal_year") // "2081/82"
+  tenantId   String @map("tenant_id")
+  tenant     Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  fiscalYear String @map("fiscal_year") // "2081/82"
   lastSeq    Int    @default(0) @map("last_seq")
 
+  @@unique([fiscalYear, tenantId])
   @@map("receipt_counters")
 }
 
-/// Immutable audit trail for sensitive financial actions (PRD §7).
-/// Rows must NEVER be updated or deleted — insert-only.
 model AuditLog {
   id            String   @id @default(cuid())
+  tenantId      String   @map("tenant_id")
+  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   userId        String   @map("user_id")
-  action        String   // e.g. CREATE_INVOICE | RECORD_PAYMENT | CREATE_SALES_ORDER | UPDATE_INVOICE
+  action        String // e.g. CREATE_INVOICE | RECORD_PAYMENT | CREATE_SALES_ORDER | UPDATE_INVOICE
   entityType    String   @map("entity_type") // e.g. TaxInvoice | Payment | SalesOrder
   entityId      String   @map("entity_id")
   previousState Json?    @map("previous_state") // snapshot before mutation (null for creates)
-  newState      Json?    @map("new_state")      // snapshot after mutation (null for deletes)
+  newState      Json?    @map("new_state") // snapshot after mutation (null for deletes)
   timestamp     DateTime @default(now())
   ipAddress     String?  @map("ip_address")
 
@@ -762,10 +881,14 @@ model AuditLog {
   @@index([action, timestamp])
   @@map("audit_logs")
 }
+
 model EstimateCounter {
   id         String @id @default(cuid())
-  fiscalYear String @unique @map("fiscal_year")
+  tenantId   String @map("tenant_id")
+  tenant     Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  fiscalYear String @map("fiscal_year")
   lastSeq    Int    @default(0) @map("last_seq")
 
+  @@unique([fiscalYear, tenantId])
   @@map("estimate_counters")
 }

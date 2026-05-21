@@ -16,6 +16,8 @@ type AuthContextValue = {
   token: string | null;
   status: AuthStatus;
   login: (email: string, password: string) => Promise<AuthUser>;
+  register: (name: string, email: string, password: string, companyName: string) => Promise<AuthUser>;
+  loginWithGoogle: (credential: string, intent?: "login" | "register", companyName?: string) => Promise<AuthUser>;
   logout: () => void;
 };
 
@@ -30,6 +32,27 @@ function getStoredToken() {
   return window.localStorage.getItem(TOKEN_STORAGE_KEY);
 }
 
+function isExpiredJwt(token: string) {
+  const parts = token.split(".");
+  if (parts.length !== 3) {
+    return true;
+  }
+
+  try {
+    const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), "=");
+    const payload = JSON.parse(atob(padded)) as { exp?: number };
+
+    if (typeof payload.exp !== "number") {
+      return false;
+    }
+
+    return payload.exp * 1000 <= Date.now();
+  } catch {
+    return true;
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(() => getStoredToken());
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -39,6 +62,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!token) {
       setUser(null);
       setStatus("unauthenticated");
+      return;
+    }
+
+    if (isExpiredJwt(token)) {
+      if (typeof window !== "undefined") {
+        window.localStorage.removeItem(TOKEN_STORAGE_KEY);
+      }
+
+      setToken(null);
+      setUser(null);
+      setStatus("unauthenticated");
+      queryClient.clear();
       return;
     }
 
@@ -92,6 +127,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return payload.user;
   }
 
+  async function register(name: string, email: string, password: string, companyName: string) {
+    const payload = await apiRequest<LoginPayload>("/auth/register", {
+      method: "POST",
+      body: { name, email, password, companyName },
+    });
+
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(TOKEN_STORAGE_KEY, payload.token);
+    }
+
+    setToken(payload.token);
+    setUser(payload.user);
+    setStatus("authenticated");
+    queryClient.clear();
+
+    return payload.user;
+  }
+
+  async function loginWithGoogle(credential: string, intent: "login" | "register" = "login", companyName?: string) {
+    const payload = await apiRequest<LoginPayload>("/auth/google", {
+      method: "POST",
+      body: { credential, intent, companyName },
+    });
+
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(TOKEN_STORAGE_KEY, payload.token);
+    }
+
+    setToken(payload.token);
+    setUser(payload.user);
+    setStatus("authenticated");
+    queryClient.clear();
+
+    return payload.user;
+  }
+
   function logout() {
     if (typeof window !== "undefined") {
       window.localStorage.removeItem(TOKEN_STORAGE_KEY);
@@ -109,6 +180,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       token,
       status,
       login,
+      register,
+      loginWithGoogle,
       logout,
     }),
     [status, token, user],

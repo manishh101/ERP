@@ -20,8 +20,8 @@ dashboardRouter.use(requireAuth);
 // ---------------------------------------------------------------------------
 dashboardRouter.get(
   "/summary",
-  asyncHandler(async (_request, response) => {
-    response.json(await getDashboardSummary());
+  asyncHandler(async (request, response) => {
+    response.json(await getDashboardSummary(request.user!.tenantId));
   })
 );
 
@@ -38,11 +38,11 @@ dashboardRouter.get(
       throw new ApiError(400, "period must be one of: today, month, year");
     }
     const cacheKey = 
-      period === "today" ? CACHE_KEYS.FINANCIAL_SUMMARY_TODAY :
-      period === "month" ? CACHE_KEYS.FINANCIAL_SUMMARY_MONTH : 
-      CACHE_KEYS.FINANCIAL_SUMMARY_YEAR;
+      period === "today" ? CACHE_KEYS.FINANCIAL_SUMMARY_TODAY(request.user!.tenantId) :
+      period === "month" ? CACHE_KEYS.FINANCIAL_SUMMARY_MONTH(request.user!.tenantId) : 
+      CACHE_KEYS.FINANCIAL_SUMMARY_YEAR(request.user!.tenantId);
     
-    const data = await withCache(cacheKey, 900, () => getFinancialSummary(period));
+    const data = await withCache(cacheKey, 900, () => getFinancialSummary(request.user!.tenantId, period));
     response.json(data);
   })
 );
@@ -54,8 +54,8 @@ dashboardRouter.get(
 // ---------------------------------------------------------------------------
 dashboardRouter.get(
   "/ar-aging",
-  asyncHandler(async (_request, response) => {
-    const data = await withCache(CACHE_KEYS.AR_AGING, 900, () => getArAgingBuckets());
+  asyncHandler(async (request, response) => {
+    const data = await withCache(CACHE_KEYS.AR_AGING(request.user!.tenantId), 900, () => getArAgingBuckets(request.user!.tenantId));
     response.json(data);
   })
 );
@@ -67,8 +67,8 @@ dashboardRouter.get(
 // ---------------------------------------------------------------------------
 dashboardRouter.get(
   "/top-entities",
-  asyncHandler(async (_request, response) => {
-    const data = await withCache(CACHE_KEYS.TOP_ENTITIES, 900, () => getTopEntities());
+  asyncHandler(async (request, response) => {
+    const data = await withCache(CACHE_KEYS.TOP_ENTITIES(request.user!.tenantId), 900, () => getTopEntities(request.user!.tenantId));
     response.json(data);
   })
 );
@@ -85,7 +85,7 @@ dashboardRouter.get(
     const { customerId } = request.params;
     if (!customerId) throw new ApiError(400, "customerId is required");
     try {
-      const data = await withCache(CACHE_KEYS.SHOWROOM_ANALYTICS(customerId), 900, () => getShowroomAnalytics(customerId));
+      const data = await withCache(CACHE_KEYS.SHOWROOM_ANALYTICS(request.user!.tenantId, customerId), 900, () => getShowroomAnalytics(request.user!.tenantId, customerId));
       response.json(data);
     } catch (err: any) {
       if (err.message?.includes("not found")) {

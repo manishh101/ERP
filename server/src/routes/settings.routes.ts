@@ -1,9 +1,11 @@
 import bcrypt from "bcryptjs";
 import { Router } from "express";
-import { prisma } from "../config/prisma";
+import { basePrisma, prisma } from "../config/prisma";
 import { requireAuth, requireRole } from "../middleware/auth";
 import { asyncHandler } from "../middleware/async-handler";
 import { validate } from "../middleware/validate";
+import { ApiError } from "../utils/api-error";
+import { normalizeEmail, normalizeName } from "../utils/identity";
 import {
   companyProfileSchema,
   currencySettingSchema,
@@ -25,12 +27,12 @@ settingsRouter.get(
   asyncHandler(async (_request, response) => {
     const [companyProfile, taxRates, currencySetting, invoiceTemplate, notificationSetting, warehouses] =
       await Promise.all([
-        prisma.companyProfile.findFirst(),
-        prisma.taxRate.findMany({ orderBy: { category: "asc" } }),
-        prisma.currencySetting.findFirst(),
-        prisma.invoiceTemplate.findFirst(),
-        prisma.notificationSetting.findFirst(),
-        prisma.warehouse.findMany({ orderBy: { name: "asc" } }),
+        prisma.companyProfile.findFirst({ where: { tenantId: _request.user!.tenantId } }),
+        prisma.taxRate.findMany({ where: { tenantId: _request.user!.tenantId }, orderBy: { category: "asc" } }),
+        prisma.currencySetting.findFirst({ where: { tenantId: _request.user!.tenantId } }),
+        prisma.invoiceTemplate.findFirst({ where: { tenantId: _request.user!.tenantId } }),
+        prisma.notificationSetting.findFirst({ where: { tenantId: _request.user!.tenantId } }),
+        prisma.warehouse.findMany({ where: { tenantId: _request.user!.tenantId }, orderBy: { name: "asc" } }),
       ]);
 
     response.json({
@@ -49,14 +51,19 @@ settingsRouter.patch(
   validate(companyProfileSchema),
   asyncHandler(async (request, response) => {
     const body = request.validated?.body as ReturnType<typeof companyProfileSchema.parse>;
-    const existing = await prisma.companyProfile.findFirst();
+    const existing = await prisma.companyProfile.findFirst({ where: { tenantId: request.user!.tenantId } });
 
     const companyProfile = existing
       ? await prisma.companyProfile.update({
           where: { id: existing.id },
           data: body,
         })
-      : await prisma.companyProfile.create({ data: body });
+      : await prisma.companyProfile.create({
+          data: {
+            ...body,
+            tenantId: request.user!.tenantId,
+          },
+        });
 
     response.json(companyProfile);
   }),
@@ -67,7 +74,12 @@ settingsRouter.post(
   validate(taxRateSchema),
   asyncHandler(async (request, response) => {
     const body = request.validated?.body as ReturnType<typeof taxRateSchema.parse>;
-    const taxRate = await prisma.taxRate.create({ data: body });
+    const taxRate = await prisma.taxRate.create({
+      data: {
+        ...body,
+        tenantId: request.user!.tenantId,
+      },
+    });
     response.status(201).json(taxRate);
   }),
 );
@@ -79,6 +91,12 @@ settingsRouter.patch(
   asyncHandler(async (request, response) => {
     const params = request.validated?.params as { id: string };
     const body = request.validated?.body as Partial<ReturnType<typeof taxRateSchema.parse>>;
+    
+    const existing = await prisma.taxRate.findFirst({
+      where: { id: params.id, tenantId: request.user!.tenantId },
+    });
+    if (!existing) throw new ApiError(404, "Tax rate not found");
+
     const taxRate = await prisma.taxRate.update({
       where: { id: params.id },
       data: body,
@@ -93,7 +111,7 @@ settingsRouter.patch(
   validate(currencySettingSchema),
   asyncHandler(async (request, response) => {
     const body = request.validated?.body as ReturnType<typeof currencySettingSchema.parse>;
-    const existing = await prisma.currencySetting.findFirst();
+    const existing = await prisma.currencySetting.findFirst({ where: { tenantId: request.user!.tenantId } });
 
     const currencySetting = existing
       ? await prisma.currencySetting.update({
@@ -107,6 +125,7 @@ settingsRouter.patch(
           data: {
             ...body,
             supportedCurrencies: body.supportedCurrencies,
+            tenantId: request.user!.tenantId,
           },
         });
 
@@ -119,14 +138,19 @@ settingsRouter.patch(
   validate(invoiceTemplateSchema),
   asyncHandler(async (request, response) => {
     const body = request.validated?.body as ReturnType<typeof invoiceTemplateSchema.parse>;
-    const existing = await prisma.invoiceTemplate.findFirst();
+    const existing = await prisma.invoiceTemplate.findFirst({ where: { tenantId: request.user!.tenantId } });
 
     const invoiceTemplate = existing
       ? await prisma.invoiceTemplate.update({
           where: { id: existing.id },
           data: body,
         })
-      : await prisma.invoiceTemplate.create({ data: body });
+      : await prisma.invoiceTemplate.create({
+          data: {
+            ...body,
+            tenantId: request.user!.tenantId,
+          },
+        });
 
     response.json(invoiceTemplate);
   }),
@@ -137,7 +161,7 @@ settingsRouter.patch(
   validate(notificationSettingSchema),
   asyncHandler(async (request, response) => {
     const body = request.validated?.body as ReturnType<typeof notificationSettingSchema.parse>;
-    const existing = await prisma.notificationSetting.findFirst();
+    const existing = await prisma.notificationSetting.findFirst({ where: { tenantId: request.user!.tenantId } });
 
     const notificationSetting = existing
       ? await prisma.notificationSetting.update({
@@ -151,6 +175,7 @@ settingsRouter.patch(
           data: {
             ...body,
             overdueInvoiceDays: body.overdueInvoiceDays,
+            tenantId: request.user!.tenantId,
           },
         });
 
@@ -163,7 +188,12 @@ settingsRouter.post(
   validate(warehouseSchema),
   asyncHandler(async (request, response) => {
     const body = request.validated?.body as ReturnType<typeof warehouseSchema.parse>;
-    const warehouse = await prisma.warehouse.create({ data: body });
+    const warehouse = await prisma.warehouse.create({
+      data: {
+        ...body,
+        tenantId: request.user!.tenantId,
+      },
+    });
     response.status(201).json(warehouse);
   }),
 );
@@ -175,6 +205,12 @@ settingsRouter.patch(
   asyncHandler(async (request, response) => {
     const params = request.validated?.params as { id: string };
     const body = request.validated?.body as Partial<ReturnType<typeof warehouseSchema.parse>>;
+    
+    const existing = await prisma.warehouse.findFirst({
+      where: { id: params.id, tenantId: request.user!.tenantId },
+    });
+    if (!existing) throw new ApiError(404, "Warehouse not found");
+
     const warehouse = await prisma.warehouse.update({
       where: { id: params.id },
       data: body,
@@ -189,19 +225,29 @@ settingsRouter.post(
   validate(userSchema),
   asyncHandler(async (request, response) => {
     const body = request.validated?.body as ReturnType<typeof userSchema.parse>;
+    const email = normalizeEmail(body.email);
+    const existingUser = await basePrisma.user.findUnique({
+      where: { email },
+      select: { id: true },
+    });
+
+    if (existingUser) {
+      throw new ApiError(400, "Email address is already registered.");
+    }
+
     const passwordHash = await bcrypt.hash(body.password, 10);
 
     const user = await prisma.user.create({
       data: {
-        name: body.name,
-        email: body.email,
+        name: normalizeName(body.name),
+        email,
         passwordHash,
         role: body.role,
         isActive: body.isActive,
+        tenantId: request.user!.tenantId,
       },
     });
 
     response.status(201).json(user);
   }),
 );
-

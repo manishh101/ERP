@@ -30,6 +30,7 @@ deliveriesRouter.get(
     };
 
     const where: any = {
+      tenantId: request.user!.tenantId,
       status: query.status || undefined,
       OR: query.search
         ? [
@@ -85,8 +86,16 @@ deliveriesRouter.post(
     const body = request.validated?.body as ReturnType<typeof deliverySchema.parse>;
 
     const delivery = await prisma.$transaction(async (tx) => {
+      const order = await tx.salesOrder.findFirst({
+        where: { id: body.soId, tenantId: request.user!.tenantId },
+      });
+      if (!order) throw new ApiError(404, "Sales Order not found");
+
       const created = await tx.delivery.create({
-        data: body,
+        data: {
+          ...body,
+          tenantId: request.user!.tenantId,
+        },
         include: {
           driver: true,
           salesOrder: {
@@ -122,6 +131,7 @@ deliveriesRouter.get(
 
     const deliveries = await prisma.delivery.findMany({
       where: {
+        tenantId: request.user!.tenantId,
         scheduledDate: {
           gte: start,
           lt: end,
@@ -157,8 +167,8 @@ deliveriesRouter.get(
   validate(idParamSchema, "params"),
   asyncHandler(async (request, response) => {
     const params = request.validated?.params as { id: string };
-    const delivery = await prisma.delivery.findUnique({
-      where: { id: params.id },
+    const delivery = await prisma.delivery.findFirst({
+      where: { id: params.id, tenantId: request.user!.tenantId },
       include: {
         driver: true,
         salesOrder: {
@@ -192,6 +202,11 @@ deliveriesRouter.patch(
     const body = request.validated?.body as ReturnType<typeof deliveryUpdateSchema.parse>;
 
     const delivery = await prisma.$transaction(async (tx) => {
+      const existing = await tx.delivery.findFirst({
+        where: { id: params.id, tenantId: request.user!.tenantId },
+      });
+      if (!existing) throw new ApiError(404, "Delivery not found");
+
       const updated = await tx.delivery.update({
         where: { id: params.id },
         data: {
@@ -225,8 +240,8 @@ deliveriesRouter.post(
     const params = request.validated?.params as { id: string };
     const body = request.validated?.body as ReturnType<typeof failedDeliverySchema.parse>;
 
-    const delivery = await prisma.delivery.findUnique({
-      where: { id: params.id },
+    const delivery = await prisma.delivery.findFirst({
+      where: { id: params.id, tenantId: request.user!.tenantId },
     });
 
     if (!delivery) {
@@ -254,8 +269,8 @@ deliveriesRouter.post(
     const params = request.validated?.params as { id: string };
 
     const delivery = await prisma.$transaction(async (tx) => {
-      const existing = await tx.delivery.findUnique({
-        where: { id: params.id },
+      const existing = await tx.delivery.findFirst({
+        where: { id: params.id, tenantId: request.user!.tenantId },
       });
 
       if (!existing) {

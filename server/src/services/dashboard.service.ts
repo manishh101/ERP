@@ -43,7 +43,7 @@ function formatCurrency(value: number) {
 // Returns: Amount Received vs Amount Pending, filterable by today/month/year
 // ---------------------------------------------------------------------------
 
-export async function getFinancialSummary(period: "today" | "month" | "year" = "month") {
+export async function getFinancialSummary(tenantId: string, period: "today" | "month" | "year" = "month") {
   // NOTE: Caching is handled by the route handler (dashboard.routes.ts).
   // Do NOT add withCache here — the route already caches per-period correctly.
   let since: Date;
@@ -61,6 +61,7 @@ export async function getFinancialSummary(period: "today" | "month" | "year" = "
     // Amount Received: sum of all payments in the period linked to sales orders
     prisma.payment.aggregate({
       where: {
+        tenantId,
         salesOrderId: { not: null },
         paymentDate: { gte: since },
       },
@@ -69,6 +70,7 @@ export async function getFinancialSummary(period: "today" | "month" | "year" = "
     // Amount Pending (AR): total outstanding balance across all showrooms
     prisma.salesOrder.findMany({
       where: {
+        tenantId,
         balanceDue: { gt: 0 },
         status: { not: "CANCELLED" },
       },
@@ -105,9 +107,9 @@ export interface AgingBuckets {
   customerCount: number;
 }
 
-export async function getArAgingBuckets(): Promise<AgingBuckets> {
-  return withCache(CACHE_KEYS.AR_AGING, 900, async () => {
-    const rows = await getAraAgingReport();
+export async function getArAgingBuckets(tenantId: string): Promise<AgingBuckets> {
+  return withCache(CACHE_KEYS.AR_AGING(tenantId), 900, async () => {
+    const rows = await getAraAgingReport(tenantId);
 
     const buckets: AgingBuckets = {
       "0-30": 0,
@@ -137,10 +139,10 @@ export async function getArAgingBuckets(): Promise<AgingBuckets> {
 // Returns: Top showrooms by revenue + top products by quantity dispatched
 // ---------------------------------------------------------------------------
 
-export async function getTopEntities() {
-  return withCache(CACHE_KEYS.TOP_ENTITIES, 900, async () => {
+export async function getTopEntities(tenantId: string) {
+  return withCache(CACHE_KEYS.TOP_ENTITIES(tenantId), 900, async () => {
     const allOrders = await prisma.salesOrder.findMany({
-      where: { status: { not: "CANCELLED" } },
+      where: { tenantId, status: { not: "CANCELLED" } },
       include: {
         customer: true,
         lineItems: {
@@ -205,10 +207,10 @@ export interface ShowroomAnalytics {
   yearToDate: ShowroomPeriodMetrics;
 }
 
-export async function getShowroomAnalytics(customerId: string): Promise<ShowroomAnalytics> {
-  return withCache(CACHE_KEYS.SHOWROOM_ANALYTICS(customerId), 900, async () => {
-    const customer = await prisma.customer.findUnique({
-      where: { id: customerId },
+export async function getShowroomAnalytics(tenantId: string, customerId: string): Promise<ShowroomAnalytics> {
+  return withCache(CACHE_KEYS.SHOWROOM_ANALYTICS(tenantId, customerId), 900, async () => {
+    const customer = await prisma.customer.findFirst({
+      where: { id: customerId, tenantId },
     });
     if (!customer) throw new Error(`Customer ${customerId} not found`);
 
@@ -220,6 +222,7 @@ export async function getShowroomAnalytics(customerId: string): Promise<Showroom
     // Pull all orders for this customer since start of year (covers all 3 periods)
     const orders = await prisma.salesOrder.findMany({
       where: {
+        tenantId,
         customerId,
         status: { not: "CANCELLED" },
         orderDate: { gte: yearStart },
@@ -263,7 +266,7 @@ export async function getShowroomAnalytics(customerId: string): Promise<Showroom
 // Legacy — GET /dashboard/summary (kept for backward compat with existing UI)
 // ---------------------------------------------------------------------------
 
-export async function getDashboardSummary() {
+export async function getDashboardSummary(tenantId: string) {
   const monthStart = startOfCurrentMonth();
 
   const [
@@ -276,18 +279,21 @@ export async function getDashboardSummary() {
   ] = await Promise.all([
     prisma.salesOrder.findMany({
       where: {
+        tenantId,
         orderDate: { gte: monthStart },
         status: { not: "CANCELLED" },
       },
       select: { orderAmount: true },
     }),
     prisma.productVariant.findMany({
+      where: { tenantId },
       include: {
         product: true,
       },
     }),
     prisma.delivery.count({
       where: {
+        tenantId,
         status: {
           in: ["SCHEDULED", "OUT_FOR_DELIVERY", "FAILED_ATTEMPT"],
         },
@@ -295,6 +301,7 @@ export async function getDashboardSummary() {
     }),
     prisma.productVariant.findMany({
       where: {
+        tenantId,
         stockQuantity: {
           lte: 5,
         },
@@ -305,6 +312,7 @@ export async function getDashboardSummary() {
       take: 10,
     }),
     prisma.salesOrder.findMany({
+      where: { tenantId },
       include: {
         customer: true,
         lineItems: true,
@@ -315,6 +323,7 @@ export async function getDashboardSummary() {
       take: 8,
     }),
     prisma.salesOrder.findMany({
+      where: { tenantId },
       include: {
         lineItems: {
           include: {
@@ -331,7 +340,7 @@ export async function getDashboardSummary() {
 
   const totalRevenueMtd = monthOrders.reduce((sum, o) => sum + toNumber(o.orderAmount), 0);
   const openOrders = await prisma.salesOrder.findMany({
-    where: { balanceDue: { gt: 0 }, status: { not: "CANCELLED" } },
+    where: { tenantId, balanceDue: { gt: 0 }, status: { not: "CANCELLED" } },
     select: { balanceDue: true },
   });
   const outstandingArValue = openOrders.reduce((sum, o) => sum + toNumber(o.balanceDue), 0);
@@ -344,6 +353,7 @@ export async function getDashboardSummary() {
 
   const invoicePayments = await prisma.payment.findMany({
     where: {
+      tenantId,
       salesOrderId: { not: null },
       paymentDate: {
         gte: new Date(new Date().getFullYear(), new Date().getMonth() - 5, 1),
@@ -353,6 +363,7 @@ export async function getDashboardSummary() {
 
   const expenseRows = await prisma.expense.findMany({
     where: {
+      tenantId,
       date: {
         gte: new Date(new Date().getFullYear(), new Date().getMonth() - 5, 1),
       },
@@ -450,16 +461,17 @@ export async function getDashboardSummary() {
 
   const customInProduction = await prisma.salesOrder.count({
     where: {
+      tenantId,
       isCustomOrder: true,
       status: { in: ["CONFIRMED", "DEPOSIT_PAID", "IN_WAREHOUSE"] },
     },
   });
 
   // AR Aging buckets — now included in main summary for dashboard widget
-  const arAging = await getArAgingBuckets();
+  const arAging = await getArAgingBuckets(tenantId);
 
   // Per-customer aging buckets from server-side days-overdue calculation (Fix #5)
-  const arAgingRows = await getAraAgingReport();
+  const arAgingRows = await getAraAgingReport(tenantId);
   const arAgingByCustomer: Record<string, string> = {};
   for (const row of arAgingRows) {
     // If a customer has multiple orders in different buckets, keep the worst (oldest)

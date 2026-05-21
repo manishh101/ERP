@@ -15,6 +15,7 @@ import { getCustomerLedger } from "../modules/ar-ledger/ar-ledger.service";
 import { toNumber } from "../utils/number";
 import { verifyToken } from "../utils/jwt";
 import { ApiError } from "../utils/api-error";
+import { renderLedgerPdf } from "../lib/pdf/ar-statement.pdf";
 
 import { getEntries, getMonthlySummary } from "../modules/vat-register/vat-register.service";
 
@@ -90,6 +91,7 @@ reportsRouter.get(
 
     const orders = await prisma.salesOrder.findMany({
       where: {
+        tenantId: request.user!.tenantId,
         orderDate: {
           gte: query.startDate,
           lte: query.endDate,
@@ -145,9 +147,10 @@ reportsRouter.get(
 reportsRouter.get(
   "/inventory",
   validate(reportQuerySchema, "query"),
-  asyncHandler(async (_request, response) => {
+  asyncHandler(async (request, response) => {
     const [variants, recentSales] = await Promise.all([
       prisma.productVariant.findMany({
+        where: { tenantId: request.user!.tenantId },
         include: {
           product: true,
           inventoryItems: {
@@ -159,6 +162,7 @@ reportsRouter.get(
       }),
       prisma.salesOrderLineItem.findMany({
         where: {
+          tenantId: request.user!.tenantId,
           salesOrder: {
             orderDate: {
               gte: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000),
@@ -191,8 +195,9 @@ reportsRouter.get(
 reportsRouter.get(
   "/margin",
   validate(reportQuerySchema, "query"),
-  asyncHandler(async (_request, response) => {
+  asyncHandler(async (request, response) => {
     const lineItems = await prisma.salesOrderLineItem.findMany({
+      where: { tenantId: request.user!.tenantId },
       include: {
         productVariant: {
           include: {
@@ -230,8 +235,9 @@ reportsRouter.get(
 
 reportsRouter.get(
   "/suppliers",
-  asyncHandler(async (_request, response) => {
+  asyncHandler(async (request, response) => {
     const suppliers = await prisma.supplier.findMany({
+      where: { tenantId: request.user!.tenantId },
       include: {
         purchaseOrders: {
           include: {
@@ -263,8 +269,9 @@ reportsRouter.get(
 
 reportsRouter.get(
   "/customers",
-  asyncHandler(async (_request, response) => {
+  asyncHandler(async (request, response) => {
     const customers = await prisma.customer.findMany({
+      where: { tenantId: request.user!.tenantId },
       include: {
         salesOrders: {
           include: {
@@ -288,7 +295,7 @@ reportsRouter.get(
         }))
         .sort((left, right) => right.revenue - left.revenue)
         .slice(0, 10),
-      atRisk: (await getAraAgingReport()).filter((row) => row.bucket !== "0-30"),
+      atRisk: (await getAraAgingReport(request.user!.tenantId)).filter((row) => row.bucket !== "0-30"),
       lifecycle: {
         newCustomers: customers.filter(
           (customer) =>
@@ -308,11 +315,11 @@ reportsRouter.get(
     const query = request.validated?.query as { startDate?: Date; endDate?: Date };
 
     response.json({
-      profitAndLoss: await getProfitAndLoss(query.startDate, query.endDate),
-      balanceSheet: await getBalanceSheet(),
-      cashFlow: await getCashFlow(query.startDate, query.endDate),
-      arAging: await getAraAgingReport(),
-      apAging: await getApAgingReport(),
+      profitAndLoss: await getProfitAndLoss(request.user!.tenantId, query.startDate, query.endDate),
+      balanceSheet: await getBalanceSheet(request.user!.tenantId),
+      cashFlow: await getCashFlow(request.user!.tenantId, query.startDate, query.endDate),
+      arAging: await getAraAgingReport(request.user!.tenantId),
+      apAging: await getApAgingReport(request.user!.tenantId),
       exportFormats: ["pdf", "csv"],
     });
   }),
@@ -323,7 +330,7 @@ reportsRouter.get(
   asyncHandler(async (request, response) => {
     const fiscalYear = String(request.query.fiscalYear);
     if (!fiscalYear) throw new ApiError(400, "Fiscal year is required");
-    const summary = await getMonthlySummary(fiscalYear);
+    const summary = await getMonthlySummary(request.user!.tenantId, fiscalYear);
     response.json(summary);
   }),
 );
@@ -334,7 +341,7 @@ reportsRouter.get(
     const fiscalYear = request.query.fiscalYear as string;
     if (!fiscalYear) throw new ApiError(400, "Fiscal year is required");
     const month = request.query.month as string | undefined;
-    const entries = await getEntries(fiscalYear, month);
+    const entries = await getEntries(request.user!.tenantId, fiscalYear, month);
     response.json(entries);
   }),
 );
@@ -348,6 +355,7 @@ reportsRouter.post(
 
     const [salesRows, inventoryRows, customerRows, supplierRows, financeRows] = await Promise.all([
       prisma.salesOrder.findMany({
+        where: { tenantId: request.user!.tenantId },
         include: {
           customer: true,
           salesperson: true,
@@ -359,6 +367,7 @@ reportsRouter.post(
         },
       }),
       prisma.inventory.findMany({
+        where: { tenantId: request.user!.tenantId },
         include: {
           warehouse: true,
           productVariant: {
@@ -372,6 +381,7 @@ reportsRouter.post(
         },
       }),
       prisma.customer.findMany({
+        where: { tenantId: request.user!.tenantId },
         include: {
           salesOrders: {
             include: {
@@ -385,6 +395,7 @@ reportsRouter.post(
         },
       }),
       prisma.supplier.findMany({
+        where: { tenantId: request.user!.tenantId },
         include: {
           purchaseOrders: true,
         },
@@ -393,6 +404,7 @@ reportsRouter.post(
         },
       }),
       prisma.journalEntry.findMany({
+        where: { tenantId: request.user!.tenantId },
         include: {
           lines: true,
         },
@@ -498,6 +510,7 @@ reportsRouter.post(
 reportsRouter.get("/customer-ledger/:id/pdf", asyncHandler(async (request, response) => {
   // Check if authenticated or has a valid download token
   let userId = request.user?.id;
+  let tenantId = request.user?.tenantId;
   const token = request.query.token as string;
   
   if (!userId && token) {
@@ -505,13 +518,15 @@ reportsRouter.get("/customer-ledger/:id/pdf", asyncHandler(async (request, respo
       const decoded = verifyToken(token);
       if (decoded.purpose === "download") {
         userId = decoded.sub;
+        const u = await prisma.user.findUnique({ where: { id: decoded.sub } });
+        tenantId = u?.tenantId;
       }
     } catch (err) {
       throw new ApiError(401, "Invalid or expired download token");
     }
   }
 
-  if (!userId) {
+  if (!userId || !tenantId) {
     throw new ApiError(401, "Unauthorized");
   }
 
@@ -520,16 +535,15 @@ reportsRouter.get("/customer-ledger/:id/pdf", asyncHandler(async (request, respo
     const { startDate, endDate } = listQuerySchema.parse(request.query);
 
     const [customer, ledger, company] = await Promise.all([
-      prisma.customer.findUnique({ where: { id } }),
-      getCustomerLedger(id, startDate, endDate),
-      prisma.companyProfile.findFirst(),
+      prisma.customer.findFirst({ where: { id, tenantId } }),
+      getCustomerLedger(tenantId, id, startDate, endDate),
+      prisma.companyProfile.findFirst({ where: { tenantId } }),
     ]);
 
     if (!customer) {
       return response.status(404).json({ error: "Customer not found" });
     }
 
-    const { renderLedgerPdf } = await import("../lib/pdf/ar-statement.pdf");
     const pdfStream = await renderLedgerPdf({
       customer,
       ledger: ledger.entries,

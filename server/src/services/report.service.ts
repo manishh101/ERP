@@ -19,9 +19,10 @@ function bucketAging(daysOverdue: number) {
   return "90+";
 }
 
-export async function getAraAgingReport() {
+export async function getAraAgingReport(tenantId: string) {
   const orders = await prisma.salesOrder.findMany({
     where: {
+      tenantId,
       balanceDue: { gt: 0 },
     },
     include: {
@@ -48,9 +49,10 @@ export async function getAraAgingReport() {
   });
 }
 
-export async function getApAgingReport() {
+export async function getApAgingReport(tenantId: string) {
   const invoices = await prisma.supplierInvoice.findMany({
     where: {
+      tenantId,
       status: {
         in: ["RECEIVED", "PARTIALLY_PAID", "OVERDUE"],
       },
@@ -79,10 +81,11 @@ export async function getApAgingReport() {
   });
 }
 
-export async function getProfitAndLoss(startDate?: Date, endDate?: Date) {
+export async function getProfitAndLoss(tenantId: string, startDate?: Date, endDate?: Date) {
   const lines = await prisma.journalEntryLine.findMany({
     where: {
       journalEntry: {
+        tenantId,
         date: buildDateRange(startDate, endDate),
       },
       account: {
@@ -131,8 +134,9 @@ export async function getProfitAndLoss(startDate?: Date, endDate?: Date) {
   };
 }
 
-export async function getBalanceSheet() {
+export async function getBalanceSheet(tenantId: string) {
   const accounts = await prisma.account.findMany({
+    where: { tenantId },
     orderBy: [{ type: "asc" }, { code: "asc" }],
   });
 
@@ -143,8 +147,9 @@ export async function getBalanceSheet() {
   };
 }
 
-export async function getTrialBalance() {
+export async function getTrialBalance(tenantId: string) {
   const accounts = await prisma.account.findMany({
+    where: { tenantId },
     orderBy: [{ code: "asc" }],
   });
 
@@ -160,15 +165,17 @@ export async function getTrialBalance() {
   }));
 }
 
-export async function getCashFlow(startDate?: Date, endDate?: Date) {
+export async function getCashFlow(tenantId: string, startDate?: Date, endDate?: Date) {
   const [payments, expenses] = await Promise.all([
     prisma.payment.findMany({
       where: {
+        tenantId,
         paymentDate: buildDateRange(startDate, endDate),
       },
     }),
     prisma.expense.findMany({
       where: {
+        tenantId,
         date: buildDateRange(startDate, endDate),
       },
     }),
@@ -190,12 +197,18 @@ export async function getCashFlow(startDate?: Date, endDate?: Date) {
   };
 }
 
-export async function getTaxSummary(startDate?: Date, endDate?: Date) {
+export async function getTaxSummary(tenantId: string, startDate?: Date, endDate?: Date) {
   const vatEntries = await prisma.vatRegister.findMany({
-    where: { entryDate: buildDateRange(startDate, endDate) },
+    where: {
+      tenantId,
+      entryDate: buildDateRange(startDate, endDate),
+    },
   });
   const supplierInvoices = await prisma.supplierInvoice.findMany({
-    where: { issueDate: buildDateRange(startDate, endDate) },
+    where: {
+      tenantId,
+      issueDate: buildDateRange(startDate, endDate),
+    },
   });
 
   const outputTax = vatEntries.reduce((sum: number, e: any) => sum + toNumber(e.outputVat), 0);

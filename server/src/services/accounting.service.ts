@@ -18,6 +18,7 @@ function calculateBalanceDelta(accountType: AccountType, debit: number, credit: 
 }
 
 export async function createBalancedJournalEntry(input: {
+  tenantId: string;
   date: Date;
   description: string;
   reference?: string;
@@ -46,6 +47,7 @@ export async function createBalancedJournalEntry(input: {
   return prisma.$transaction(async (tx) => {
     const entry = await tx.journalEntry.create({
       data: {
+        tenantId: input.tenantId,
         date: input.date,
         description: input.description,
         reference: input.reference,
@@ -53,7 +55,7 @@ export async function createBalancedJournalEntry(input: {
         sourceId: input.sourceId,
         createdById: input.createdById,
         lines: {
-          create: input.lines,
+          create: input.lines.map(l => ({ ...l, tenantId: input.tenantId })),
         },
       },
       include: {
@@ -84,9 +86,14 @@ export async function createBalancedJournalEntry(input: {
   });
 }
 
-async function requireAccountByCode(code: string) {
+async function requireAccountByCode(tenantId: string, code: string) {
   const account = await prisma.account.findUnique({
-    where: { code },
+    where: {
+      code_tenantId: {
+        code,
+        tenantId,
+      },
+    },
   });
 
   if (!account) {
@@ -97,16 +104,18 @@ async function requireAccountByCode(code: string) {
 }
 
 export async function postSalesOrderJournalEntry(input: {
+  tenantId: string;
   salesOrderId: string;
   total: Prisma.Decimal | number;
   createdById?: string;
 }) {
-  const accountsReceivable = await requireAccountByCode("1100");
-  const revenue = await requireAccountByCode("4000");
+  const accountsReceivable = await requireAccountByCode(input.tenantId, "1100");
+  const revenue = await requireAccountByCode(input.tenantId, "4000");
 
   const total = toNumber(input.total);
 
   return createBalancedJournalEntry({
+    tenantId: input.tenantId,
     date: new Date(),
     description: "Sales order posted",
     reference: input.salesOrderId,
@@ -121,15 +130,17 @@ export async function postSalesOrderJournalEntry(input: {
 }
 
 export async function postCustomerPaymentJournalEntry(input: {
+  tenantId: string;
   paymentId: string;
   amount: Prisma.Decimal | number;
   createdById?: string;
 }) {
-  const cash = await requireAccountByCode("1000");
-  const accountsReceivable = await requireAccountByCode("1100");
+  const cash = await requireAccountByCode(input.tenantId, "1000");
+  const accountsReceivable = await requireAccountByCode(input.tenantId, "1100");
   const amount = toNumber(input.amount);
 
   return createBalancedJournalEntry({
+    tenantId: input.tenantId,
     date: new Date(),
     description: "Customer payment received",
     reference: input.paymentId,
@@ -144,15 +155,17 @@ export async function postCustomerPaymentJournalEntry(input: {
 }
 
 export async function postSupplierPaymentJournalEntry(input: {
+  tenantId: string;
   paymentId: string;
   amount: Prisma.Decimal | number;
   createdById?: string;
 }) {
-  const accountsPayable = await requireAccountByCode("2000");
-  const cash = await requireAccountByCode("1000");
+  const accountsPayable = await requireAccountByCode(input.tenantId, "2000");
+  const cash = await requireAccountByCode(input.tenantId, "1000");
   const amount = toNumber(input.amount);
 
   return createBalancedJournalEntry({
+    tenantId: input.tenantId,
     date: new Date(),
     description: "Supplier payment posted",
     reference: input.paymentId,

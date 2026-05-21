@@ -66,9 +66,10 @@ bankRouter.post(
       lines.push({ transactionDate: parsedDate, description: desc, reference: ref, amount });
     }
 
-    const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    const result = await prisma.$transaction(async (tx) => {
       const importRecord = await tx.bankStatementImport.create({
         data: {
+          tenantId: request.user!.tenantId,
           fileName: body.fileName,
           totalLines: lines.length,
         },
@@ -81,7 +82,7 @@ bankRouter.post(
         // Try match by reference first
         if (r.reference) {
           const paymentByRef = await tx.payment.findFirst({
-            where: { reference: r.reference },
+            where: { reference: r.reference, tenantId: request.user!.tenantId },
           });
 
           if (paymentByRef) matchedPaymentId = paymentByRef.id;
@@ -93,6 +94,7 @@ bankRouter.post(
             where: {
               amount: r.amount,
               matchedBankLines: { none: {} },
+              tenantId: request.user!.tenantId,
             },
           });
 
@@ -101,6 +103,7 @@ bankRouter.post(
 
         const createdLine = await tx.bankStatementLine.create({
           data: {
+            tenantId: request.user!.tenantId,
             importId: importRecord.id,
             transactionDate: r.transactionDate,
             description: r.description,
@@ -121,7 +124,7 @@ bankRouter.post(
       });
 
       return await tx.bankStatementImport.findUnique({
-        where: { id: importRecord.id },
+        where: { id: importRecord.id, tenantId: request.user!.tenantId },
         include: { lines: true },
       });
     });
@@ -138,11 +141,14 @@ bankRouter.get(
 
     const [items, total] = await Promise.all([
       prisma.bankStatementImport.findMany({
+        where: { tenantId: request.user!.tenantId },
         include: { lines: true },
         orderBy: { importedAt: "desc" },
         ...getPagination(query.page, query.pageSize),
       }),
-      prisma.bankStatementImport.count(),
+      prisma.bankStatementImport.count({
+        where: { tenantId: request.user!.tenantId },
+      }),
     ]);
 
     response.json({ items, total });
@@ -155,7 +161,7 @@ bankRouter.get(
   asyncHandler(async (request, response) => {
     const params = request.validated?.params as { id: string };
     const record = await prisma.bankStatementImport.findUnique({
-      where: { id: params.id },
+      where: { id: params.id, tenantId: request.user!.tenantId },
       include: { lines: true },
     });
 
@@ -178,9 +184,9 @@ bankRouter.post(
     }
 
     const [bankImport, line, payment] = await Promise.all([
-      prisma.bankStatementImport.findUnique({ where: { id: importId } }),
-      prisma.bankStatementLine.findUnique({ where: { id: lineId } }),
-      prisma.payment.findUnique({ where: { id: paymentId } }),
+      prisma.bankStatementImport.findUnique({ where: { id: importId, tenantId: request.user!.tenantId } }),
+      prisma.bankStatementLine.findUnique({ where: { id: lineId, tenantId: request.user!.tenantId } }),
+      prisma.payment.findUnique({ where: { id: paymentId, tenantId: request.user!.tenantId } }),
     ]);
 
     if (!bankImport) throw new ApiError(404, "Import not found");
@@ -191,9 +197,9 @@ bankRouter.post(
       throw new ApiError(400, "Line is already matched");
     }
 
-    await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      await tx.bankStatementLine.update({ where: { id: lineId }, data: { matchedPaymentId: paymentId, isMatched: true } });
-      await tx.bankStatementImport.update({ where: { id: importId }, data: { unmatchedLines: { decrement: 1 } } });
+    await prisma.$transaction(async (tx) => {
+      await tx.bankStatementLine.update({ where: { id: lineId, tenantId: request.user!.tenantId }, data: { matchedPaymentId: paymentId, isMatched: true } });
+      await tx.bankStatementImport.update({ where: { id: importId, tenantId: request.user!.tenantId }, data: { unmatchedLines: { decrement: 1 } } });
     });
 
     response.json({ success: true });
@@ -207,16 +213,16 @@ bankRouter.post(
     const importId = String(request.params.importId ?? "");
     const lineId = String(request.params.lineId ?? "");
 
-    const line = await prisma.bankStatementLine.findUnique({ where: { id: lineId } });
+    const line = await prisma.bankStatementLine.findUnique({ where: { id: lineId, tenantId: request.user!.tenantId } });
     if (!line) throw new ApiError(404, "Bank statement line not found");
 
     if (!line.matchedPaymentId) {
       throw new ApiError(400, "Line is not matched");
     }
 
-    await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      await tx.bankStatementLine.update({ where: { id: lineId }, data: { matchedPaymentId: null, isMatched: false } });
-      await tx.bankStatementImport.update({ where: { id: importId }, data: { unmatchedLines: { increment: 1 } } });
+    await prisma.$transaction(async (tx) => {
+      await tx.bankStatementLine.update({ where: { id: lineId, tenantId: request.user!.tenantId }, data: { matchedPaymentId: null, isMatched: false } });
+      await tx.bankStatementImport.update({ where: { id: importId, tenantId: request.user!.tenantId }, data: { unmatchedLines: { increment: 1 } } });
     });
 
     response.json({ success: true });
@@ -228,11 +234,12 @@ bankRouter.post(
   requireRole(["ADMIN", "ACCOUNTANT"]),
   asyncHandler(async (request, response) => {
     const lineId = String(request.params.lineId ?? "");
-    const line = await prisma.bankStatementLine.findUnique({ where: { id: lineId } });
+    const line = await prisma.bankStatementLine.findUnique({ where: { id: lineId, tenantId: request.user!.tenantId } });
     if (!line) throw new ApiError(404, "Bank statement line not found");
 
     const suggestions = await prisma.payment.findMany({
       where: {
+        tenantId: request.user!.tenantId,
         OR: [
           { reference: line.reference },
           { amount: line.amount, matchedBankLines: { none: {} } },
@@ -250,6 +257,10 @@ bankRouter.post(
   requireRole(["ADMIN", "ACCOUNTANT"]),
   asyncHandler(async (request, response) => {
     const importId = String(request.params.importId ?? "");
+    const importRecord = await prisma.bankStatementImport.findUnique({
+      where: { id: importId, tenantId: request.user!.tenantId },
+    });
+    if (!importRecord) throw new ApiError(404, "Import not found");
     await prisma.bankStatementImport.delete({ where: { id: importId } });
     response.status(204).send();
   }),

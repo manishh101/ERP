@@ -10,6 +10,7 @@ import { createTaxInvoice } from "../tax-invoices/tax-invoice.service";
  */
 
 export async function createOrder(input: {
+  tenantId: string;
   customerId: string;
   lineItems: Array<{ 
     productVariantId?: string; 
@@ -58,6 +59,7 @@ export async function createOrder(input: {
     // 2. Create SalesOrder with correct initial financial state
     const order = await tx.salesOrder.create({
       data: {
+        tenantId: input.tenantId,
         customerId: input.customerId,
         status: deposit >= orderAmount ? "PAID" : deposit > 0 ? "DEPOSIT_PAID" : "CONFIRMED",
         orderAmount: orderAmount,
@@ -77,6 +79,7 @@ export async function createOrder(input: {
         deliveryFloor: input.deliveryFloor,
         lineItems: {
           create: input.lineItems.map(item => ({
+            tenantId: input.tenantId,
             productVariantId: item.productVariantId || null,
             customProductName: item.customProductName,
             quantity: item.quantity,
@@ -94,6 +97,7 @@ export async function createOrder(input: {
 
     // 3. Post ArLedger DEBIT for full orderAmount
     await postDebit(tx, {
+      tenantId: input.tenantId,
       customerId: input.customerId,
       salesOrderId: order.id,
       amount: orderAmount,
@@ -120,6 +124,7 @@ export async function createOrder(input: {
     if (deposit > 0) {
       const payment = await tx.payment.create({
         data: {
+          tenantId: input.tenantId,
           salesOrderId: order.id,
           amount: deposit,
           method: input.paymentMethod || "CASH",
@@ -140,6 +145,7 @@ export async function createOrder(input: {
 
       await tx.arLedger.create({
         data: {
+          tenantId: input.tenantId,
           customerId: input.customerId,
           salesOrderId: order.id,
           paymentId: payment.id,
@@ -172,6 +178,7 @@ export async function createOrder(input: {
     // 7. AUTOMATIC ESTIMATE CREATION
     // Ensure every new order has an Estimate Bill (non-tax invoice) created automatically
     await createTaxInvoice({
+      tenantId: input.tenantId,
       salesOrderId: order.id,
       lineItems: input.lineItems.map(item => ({
         productVariantId: item.productVariantId,
@@ -190,10 +197,10 @@ export async function createOrder(input: {
   });
 }
 
-export async function confirmOrder(orderId: string) {
+export async function confirmOrder(tenantId: string, orderId: string) {
   return prisma.$transaction(async (tx) => {
-    const order = await tx.salesOrder.findUnique({
-      where: { id: orderId },
+    const order = await tx.salesOrder.findFirst({
+      where: { id: orderId, tenantId },
       include: { lineItems: true }
     });
 
@@ -217,6 +224,7 @@ export async function confirmOrder(orderId: string) {
 
       await tx.stockMovement.create({
         data: {
+          tenantId: order.tenantId,
           productVariantId: item.productVariantId,
           warehouseId: order.assignedWarehouseId || "system", // Should ideally have a default or picked warehouse
           type: "RESERVATION",
@@ -234,10 +242,10 @@ export async function confirmOrder(orderId: string) {
   });
 }
 
-export async function cancelOrder(orderId: string) {
+export async function cancelOrder(tenantId: string, orderId: string) {
   return prisma.$transaction(async (tx) => {
-    const order = await tx.salesOrder.findUnique({
-      where: { id: orderId },
+    const order = await tx.salesOrder.findFirst({
+      where: { id: orderId, tenantId },
       include: { lineItems: true }
     });
 
@@ -262,6 +270,7 @@ export async function cancelOrder(orderId: string) {
   
           await tx.stockMovement.create({
             data: {
+              tenantId: order.tenantId,
               productVariantId: item.productVariantId,
               warehouseId: order.assignedWarehouseId || "system",
               type: "RELEASE",

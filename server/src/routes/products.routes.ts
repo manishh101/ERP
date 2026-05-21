@@ -15,6 +15,7 @@ import {
   variantUpdateSchema,
 } from "../schemas/domain";
 import { getPagination } from "../utils/pagination";
+import { ApiError } from "../utils/api-error";
 
 export const productsRouter = Router();
 
@@ -54,6 +55,7 @@ productsRouter.get(
     };
 
     const where: any = {
+      tenantId: request.user!.tenantId,
       name: query.search
         ? {
             contains: query.search,
@@ -106,6 +108,7 @@ productsRouter.post(
 
     const created = await prisma.product.create({
       data: {
+        tenantId: request.user!.tenantId,
         name: body.name,
         sku: body.sku,
         category: body.category,
@@ -122,7 +125,10 @@ productsRouter.post(
         lowStockThreshold: body.lowStockThreshold,
         taxRateId: body.taxRateId,
         variants: {
-          create: body.variants,
+          create: body.variants?.map((v) => ({
+            ...v,
+            tenantId: request.user!.tenantId,
+          })),
         },
       },
       include: {
@@ -141,8 +147,8 @@ productsRouter.get(
   asyncHandler(async (request, response) => {
     const params = request.validated?.params as { id: string };
 
-    const product = await prisma.product.findUnique({
-      where: { id: params.id },
+    const product = await prisma.product.findFirst({
+      where: { id: params.id, tenantId: request.user!.tenantId },
       include: {
         taxRate: true,
         variants: {
@@ -181,7 +187,13 @@ productsRouter.patch(
   validate(productUpdateSchema),
   asyncHandler(async (request, response) => {
     const params = request.validated?.params as { id: string };
-    const body = request.validated?.body as any;
+    const body = request.validated?.body as ReturnType<typeof productUpdateSchema.parse>;
+
+    const existingProduct = await prisma.product.findFirst({
+      where: { id: params.id, tenantId: request.user!.tenantId },
+    });
+    if (!existingProduct) throw new ApiError(404, "Product not found");
+
     const updated = await prisma.product.update({
       where: { id: params.id },
       data: {
@@ -214,8 +226,8 @@ productsRouter.get(
   asyncHandler(async (request, response) => {
     const params = request.validated?.params as { id: string };
 
-    const product = await prisma.product.findUnique({
-      where: { id: params.id },
+    const product = await prisma.product.findFirst({
+      where: { id: params.id, tenantId: request.user!.tenantId },
       include: {
         variants: {
           include: {
@@ -265,10 +277,16 @@ productsRouter.post(
     const params = request.validated?.params as { id: string };
     const body = request.validated?.body as ReturnType<typeof productVariantInputSchema.parse>;
 
+    const parentProduct = await prisma.product.findFirst({
+      where: { id: params.id, tenantId: request.user!.tenantId },
+    });
+    if (!parentProduct) throw new ApiError(404, "Product not found");
+
     const variant = await prisma.productVariant.create({
       data: {
         ...body,
         productId: params.id,
+        tenantId: request.user!.tenantId,
       },
     });
 
@@ -284,6 +302,11 @@ productsRouter.patch(
   asyncHandler(async (request, response) => {
     const params = request.validated?.params as { id: string };
     const body = request.validated?.body as ReturnType<typeof variantUpdateSchema.parse>;
+
+    const variantExists = await prisma.productVariant.findFirst({
+      where: { id: params.id, tenantId: request.user!.tenantId },
+    });
+    if (!variantExists) throw new ApiError(404, "Variant not found");
 
     const variant = await prisma.productVariant.update({
       where: { id: params.id },
@@ -318,6 +341,11 @@ productsRouter.post(
 
     const newUrls = files.map((f) => `/uploads/products/${f.filename}`);
 
+    const existingProduct = await prisma.product.findFirst({
+      where: { id: params.id, tenantId: request.user!.tenantId },
+    });
+    if (!existingProduct) throw new ApiError(404, "Product not found");
+
     const product = await prisma.product.update({
       where: { id: params.id },
       data: { imageUrls: { push: newUrls } },
@@ -335,8 +363,11 @@ productsRouter.delete(
     const params = request.validated?.params as { id: string };
     const { url } = request.body as { url: string };
 
-    const product = await prisma.product.findUnique({ where: { id: params.id }, select: { imageUrls: true } });
-    if (!product) return response.status(404).json({ message: "Product not found." });
+    const product = await prisma.product.findFirst({
+      where: { id: params.id, tenantId: request.user!.tenantId },
+      select: { imageUrls: true },
+    });
+    if (!product) throw new ApiError(404, "Product not found");
 
     // Remove from disk
     const filename = path.basename(url);

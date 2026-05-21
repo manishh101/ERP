@@ -7,6 +7,7 @@ import { listQuerySchema, stockAdjustmentSchema } from "../schemas/domain";
 import { getPagination } from "../utils/pagination";
 import { toNumber } from "../utils/number";
 import { logAudit } from "../services/audit.service";
+import { ApiError } from "../utils/api-error";
 export const inventoryRouter = Router();
 
 inventoryRouter.use(requireAuth);
@@ -24,6 +25,7 @@ inventoryRouter.get(
     };
 
     const where: any = {
+      tenantId: request.user!.tenantId,
       warehouseId: query.warehouseId || undefined,
       status: query.status || undefined,
       productVariant: query.search
@@ -86,6 +88,7 @@ inventoryRouter.get(
     };
 
     const where: any = {
+      tenantId: request.user!.tenantId,
       warehouseId: query.warehouseId || undefined,
       productVariant: query.search
         ? {
@@ -135,9 +138,10 @@ inventoryRouter.get(
 
 inventoryRouter.get(
   "/low-stock",
-  asyncHandler(async (_request, response) => {
+  asyncHandler(async (request, response) => {
     const items = await prisma.productVariant.findMany({
       where: {
+        tenantId: request.user!.tenantId,
         product: {
           lowStockThreshold: {
             gt: 0,
@@ -162,8 +166,9 @@ inventoryRouter.get(
 
 inventoryRouter.get(
   "/valuation",
-  asyncHandler(async (_request, response) => {
+  asyncHandler(async (request, response) => {
     const variants = await prisma.productVariant.findMany({
+      where: { tenantId: request.user!.tenantId },
       include: {
         product: true,
         inventoryItems: {
@@ -210,8 +215,15 @@ inventoryRouter.post(
   asyncHandler(async (request, response) => {
     const body = request.validated?.body as ReturnType<typeof stockAdjustmentSchema.parse>;
 
+    const [variantExists, warehouseExists] = await Promise.all([
+      prisma.productVariant.findFirst({ where: { id: body.productVariantId, tenantId: request.user!.tenantId } }),
+      prisma.warehouse.findFirst({ where: { id: body.warehouseId, tenantId: request.user!.tenantId } }),
+    ]);
+    if (!variantExists || !warehouseExists) throw new ApiError(404, "Product variant or warehouse not found");
+
     const existingInventory = await prisma.inventory.findFirst({
       where: {
+        tenantId: request.user!.tenantId,
         productVariantId: body.productVariantId,
         warehouseId: body.warehouseId,
         status: "IN_STOCK",
@@ -232,6 +244,7 @@ inventoryRouter.post(
           })
         : await tx.inventory.create({
             data: {
+              tenantId: request.user!.tenantId,
               productVariantId: body.productVariantId,
               warehouseId: body.warehouseId,
               quantity: Math.max(body.quantityDelta, 0),
@@ -252,6 +265,7 @@ inventoryRouter.post(
 
       const movement = await tx.stockMovement.create({
         data: {
+          tenantId: request.user!.tenantId,
           productVariantId: body.productVariantId,
           warehouseId: body.warehouseId,
           userId: request.user?.id,
@@ -272,6 +286,7 @@ inventoryRouter.post(
 
     if (request.user) {
       await logAudit({
+        tenantId: request.user.tenantId,
         userId: request.user.id,
         action: "STOCK_ADJUSTMENT",
         entityType: "STOCK_MOVEMENT",

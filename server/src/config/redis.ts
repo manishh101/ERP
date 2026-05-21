@@ -79,10 +79,10 @@ export async function invalidateCache(...keys: string[]): Promise<void> {
 
 // Cache key constants — centralised to avoid typos
 export const CACHE_KEYS = {
-  AR_AGING: "dashboard:ar-aging",
-  TOP_ENTITIES: "dashboard:top-entities",
-  FINANCIAL_SUMMARY_TODAY: "dashboard:financial-summary:today",
-  FINANCIAL_SUMMARY_MONTH: "dashboard:financial-summary:month",
-  FINANCIAL_SUMMARY_YEAR: "dashboard:financial-summary:year",
-  SHOWROOM_ANALYTICS: (customerId: string) => `dashboard:showroom-analytics:${customerId}`,
+  AR_AGING: (tenantId: string) => `dashboard:${tenantId}:ar-aging`,
+  TOP_ENTITIES: (tenantId: string) => `dashboard:${tenantId}:top-entities`,
+  FINANCIAL_SUMMARY_TODAY: (tenantId: string) => `dashboard:${tenantId}:financial-summary:today`,
+  FINANCIAL_SUMMARY_MONTH: (tenantId: string) => `dashboard:${tenantId}:financial-summary:month`,
+  FINANCIAL_SUMMARY_YEAR: (tenantId: string) => `dashboard:${tenantId}:financial-summary:year`,
+  SHOWROOM_ANALYTICS: (tenantId: string, customerId: string) => `dashboard:${tenantId}:showroom-analytics:${customerId}`,
 } as const;

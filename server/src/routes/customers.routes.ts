@@ -27,6 +27,7 @@ customersRouter.get(
     };
 
     const where: any = {
+      tenantId: request.user!.tenantId,
       type: query.type || undefined,
       OR: query.search
         ? [
@@ -79,7 +80,12 @@ customersRouter.post(
   validate(customerSchema),
   asyncHandler(async (request, response) => {
     const body = request.validated?.body as ReturnType<typeof customerSchema.parse>;
-    const customer = await prisma.customer.create({ data: body });
+    const customer = await prisma.customer.create({
+      data: {
+        ...body,
+        tenantId: request.user!.tenantId,
+      },
+    });
     response.status(201).json(customer);
   }),
 );
@@ -90,7 +96,7 @@ customersRouter.get(
   asyncHandler(async (request, response) => {
     const params = request.validated?.params as { id: string };
     const customer = await prisma.customer.findUnique({
-      where: { id: params.id },
+      where: { id: params.id, tenantId: request.user!.tenantId },
       include: {
         salesOrders: {
           include: {
@@ -126,7 +132,7 @@ customersRouter.patch(
     const params = request.validated?.params as { id: string };
     const body = request.validated?.body as Partial<ReturnType<typeof customerSchema.parse>>;
     const customer = await prisma.customer.update({
-      where: { id: params.id },
+      where: { id: params.id, tenantId: request.user!.tenantId },
       data: body,
     });
 
@@ -147,7 +153,7 @@ customersRouter.get(
       : undefined;
 
     const customer = await prisma.customer.findUnique({
-      where: { id: params.id },
+      where: { id: params.id, tenantId: request.user!.tenantId },
       select: {
         id: true,
         name: true,
@@ -159,7 +165,7 @@ customersRouter.get(
     });
     if (!customer) throw new ApiError(404, "Customer not found");
 
-    const entries = await getCustomerLedger(params.id, startDate, endDate);
+    const entries = await getCustomerLedger(request.user!.tenantId, params.id, startDate, endDate);
 
     response.json({
       customer,
@@ -176,9 +182,14 @@ customersRouter.delete(
   asyncHandler(async (request, response) => {
     const params = request.validated?.params as { id: string };
 
+    const existingCustomer = await prisma.customer.findUnique({
+      where: { id: params.id, tenantId: request.user!.tenantId },
+    });
+    if (!existingCustomer) throw new ApiError(404, "Customer not found");
+
     // Check for existing sales orders
     const salesOrderCount = await prisma.salesOrder.count({
-      where: { customerId: params.id },
+      where: { customerId: params.id, tenantId: request.user!.tenantId },
     });
 
     if (salesOrderCount > 0) {

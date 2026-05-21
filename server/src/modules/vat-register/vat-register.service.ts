@@ -8,7 +8,7 @@ import { Prisma } from "@prisma/client";
  */
 
 export async function postEntry(
-  tx: Prisma.TransactionClient,
+  tx: any,
   input: {
     taxInvoiceId: string;
     customerId: string;
@@ -16,10 +16,12 @@ export async function postEntry(
     outputVat: number;
     bsDate: string;
     fiscalYear: string;
+    tenantId: string;
   }
 ) {
   return tx.vatRegister.create({
     data: {
+      tenantId: input.tenantId,
       taxInvoiceId: input.taxInvoiceId,
       customerId: input.customerId,
       taxableAmount: input.taxableAmount,
@@ -32,9 +34,10 @@ export async function postEntry(
   });
 }
 
-export async function getVatSummary(fiscalYear?: string, startDate?: Date, endDate?: Date) {
+export async function getVatSummary(tenantId: string, fiscalYear?: string, startDate?: Date, endDate?: Date) {
   const vatEntries = await prisma.vatRegister.findMany({
     where: {
+      tenantId,
       ...(fiscalYear ? { fiscalYear } : {}),
       entryDate: {
         ...(startDate ? { gte: startDate } : {}),
@@ -45,6 +48,7 @@ export async function getVatSummary(fiscalYear?: string, startDate?: Date, endDa
   
   const supplierInvoices = await prisma.supplierInvoice.findMany({
     where: {
+      tenantId,
       issueDate: {
         ...(startDate ? { gte: startDate } : {}),
         ...(endDate ? { lte: endDate } : {}),
@@ -58,7 +62,7 @@ export async function getVatSummary(fiscalYear?: string, startDate?: Date, endDa
   return { outputTax, inputTax, netPayable: outputTax - inputTax };
 }
 
-export async function getMonthlySummary(fiscalYear: string) {
+export async function getMonthlySummary(tenantId: string, fiscalYear: string) {
   const result = await prisma.vatRegister.groupBy({
     by: ["bsDate"],
     _sum: {
@@ -66,6 +70,7 @@ export async function getMonthlySummary(fiscalYear: string) {
       outputVat: true,
     },
     where: {
+      tenantId,
       fiscalYear,
     },
   });
@@ -77,9 +82,10 @@ export async function getMonthlySummary(fiscalYear: string) {
   }));
 }
 
-export async function getEntries(fiscalYear: string, month?: string) {
+export async function getEntries(tenantId: string, fiscalYear: string, month?: string) {
   return prisma.vatRegister.findMany({
     where: {
+      tenantId,
       fiscalYear,
       ...(month ? { bsDate: { startsWith: `${fiscalYear}-${month}` } } : {}),
     },

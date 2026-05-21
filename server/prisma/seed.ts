@@ -1,7 +1,6 @@
 import bcrypt from "bcryptjs";
-import { PrismaClient, type AccountType, type CustomerType, type UserRole } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { type AccountType, type CustomerType, type UserRole } from "@prisma/client";
+import { prisma, tenantStorage, basePrisma } from "../src/config/prisma";
 
 const DEFAULT_PASSWORD = "Password123!";
 
@@ -14,44 +13,45 @@ function daysFromNow(days: number) {
 }
 
 async function resetDatabase() {
-  // Clear tables that reference others first
-  await prisma.auditLog.deleteMany();
-  await prisma.stockMovement.deleteMany();
-  await prisma.delivery.deleteMany();
-  await prisma.vatRegister.deleteMany();
-  await prisma.arLedger.deleteMany();
-  await prisma.payment.deleteMany();
-  await prisma.taxInvoice.deleteMany();
-  await prisma.salesOrderLineItem.deleteMany();
-  await prisma.salesOrder.deleteMany();
-  await prisma.goodsReceiptLine.deleteMany();
-  await prisma.goodsReceipt.deleteMany();
-  await prisma.supplierInvoice.deleteMany();
-  await prisma.purchaseOrderLineItem.deleteMany();
-  await prisma.purchaseOrder.deleteMany();
-  await prisma.inventory.deleteMany();
-  await prisma.productVariant.deleteMany();
-  await prisma.product.deleteMany();
-  await prisma.bankStatementLine.deleteMany();
-  await prisma.bankStatementImport.deleteMany();
-  await prisma.journalEntryLine.deleteMany();
-  await prisma.journalEntry.deleteMany();
-  await prisma.expense.deleteMany();
-  await prisma.account.deleteMany();
-  await prisma.customer.deleteMany();
-  await prisma.supplier.deleteMany();
-  await prisma.warehouse.deleteMany();
-  await prisma.taxRate.deleteMany();
-  await prisma.user.deleteMany();
+  // Clear tables that reference others first using basePrisma to clear globally
+  await basePrisma.auditLog.deleteMany();
+  await basePrisma.stockMovement.deleteMany();
+  await basePrisma.delivery.deleteMany();
+  await basePrisma.vatRegister.deleteMany();
+  await basePrisma.arLedger.deleteMany();
+  await basePrisma.payment.deleteMany();
+  await basePrisma.taxInvoice.deleteMany();
+  await basePrisma.salesOrderLineItem.deleteMany();
+  await basePrisma.salesOrder.deleteMany();
+  await basePrisma.goodsReceiptLine.deleteMany();
+  await basePrisma.goodsReceipt.deleteMany();
+  await basePrisma.supplierInvoice.deleteMany();
+  await basePrisma.purchaseOrderLineItem.deleteMany();
+  await basePrisma.purchaseOrder.deleteMany();
+  await basePrisma.inventory.deleteMany();
+  await basePrisma.productVariant.deleteMany();
+  await basePrisma.product.deleteMany();
+  await basePrisma.bankStatementLine.deleteMany();
+  await basePrisma.bankStatementImport.deleteMany();
+  await basePrisma.journalEntryLine.deleteMany();
+  await basePrisma.journalEntry.deleteMany();
+  await basePrisma.expense.deleteMany();
+  await basePrisma.account.deleteMany();
+  await basePrisma.customer.deleteMany();
+  await basePrisma.supplier.deleteMany();
+  await basePrisma.warehouse.deleteMany();
+  await basePrisma.taxRate.deleteMany();
+  await basePrisma.user.deleteMany();
   
   // Settings and Counters
-  await prisma.companyProfile.deleteMany();
-  await prisma.currencySetting.deleteMany();
-  await prisma.notificationSetting.deleteMany();
-  await prisma.invoiceTemplate.deleteMany();
-  await prisma.invoiceCounter.deleteMany();
-  await prisma.receiptCounter.deleteMany();
-  await prisma.estimateCounter.deleteMany();
+  await basePrisma.companyProfile.deleteMany();
+  await basePrisma.currencySetting.deleteMany();
+  await basePrisma.notificationSetting.deleteMany();
+  await basePrisma.invoiceTemplate.deleteMany();
+  await basePrisma.invoiceCounter.deleteMany();
+  await basePrisma.receiptCounter.deleteMany();
+  await basePrisma.estimateCounter.deleteMany();
+  await basePrisma.tenant.deleteMany();
 }
 
 async function createBalancedEntry(input: {
@@ -103,10 +103,17 @@ async function createBalancedEntry(input: {
 async function main() {
   await resetDatabase();
 
-  const passwordHash = await bcrypt.hash(DEFAULT_PASSWORD, 10);
+  const defaultTenant = await basePrisma.tenant.create({
+    data: {
+      name: "Default Sandbox",
+    },
+  });
 
-  const users = {
-    admin: await prisma.user.create({
+  await tenantStorage.run({ tenantId: defaultTenant.id }, async () => {
+    const passwordHash = await bcrypt.hash(DEFAULT_PASSWORD, 10);
+
+    const users = {
+      admin: await prisma.user.create({
       data: {
         name: "Manish Admin",
         email: "admin@manishsteel.com.np",
@@ -1699,6 +1706,8 @@ const customers = await Promise.all(customersInput.map((customer) => prisma.cust
     }
   });
 
+
+  });
 
   console.log("Seed complete");
   console.log(`Default password for all seeded users: ${DEFAULT_PASSWORD}`);

@@ -23,6 +23,7 @@ export type AuditAction =
   | "STOCK_ADJUSTMENT";
 
 export interface LogAuditInput {
+  tenantId: string;
   userId: string;
   action: AuditAction;
   entityType: string;
@@ -31,7 +32,7 @@ export interface LogAuditInput {
   newState?: Record<string, unknown>;
   ipAddress?: string;
   /** Optionally run inside an existing Prisma transaction */
-  tx?: Prisma.TransactionClient;
+  tx?: any;
 }
 
 export async function logAudit(input: LogAuditInput): Promise<void> {
@@ -39,6 +40,7 @@ export async function logAudit(input: LogAuditInput): Promise<void> {
     const client = input.tx ?? prisma;
     await client.auditLog.create({
       data: {
+        tenantId: input.tenantId,
         userId: input.userId,
         action: input.action,
         entityType: input.entityType,

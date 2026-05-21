@@ -80,6 +80,10 @@ export function SettingsPage() {
   const [createWarehouseOpen, setCreateWarehouseOpen] = useState(false);
   const [createTaxRateOpen, setCreateTaxRateOpen] = useState(false);
   const [inviteUserOpen, setInviteUserOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordSaving, setPasswordSaving] = useState(false);
 
   // Column definitions for settings tables
   const userColumns: ColumnDef<any>[] = [
@@ -151,25 +155,13 @@ export function SettingsPage() {
     }
   }, [data]);
 
-  if (user?.role !== "ADMIN") {
-    return (
-      <Card>
-        <CardContent className="py-10">
-          <p className="font-semibold">Admin access required.</p>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Company and system settings are only available to administrator
-            accounts.
-          </p>
-        </CardContent>
-      </Card>
-    );
-  }
+  const isAdmin = user?.role === "ADMIN";
 
-  if (isLoading) {
+  if (isAdmin && isLoading) {
     return <Skeleton className="h-[420px]" />;
   }
 
-  if (error) {
+  if (isAdmin && error) {
     return (
       <Card>
         <CardContent className="py-10">
@@ -182,8 +174,51 @@ export function SettingsPage() {
     );
   }
 
-  if (!data) {
+  if (isAdmin && !data) {
     return null;
+  }
+
+  async function handleChangePassword() {
+    if (!token) {
+      return;
+    }
+
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      toast("Missing details", { description: "Fill in all password fields." });
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      toast("Passwords do not match", { description: "New passwords must match." });
+      return;
+    }
+
+    if (currentPassword === newPassword) {
+      toast("Invalid password", { description: "New password must be different." });
+      return;
+    }
+
+    setPasswordSaving(true);
+
+    try {
+      await apiRequest("/auth/change-password", {
+        method: "POST",
+        token,
+        body: {
+          currentPassword,
+          newPassword,
+        },
+      });
+
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      toast("Password updated", { description: "Your password has been changed." });
+    } catch (requestError) {
+      toast.error("Update failed", { description: getErrorMessage(requestError) });
+    } finally {
+      setPasswordSaving(false);
+    }
   }
 
   async function handleSaveCompanyProfile() {
@@ -296,9 +331,69 @@ export function SettingsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Company & System Settings" />
+      <PageHeader title={isAdmin ? "Company & System Settings" : "Security Settings"} />
 
-      <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+      <Card>
+        <CardHeader>
+          <CardTitle>Security</CardTitle>
+          <CardDescription>Change your password using your current credentials.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Current Password
+              </label>
+              <Input
+                type="password"
+                value={currentPassword}
+                onChange={(event) => setCurrentPassword(event.target.value)}
+                placeholder="Enter your current password"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                New Password
+              </label>
+              <Input
+                type="password"
+                value={newPassword}
+                onChange={(event) => setNewPassword(event.target.value)}
+                placeholder="Choose a new password"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Confirm New Password
+              </label>
+              <Input
+                type="password"
+                value={confirmPassword}
+                onChange={(event) => setConfirmPassword(event.target.value)}
+                placeholder="Re-enter the new password"
+              />
+            </div>
+          </div>
+          <div className="mt-4 flex justify-end">
+            <Button onClick={handleChangePassword} disabled={passwordSaving}>
+              {passwordSaving ? "Updating..." : "Update Password"}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {!isAdmin ? (
+        <Card>
+          <CardContent className="py-10">
+            <p className="font-semibold">Admin access required.</p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Company and system settings are only available to administrator
+              accounts.
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
         <Card>
           <CardHeader>
             <div>
@@ -633,6 +728,7 @@ export function SettingsPage() {
           </CardContent>
         </Card>
       </div>
+      )}
     </div>
   );
 }

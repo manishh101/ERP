@@ -30,6 +30,13 @@ export const loginSchema = z.object({
   password: z.string().min(8),
 });
 
+export const registerSchema = z.object({
+  name: z.string().min(2),
+  email: z.string().email(),
+  password: z.string().min(8),
+  companyName: z.string().min(2),
+});
+
 export const listQuerySchema = paginationSchema.extend({
   status: z.string().optional(),
   category: z.string().optional(),
@@ -376,6 +383,11 @@ export const userSchema = z.object({
 });
 
 export const userUpdateSchema = userSchema.partial().omit({ password: true });
+
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(8),
+  newPassword: z.string().min(8),
+});
 
 export const reportQuerySchema = z.object({
   startDate: z.coerce.date().optional(),

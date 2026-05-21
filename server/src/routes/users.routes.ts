@@ -1,10 +1,12 @@
 import bcrypt from "bcryptjs";
 import { Router } from "express";
-import { prisma } from "../config/prisma";
+import { basePrisma, prisma } from "../config/prisma";
 import { requireAuth, requireRole } from "../middleware/auth";
 import { asyncHandler } from "../middleware/async-handler";
 import { validate } from "../middleware/validate";
 import { idParamSchema, listQuerySchema, userSchema, userUpdateSchema } from "../schemas/domain";
+import { ApiError } from "../utils/api-error";
+import { normalizeEmail, normalizeName } from "../utils/identity";
 import { getPagination } from "../utils/pagination";
 
 export const usersRouter = Router();
@@ -65,10 +67,21 @@ usersRouter.post(
   validate(userSchema),
   asyncHandler(async (request, response) => {
     const body = request.validated?.body as ReturnType<typeof userSchema.parse>;
+    const email = normalizeEmail(body.email);
+    const existingUser = await basePrisma.user.findUnique({
+      where: { email },
+      select: { id: true },
+    });
+
+    if (existingUser) {
+      throw new ApiError(400, "Email address is already registered.");
+    }
+
     const user = await prisma.user.create({
       data: {
-        name: body.name,
-        email: body.email,
+        tenantId: request.user!.tenantId,
+        name: normalizeName(body.name),
+        email,
         passwordHash: await bcrypt.hash(body.password, 10),
         role: body.role,
         isActive: body.isActive,
@@ -87,9 +100,26 @@ usersRouter.patch(
   asyncHandler(async (request, response) => {
     const params = request.validated?.params as { id: string };
     const body = request.validated?.body as ReturnType<typeof userUpdateSchema.parse>;
+    const normalizedBody = {
+      ...body,
+      ...(body.name ? { name: normalizeName(body.name) } : {}),
+      ...(body.email ? { email: normalizeEmail(body.email) } : {}),
+    };
+
+    if (normalizedBody.email) {
+      const existingUser = await basePrisma.user.findUnique({
+        where: { email: normalizedBody.email },
+        select: { id: true },
+      });
+
+      if (existingUser && existingUser.id !== params.id) {
+        throw new ApiError(400, "Email address is already registered.");
+      }
+    }
+
     const user = await prisma.user.update({
       where: { id: params.id },
-      data: body,
+      data: normalizedBody,
     });
 
     const { passwordHash: _, ...userWithoutPassword } = user;
@@ -100,25 +130,47 @@ usersRouter.patch(
 usersRouter.post(
   "/clear-database",
   asyncHandler(async (request, response) => {
-    // Fetch all tables in the public schema except 'users' and migrations
-    const tables: { table_name: string }[] = await prisma.$queryRaw`
-      SELECT table_name 
-      FROM information_schema.tables 
-      WHERE table_schema = 'public' 
-        AND table_name != 'users' 
-        AND table_name != '_prisma_migrations';
-    `;
+    // Delete only active tenant's records using model deleteMany (which is auto-filtered by Prisma Client Extension)
+    // We execute them in order of dependency to avoid foreign key violations
+    await prisma.auditLog.deleteMany();
+    await prisma.stockMovement.deleteMany();
+    await prisma.delivery.deleteMany();
+    await prisma.vatRegister.deleteMany();
+    await prisma.arLedger.deleteMany();
+    await prisma.payment.deleteMany();
+    await prisma.taxInvoiceLineItem.deleteMany();
+    await prisma.taxInvoice.deleteMany();
+    await prisma.salesOrderLineItem.deleteMany();
+    await prisma.salesOrder.deleteMany();
+    await prisma.goodsReceiptLine.deleteMany();
+    await prisma.goodsReceipt.deleteMany();
+    await prisma.supplierInvoice.deleteMany();
+    await prisma.purchaseOrderLineItem.deleteMany();
+    await prisma.purchaseOrder.deleteMany();
+    await prisma.inventory.deleteMany();
+    await prisma.productVariant.deleteMany();
+    await prisma.product.deleteMany();
+    await prisma.bankStatementLine.deleteMany();
+    await prisma.bankStatementImport.deleteMany();
+    await prisma.journalEntryLine.deleteMany();
+    await prisma.journalEntry.deleteMany();
+    await prisma.expense.deleteMany();
+    await prisma.account.deleteMany();
+    await prisma.customer.deleteMany();
+    await prisma.supplier.deleteMany();
+    await prisma.warehouse.deleteMany();
+    await prisma.taxRate.deleteMany();
 
-    const tableNames = tables.map((t) => `"${t.table_name}"`).join(", ");
-
-    if (tableNames.length > 0) {
-      // Truncate all tables using RESTART IDENTITY and CASCADE
-      await prisma.$executeRawUnsafe(`TRUNCATE TABLE ${tableNames} RESTART IDENTITY CASCADE;`);
-    }
+    // Preserve the active user, delete all other users for this tenant
+    await prisma.user.deleteMany({
+      where: {
+        id: { not: request.user!.id }
+      }
+    });
 
     response.json({
       status: "success",
-      message: "Database cleared successfully, preserving only users.",
+      message: "Your workspace has been cleared successfully, preserving only your user profile.",
     });
   }),
 );

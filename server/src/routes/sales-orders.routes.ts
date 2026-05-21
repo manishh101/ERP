@@ -59,6 +59,7 @@ salesOrdersRouter.get(
     }
 
     const where: any = {
+      tenantId: request.user!.tenantId,
       status: query.status || undefined,
       bsDate: bsDateFilter,
       customer: query.search
@@ -109,6 +110,7 @@ salesOrdersRouter.post(
   asyncHandler(async (request, response) => {
     const body = request.validated?.body as ReturnType<typeof salesOrderSchema.parse>;
     const order = await createOrder({
+      tenantId: request.user!.tenantId,
       customerId: body.customerId,
       lineItems: body.lineItems,
       depositAmount: body.depositAmount,
@@ -131,8 +133,8 @@ salesOrdersRouter.get(
   validate(idParamSchema, "params"),
   asyncHandler(async (request, response) => {
     const params = request.validated?.params as { id: string };
-    const salesOrder = await prisma.salesOrder.findUnique({
-      where: { id: params.id },
+    const salesOrder = await prisma.salesOrder.findFirst({
+      where: { id: params.id, tenantId: request.user!.tenantId },
       include: {
         customer: true,
         assignedWarehouse: true,
@@ -176,7 +178,7 @@ salesOrdersRouter.patch(
 
     // Sync paidAmount from actual Payment records to ensure Net Collection KPI accuracy
     const sumPaid = await prisma.payment.aggregate({
-      where: { salesOrderId: params.id },
+      where: { salesOrderId: params.id, tenantId: request.user!.tenantId },
       _sum: { amount: true },
     });
     const syncedPaidAmount = toNumber(sumPaid._sum.amount ?? 0);
@@ -184,10 +186,18 @@ salesOrdersRouter.patch(
     // Compute the correct balanceDue from the new orderAmount minus actual payments
     const newOrderAmount = totals?.subtotal;
     const existing = newOrderAmount === undefined
-      ? await prisma.salesOrder.findUnique({ where: { id: params.id }, select: { orderAmount: true } })
+      ? await prisma.salesOrder.findFirst({
+          where: { id: params.id, tenantId: request.user!.tenantId },
+          select: { orderAmount: true },
+        })
       : null;
     const effectiveOrderAmount = newOrderAmount ?? toNumber(existing?.orderAmount ?? 0);
     const syncedBalanceDue = Math.max(effectiveOrderAmount - syncedPaidAmount, 0);
+
+    const existingOrder = await prisma.salesOrder.findFirst({
+      where: { id: params.id, tenantId: request.user!.tenantId },
+    });
+    if (!existingOrder) throw new ApiError(404, "Order not found");
 
     const salesOrder = await prisma.salesOrder.update({
       where: { id: params.id },
@@ -206,7 +216,10 @@ salesOrdersRouter.patch(
           ? {
               lineItems: {
                 deleteMany: {},
-                create: body.lineItems,
+                create: body.lineItems.map((item) => ({
+                  ...item,
+                  tenantId: request.user!.tenantId,
+                })),
               },
             }
           : {}),
@@ -227,7 +240,7 @@ salesOrdersRouter.post(
   validate(idParamSchema, "params"),
   asyncHandler(async (request, response) => {
     const params = request.validated?.params as { id: string };
-    const salesOrder = await confirmOrder(params.id);
+    const salesOrder = await confirmOrder(request.user!.tenantId, params.id);
     response.json(salesOrder);
   }),
 );
@@ -238,7 +251,7 @@ salesOrdersRouter.post(
   validate(idParamSchema, "params"),
   asyncHandler(async (request, response) => {
     const params = request.validated?.params as { id: string };
-    const salesOrder = await cancelOrder(params.id);
+    const salesOrder = await cancelOrder(request.user!.tenantId, params.id);
     response.json(salesOrder);
   }),
 );
@@ -252,7 +265,13 @@ salesOrdersRouter.post(
     const params = request.validated?.params as { id: string };
     const body = request.validated?.body as ReturnType<typeof recordDepositSchema.parse>;
 
+    const orderExists = await prisma.salesOrder.findFirst({
+      where: { id: params.id, tenantId: request.user!.tenantId },
+    });
+    if (!orderExists) throw new ApiError(404, "Order not found");
+
     await recordPayment({
+      tenantId: request.user!.tenantId,
       salesOrderId: params.id,
       amount: body.amount,
       method: body.method as any,
@@ -261,8 +280,8 @@ salesOrdersRouter.post(
       note: "Deposit / advance payment",
     });
 
-    const order = await prisma.salesOrder.findUnique({
-      where: { id: params.id },
+    const order = await prisma.salesOrder.findFirst({
+      where: { id: params.id, tenantId: request.user!.tenantId },
       include: {
         customer: true,
         assignedWarehouse: true,

@@ -34,7 +34,10 @@ paymentsRouter.get(
       };
     }
 
-    const baseWhere: any = { bsDate: bsDateFilter };
+    const baseWhere: any = {
+      tenantId: request.user!.tenantId,
+      bsDate: bsDateFilter,
+    };
 
     const where: any = query.search
       ? {
@@ -87,10 +90,11 @@ paymentsRouter.post(
   asyncHandler(async (request, response) => {
     const body = request.validated?.body as ReturnType<typeof paymentSchema.parse>;
 
-    let payment;
+    let payment: any;
 
     if (body.salesOrderId) {
       payment = await recordPayment({
+        tenantId: request.user!.tenantId,
         salesOrderId: body.salesOrderId,
         amount: body.amount,
         method: body.method,
@@ -103,6 +107,7 @@ paymentsRouter.post(
 
       // Audit log — immutable record of payment (PRD §7)
       await logAudit({
+        tenantId: request.user!.tenantId,
         userId: request.user!.id,
         action: "RECORD_PAYMENT",
         entityType: "Payment",
@@ -116,9 +121,19 @@ paymentsRouter.post(
         ipAddress: request.ip,
       });
     } else {
-      payment = await prisma.$transaction(async (tx: import("@prisma/client").Prisma.TransactionClient) => {
+      payment = await prisma.$transaction(async (tx) => {
+        if (body.supplierInvoiceId) {
+          const existingInv = await tx.supplierInvoice.findFirst({
+            where: { id: body.supplierInvoiceId, tenantId: request.user!.tenantId },
+          });
+          if (!existingInv) throw new ApiError(404, "Supplier invoice not found");
+        }
+
         const created = await tx.payment.create({
-          data: body,
+          data: {
+            ...body,
+            tenantId: request.user!.tenantId,
+          },
         });
 
         if (body.supplierInvoiceId) {
@@ -147,6 +162,7 @@ paymentsRouter.post(
 
     if (body.salesOrderId) {
       await postCustomerPaymentJournalEntry({
+        tenantId: request.user!.tenantId,
         paymentId: payment.id!,
         amount: body.amount,
         createdById: request.user!.id,
@@ -155,6 +171,7 @@ paymentsRouter.post(
 
     if (body.purchaseOrderId || body.supplierInvoiceId) {
       await postSupplierPaymentJournalEntry({
+        tenantId: request.user!.tenantId,
         paymentId: payment.id!,
         amount: body.amount,
         createdById: request.user!.id,
@@ -168,6 +185,7 @@ paymentsRouter.post(
 paymentsRouter.get("/:id/receipt", asyncHandler(async (request, response) => {
   // Check if authenticated or has a valid download token
   let userId = request.user?.id;
+  let tenantId = request.user?.tenantId;
   const token = request.query.token as string;
 
   if (!userId && token) {
@@ -175,23 +193,27 @@ paymentsRouter.get("/:id/receipt", asyncHandler(async (request, response) => {
       const decoded = verifyToken(token);
       if (decoded.purpose === "download") {
         userId = decoded.sub;
+        const u = await prisma.user.findUnique({ where: { id: decoded.sub } });
+        tenantId = u?.tenantId;
       }
     } catch (err) {
       throw new ApiError(401, "Invalid or expired download token");
     }
   }
 
-  if (!userId) {
+  if (!userId || !tenantId) {
     throw new ApiError(401, "Unauthorized");
   }
 
   try {
     const { id } = idParamSchema.parse(request.params);
-    const companyProfile = await prisma.companyProfile.findFirst();
+    const companyProfile = await prisma.companyProfile.findFirst({
+      where: { tenantId },
+    });
 
     // 1. Fetch the requested payment
-    const payment = await prisma.payment.findUnique({
-      where: { id },
+    const payment = await prisma.payment.findFirst({
+      where: { id, tenantId },
       include: {
         salesOrder: {
           include: {
@@ -223,6 +245,7 @@ paymentsRouter.get("/:id/receipt", asyncHandler(async (request, response) => {
 
       groupedPayments = await prisma.payment.findMany({
         where: {
+          tenantId,
           createdAt: {
             gte: timeMin,
             lte: timeMax,

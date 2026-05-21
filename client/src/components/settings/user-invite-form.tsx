@@ -81,7 +81,8 @@ export function UserInviteForm({ onClose }: UserInviteFormProps) {
             <option value="ADMIN">ADMIN</option>
             <option value="ACCOUNTANT">ACCOUNTANT</option>
             <option value="SALES">SALES</option>
-            <option value="USER">USER</option>
+            <option value="WAREHOUSE">WAREHOUSE</option>
+            <option value="DRIVER">DRIVER</option>
           </select>
         </div>
 

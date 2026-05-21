@@ -32,8 +32,9 @@ accountingRouter.use(requireRole(["ADMIN", "ACCOUNTANT"]));
 
 accountingRouter.get(
   "/accounts",
-  asyncHandler(async (_request, response) => {
+  asyncHandler(async (request, response) => {
     const accounts = await prisma.account.findMany({
+      where: { tenantId: request.user!.tenantId },
       orderBy: [{ type: "asc" }, { code: "asc" }],
     });
 
@@ -46,7 +47,12 @@ accountingRouter.post(
   validate(accountSchema),
   asyncHandler(async (request, response) => {
     const body = request.validated?.body as ReturnType<typeof accountSchema.parse>;
-    const account = await prisma.account.create({ data: body });
+    const account = await prisma.account.create({
+      data: {
+        ...body,
+        tenantId: request.user!.tenantId,
+      },
+    });
     response.status(201).json(account);
   }),
 );
@@ -58,6 +64,7 @@ accountingRouter.get(
     const query = request.validated?.query as { page: number; pageSize: number };
     const [items, total] = await Promise.all([
       prisma.journalEntry.findMany({
+        where: { tenantId: request.user!.tenantId },
         include: {
           lines: {
             include: {
@@ -71,7 +78,9 @@ accountingRouter.get(
         },
         ...getPagination(query.page, query.pageSize),
       }),
-      prisma.journalEntry.count(),
+      prisma.journalEntry.count({
+        where: { tenantId: request.user!.tenantId },
+      }),
     ]);
 
     response.json({ items, total });
@@ -85,6 +94,7 @@ accountingRouter.post(
     const body = request.validated?.body as ReturnType<typeof journalEntrySchema.parse>;
     const entry = await createBalancedJournalEntry({
       ...body,
+      tenantId: request.user!.tenantId,
       createdById: body.createdById ?? request.user?.id,
     });
 
@@ -104,11 +114,14 @@ accountingRouter.post(
       trim: true,
     }) as Array<Record<string, string>>;
 
-    const matchedPayments = await prisma.payment.findMany();
+    const matchedPayments = await prisma.payment.findMany({
+      where: { tenantId: request.user!.tenantId },
+    });
 
     const result = await prisma.$transaction(async (tx) => {
       const imported = await tx.bankStatementImport.create({
         data: {
+          tenantId: request.user!.tenantId,
           fileName: body.fileName,
           totalLines: rows.length,
           unmatchedLines: rows.length,
@@ -137,6 +150,7 @@ accountingRouter.post(
 
         await tx.bankStatementLine.create({
           data: {
+            tenantId: request.user!.tenantId,
             importId: imported.id,
             matchedPaymentId: matchedPayment?.id,
             transactionDate,
@@ -172,14 +186,14 @@ accountingRouter.get(
   validate(reportQuerySchema, "query"),
   asyncHandler(async (request, response) => {
     const query = request.validated?.query as { startDate?: Date; endDate?: Date };
-    response.json(await getProfitAndLoss(query.startDate, query.endDate));
+    response.json(await getProfitAndLoss(request.user!.tenantId, query.startDate, query.endDate));
   }),
 );
 
 accountingRouter.get(
   "/reports/balance-sheet",
-  asyncHandler(async (_request, response) => {
-    response.json(await getBalanceSheet());
+  asyncHandler(async (request, response) => {
+    response.json(await getBalanceSheet(request.user!.tenantId));
   }),
 );
 
@@ -188,14 +202,14 @@ accountingRouter.get(
   validate(reportQuerySchema, "query"),
   asyncHandler(async (request, response) => {
     const query = request.validated?.query as { startDate?: Date; endDate?: Date };
-    response.json(await getCashFlow(query.startDate, query.endDate));
+    response.json(await getCashFlow(request.user!.tenantId, query.startDate, query.endDate));
   }),
 );
 
 accountingRouter.get(
   "/reports/trial-balance",
-  asyncHandler(async (_request, response) => {
-    response.json(await getTrialBalance());
+  asyncHandler(async (request, response) => {
+    response.json(await getTrialBalance(request.user!.tenantId));
   }),
 );
 
@@ -204,7 +218,7 @@ accountingRouter.get(
   validate(reportQuerySchema, "query"),
   asyncHandler(async (request, response) => {
     const query = request.validated?.query as { startDate?: Date; endDate?: Date };
-    response.json(await getTaxSummary(query.startDate, query.endDate));
+    response.json(await getTaxSummary(request.user!.tenantId, query.startDate, query.endDate));
   }),
 );
 
@@ -213,7 +227,7 @@ accountingRouter.get(
   asyncHandler(async (request, response) => {
     const { id } = idParamSchema.parse(request.params);
     const { startDate, endDate } = listQuerySchema.parse(request.query);
-    const ledger = await getCustomerLedger(id, startDate, endDate);
+    const ledger = await getCustomerLedger(request.user!.tenantId, id, startDate, endDate);
     response.json(ledger);
   }),
 );

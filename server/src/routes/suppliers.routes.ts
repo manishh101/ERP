@@ -24,6 +24,7 @@ suppliersRouter.get(
     };
 
     const where: any = {
+      tenantId: request.user!.tenantId,
       name: query.search
         ? {
             contains: query.search,
@@ -57,7 +58,12 @@ suppliersRouter.post(
   validate(supplierSchema),
   asyncHandler(async (request, response) => {
     const body = request.validated?.body as ReturnType<typeof supplierSchema.parse>;
-    const supplier = await prisma.supplier.create({ data: body });
+    const supplier = await prisma.supplier.create({
+      data: {
+        ...body,
+        tenantId: request.user!.tenantId,
+      },
+    });
     response.status(201).json(supplier);
   }),
 );
@@ -65,8 +71,8 @@ suppliersRouter.post(
 suppliersRouter.get(
   "/ap-aging",
   requireRole(["ADMIN", "ACCOUNTANT"]),
-  asyncHandler(async (_request, response) => {
-    response.json(await getApAgingReport());
+  asyncHandler(async (request, response) => {
+    response.json(await getApAgingReport(request.user!.tenantId));
   }),
 );
 
@@ -77,8 +83,24 @@ suppliersRouter.post(
   asyncHandler(async (request, response) => {
     const body = request.validated?.body as ReturnType<typeof supplierInvoiceSchema.parse>;
 
+    // Verify supplier ownership
+    const supplierExists = await prisma.supplier.findFirst({
+      where: { id: body.supplierId, tenantId: request.user!.tenantId },
+    });
+    if (!supplierExists) throw new ApiError(404, "Supplier not found");
+
+    if (body.purchaseOrderId) {
+      const poExists = await prisma.purchaseOrder.findFirst({
+        where: { id: body.purchaseOrderId, tenantId: request.user!.tenantId },
+      });
+      if (!poExists) throw new ApiError(404, "Purchase Order not found");
+    }
+
     const invoice = await prisma.supplierInvoice.create({
-      data: body,
+      data: {
+        ...body,
+        tenantId: request.user!.tenantId,
+      },
       include: {
         supplier: true,
         purchaseOrder: true,
@@ -94,8 +116,8 @@ suppliersRouter.get(
   validate(idParamSchema, "params"),
   asyncHandler(async (request, response) => {
     const params = request.validated?.params as { id: string };
-    const supplier = await prisma.supplier.findUnique({
-      where: { id: params.id },
+    const supplier = await prisma.supplier.findFirst({
+      where: { id: params.id, tenantId: request.user!.tenantId },
       include: {
         purchaseOrders: {
           include: {
@@ -113,6 +135,7 @@ suppliersRouter.get(
       },
     });
 
+    if (!supplier) throw new ApiError(404, "Supplier not found");
     response.json(supplier);
   }),
 );
@@ -125,6 +148,12 @@ suppliersRouter.patch(
   asyncHandler(async (request, response) => {
     const params = request.validated?.params as { id: string };
     const body = request.validated?.body as Partial<ReturnType<typeof supplierSchema.parse>>;
+    
+    const existing = await prisma.supplier.findFirst({
+      where: { id: params.id, tenantId: request.user!.tenantId },
+    });
+    if (!existing) throw new ApiError(404, "Supplier not found");
+
     const supplier = await prisma.supplier.update({
       where: { id: params.id },
       data: body,
@@ -140,9 +169,15 @@ suppliersRouter.get(
   asyncHandler(async (request, response) => {
     const params = request.validated?.params as { id: string };
 
+    const supplierExists = await prisma.supplier.findFirst({
+      where: { id: params.id, tenantId: request.user!.tenantId },
+    });
+    if (!supplierExists) throw new ApiError(404, "Supplier not found");
+
     const purchaseOrders = await prisma.purchaseOrder.findMany({
       where: {
         supplierId: params.id,
+        tenantId: request.user!.tenantId,
       },
       include: {
         goodsReceipts: {
@@ -193,9 +228,14 @@ suppliersRouter.delete(
   asyncHandler(async (request, response) => {
     const params = request.validated?.params as { id: string };
 
+    const existing = await prisma.supplier.findFirst({
+      where: { id: params.id, tenantId: request.user!.tenantId },
+    });
+    if (!existing) throw new ApiError(404, "Supplier not found");
+
     // Check for existing purchase orders
     const poCount = await prisma.purchaseOrder.count({
-      where: { supplierId: params.id },
+      where: { supplierId: params.id, tenantId: request.user!.tenantId },
     });
 
     if (poCount > 0) {

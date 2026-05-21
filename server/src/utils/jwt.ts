@@ -5,6 +5,7 @@ type UserRole = "ADMIN" | "ACCOUNTANT" | "SALES" | "WAREHOUSE" | "DRIVER";
 
 export type JwtPayload = {
   sub: string;
+  tenantId: string;
   role?: UserRole;
   email?: string;
   name?: string;
@@ -20,4 +21,3 @@ export function signToken(payload: JwtPayload, expiresIn?: string | number) {
 export function verifyToken(token: string) {
   return jwt.verify(token, env.JWT_SECRET) as JwtPayload;
 }
-

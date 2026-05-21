@@ -16,6 +16,7 @@ import { postEntry } from "../vat-register/vat-register.service";
  */
 
 export interface CreateTaxInvoiceInput {
+  tenantId: string;
   salesOrderId: string;
   lineItems: { 
     productVariantId?: string; 
@@ -48,9 +49,9 @@ export interface CreateTaxInvoiceInput {
 
 export async function createTaxInvoice(
   input: CreateTaxInvoiceInput,
-  existingTx?: Prisma.TransactionClient
+  existingTx?: any
 ) {
-  const execute = async (tx: Prisma.TransactionClient) => {
+  const execute = async (tx: any) => {
     // 1. Guard: one invoice of the same type per order
     const existing = await tx.taxInvoice.findFirst({
       where: { soId: input.salesOrderId, invoiceType: input.invoiceType },
@@ -101,6 +102,7 @@ export async function createTaxInvoice(
     // 4. Create TaxInvoice with line items (line items = display/print only, not the source of amounts)
     const taxInvoice = await tx.taxInvoice.create({
       data: {
+        tenantId: input.tenantId,
         soId: input.salesOrderId,
         invoiceNumber,
         invoiceType: input.invoiceType,
@@ -114,6 +116,7 @@ export async function createTaxInvoice(
         status: "SENT",
         lineItems: {
           create: input.lineItems.map((item) => ({
+            tenantId: input.tenantId,
             productVariantId: item.productVariantId || null,
             customProductName: item.customProductName,
             quantity: item.quantity,
@@ -129,6 +132,7 @@ export async function createTaxInvoice(
     //    VatRegister always uses the user-provided invoiceAmount (Golden Rule #3)
     if (input.invoiceType !== "ESTIMATE") {
       await postEntry(tx, {
+        tenantId: input.tenantId,
         taxInvoiceId: taxInvoice.id,
         customerId: order.customerId,
         taxableAmount: subtotal,   // user-entered amount, NOT line-item sum
@@ -187,10 +191,10 @@ export interface CbmsPayload {
   lineItems: CbmsLineItem[];
 }
 
-export async function buildCbmsPayload(invoiceId: string): Promise<CbmsPayload> {
+export async function buildCbmsPayload(tenantId: string, invoiceId: string): Promise<CbmsPayload> {
   const [invoice, company] = await Promise.all([
-    prisma.taxInvoice.findUnique({
-      where: { id: invoiceId },
+    prisma.taxInvoice.findFirst({
+      where: { id: invoiceId, tenantId },
       include: {
         salesOrder: {
           include: {
@@ -206,7 +210,7 @@ export async function buildCbmsPayload(invoiceId: string): Promise<CbmsPayload> 
         },
       },
     }),
-    prisma.companyProfile.findFirst(),
+    prisma.companyProfile.findFirst({ where: { tenantId } }),
   ]);
 
   if (!invoice) throw new ApiError(404, "Tax Invoice not found");

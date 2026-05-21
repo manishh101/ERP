@@ -21,10 +21,12 @@ export type Kpi = {
 
 export type AuthUser = {
   id: string;
+  tenantId?: string;
   name: string;
   email: string;
   role: UserRole;
   isActive?: boolean;
+  workspaceName?: string;
 };
 
 export type DashboardRecentSalesOrder = {

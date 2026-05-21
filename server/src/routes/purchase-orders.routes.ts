@@ -29,6 +29,7 @@ purchaseOrdersRouter.get(
     };
 
     const where: any = {
+      tenantId: request.user!.tenantId,
       status: query.status || undefined,
       supplier: query.search
         ? {
@@ -79,8 +80,14 @@ purchaseOrdersRouter.post(
       0,
     );
 
+    const supplier = await prisma.supplier.findFirst({
+      where: { id: body.supplierId, tenantId: request.user!.tenantId }
+    });
+    if (!supplier) throw new ApiError(404, "Supplier not found");
+
     const purchaseOrder = await prisma.purchaseOrder.create({
       data: {
+        tenantId: request.user!.tenantId,
         supplierId: body.supplierId,
         createdById: request.user?.id,
         status: body.status,
@@ -90,7 +97,10 @@ purchaseOrdersRouter.post(
         notes: body.notes,
         totalAmount,
         lineItems: {
-          create: body.lineItems,
+          create: body.lineItems.map(item => ({
+            ...item,
+            tenantId: request.user!.tenantId,
+          })),
         },
       },
       include: {
@@ -108,8 +118,8 @@ purchaseOrdersRouter.get(
   validate(idParamSchema, "params"),
   asyncHandler(async (request, response) => {
     const params = request.validated?.params as { id: string };
-    const purchaseOrder = await prisma.purchaseOrder.findUnique({
-      where: { id: params.id },
+    const purchaseOrder = await prisma.purchaseOrder.findFirst({
+      where: { id: params.id, tenantId: request.user!.tenantId },
       include: {
         supplier: true,
         createdBy: true,
@@ -151,6 +161,11 @@ purchaseOrdersRouter.patch(
       ? body.lineItems.reduce((sum, item) => sum + item.quantity * item.unitCost + item.taxAmount, 0)
       : undefined;
 
+    const existingPo = await prisma.purchaseOrder.findFirst({
+      where: { id: params.id, tenantId: request.user!.tenantId }
+    });
+    if (!existingPo) throw new ApiError(404, "Purchase order not found");
+
     const purchaseOrder = await prisma.purchaseOrder.update({
       where: { id: params.id },
       data: {
@@ -165,7 +180,10 @@ purchaseOrdersRouter.patch(
           ? {
               lineItems: {
                 deleteMany: {},
-                create: body.lineItems,
+                create: body.lineItems.map(item => ({
+                  ...item,
+                  tenantId: request.user!.tenantId,
+                })),
               },
             }
           : {}),
@@ -189,8 +207,8 @@ purchaseOrdersRouter.post(
     const params = request.validated?.params as { id: string };
     const body = request.validated?.body as ReturnType<typeof goodsReceiptSchema.parse>;
 
-    const purchaseOrder = await prisma.purchaseOrder.findUnique({
-      where: { id: params.id },
+    const purchaseOrder = await prisma.purchaseOrder.findFirst({
+      where: { id: params.id, tenantId: request.user!.tenantId },
       include: {
         lineItems: true,
       },
@@ -203,12 +221,14 @@ purchaseOrdersRouter.post(
     const targetWarehouse =
       (await prisma.warehouse.findFirst({
         where: {
+          tenantId: request.user!.tenantId,
           type: "STORAGE",
           isActive: true,
         },
       })) ??
       (await prisma.warehouse.findFirst({
         where: {
+          tenantId: request.user!.tenantId,
           isActive: true,
         },
       }));
@@ -220,13 +240,17 @@ purchaseOrdersRouter.post(
     const result = await prisma.$transaction(async (tx) => {
       const receipt = await tx.goodsReceipt.create({
         data: {
+          tenantId: request.user!.tenantId,
           purchaseOrderId: params.id,
           receivedById: request.user?.id,
           receivedDate: body.receivedDate,
           status: body.status,
           notes: body.notes,
           lines: {
-            create: body.lines,
+            create: body.lines.map(line => ({
+              ...line,
+              tenantId: request.user!.tenantId,
+            })),
           },
         },
         include: {
@@ -252,6 +276,7 @@ purchaseOrdersRouter.post(
 
         const inventoryRecord = await tx.inventory.findFirst({
           where: {
+            tenantId: request.user!.tenantId,
             productVariantId: poLineItem.productVariantId,
             warehouseId: targetWarehouse.id,
             status: "IN_STOCK",
@@ -270,6 +295,7 @@ purchaseOrdersRouter.post(
         } else {
           await tx.inventory.create({
             data: {
+              tenantId: request.user!.tenantId,
               productVariantId: poLineItem.productVariantId,
               warehouseId: targetWarehouse.id,
               quantity: line.quantityReceived,
@@ -289,6 +315,7 @@ purchaseOrdersRouter.post(
 
         await tx.stockMovement.create({
           data: {
+            tenantId: request.user!.tenantId,
             productVariantId: poLineItem.productVariantId,
             warehouseId: targetWarehouse.id,
             userId: request.user?.id,
@@ -332,8 +359,8 @@ purchaseOrdersRouter.post(
   asyncHandler(async (request, response) => {
     const params = request.validated?.params as { id: string };
 
-    const purchaseOrder = await prisma.purchaseOrder.findUnique({
-      where: { id: params.id },
+    const purchaseOrder = await prisma.purchaseOrder.findFirst({
+      where: { id: params.id, tenantId: request.user!.tenantId },
       include: {
         lineItems: true,
         goodsReceipts: {

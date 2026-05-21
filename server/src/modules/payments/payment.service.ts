@@ -10,6 +10,7 @@ import { postCredit } from "../ar-ledger/ar-ledger.service";
  */
 
 export async function recordPayment(input: {
+  tenantId: string;
   salesOrderId: string;
   amount: number;
   method: PaymentMethod;
@@ -67,6 +68,7 @@ export async function recordPayment(input: {
 
       const payment = await tx.payment.create({
         data: {
+          tenantId: input.tenantId,
           salesOrderId: order.id,
           amount: amountToApply,
           method: input.method,
@@ -99,6 +101,7 @@ export async function recordPayment(input: {
       });
 
       await postCredit(tx, {
+        tenantId: input.tenantId,
         customerId: order.customerId,
         salesOrderId: order.id,
         paymentId: payment.id,

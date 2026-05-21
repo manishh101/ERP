@@ -34,6 +34,7 @@ taxInvoicesRouter.get(
     };
 
     const where: any = {
+      tenantId: request.user!.tenantId,
       status: query.status || undefined,
       invoiceType: "ESTIMATE",
       OR: query.search
@@ -92,6 +93,7 @@ taxInvoicesRouter.get(
     };
 
     const where: any = {
+      tenantId: request.user!.tenantId,
       status: query.status || undefined,
       invoiceType: { not: "ESTIMATE" },
       OR: query.search
@@ -145,7 +147,14 @@ taxInvoicesRouter.post(
   asyncHandler(async (request, response) => {
     const body = request.validated?.body as ReturnType<typeof taxInvoiceSchema.parse>;
 
-    const invoice = await createTaxInvoice({
+    // Verify sales order belongs to the tenant
+    const soExists = await prisma.salesOrder.findFirst({
+      where: { id: body.soId, tenantId: request.user!.tenantId },
+    });
+    if (!soExists) throw new ApiError(404, "Sales Order not found");
+
+    const invoice = (await createTaxInvoice({
+      tenantId: request.user!.tenantId,
       salesOrderId: body.soId,
       lineItems: body.lineItems,
       invoiceType: body.invoiceType as "VAT" | "PAN" | "ESTIMATE",
@@ -156,10 +165,11 @@ taxInvoicesRouter.post(
       // PRD Golden Rule #3: pass user-entered amounts through directly
       invoiceAmount: body.invoiceAmount,
       vatAmount: body.vatAmount,
-    });
+    })) as any;
 
     // Audit log — immutable record of who generated this invoice
     await logAudit({
+      tenantId: request.user!.tenantId,
       userId: request.user!.id,
       action: "CREATE_INVOICE",
       entityType: "TaxInvoice",
@@ -176,8 +186,8 @@ taxInvoicesRouter.get(
   validate(idParamSchema, "params"),
   asyncHandler(async (request, response) => {
     const params = request.validated?.params as { id: string };
-    const invoice = await prisma.taxInvoice.findUnique({
-      where: { id: params.id },
+    const invoice = await prisma.taxInvoice.findFirst({
+      where: { id: params.id, tenantId: request.user!.tenantId },
       include: {
         salesOrder: {
           include: {
@@ -218,6 +228,11 @@ taxInvoicesRouter.patch(
     const params = request.validated?.params as { id: string };
     const { lineItems, ...rest } = request.validated?.body as any;
     
+    const existing = await prisma.taxInvoice.findFirst({
+      where: { id: params.id, tenantId: request.user!.tenantId },
+    });
+    if (!existing) throw new ApiError(404, "Tax Invoice not found");
+
     const invoice = await prisma.taxInvoice.update({
       where: { id: params.id },
       data: {
@@ -241,6 +256,11 @@ taxInvoicesRouter.post(
   validate(idParamSchema, "params"),
   asyncHandler(async (request, response) => {
     const params = request.validated?.params as { id: string };
+    const existing = await prisma.taxInvoice.findFirst({
+      where: { id: params.id, tenantId: request.user!.tenantId },
+    });
+    if (!existing) throw new ApiError(404, "Tax Invoice not found");
+
     const invoice = await prisma.taxInvoice.update({
       where: { id: params.id },
       data: {
@@ -267,6 +287,7 @@ taxInvoicesRouter.post(
         id: {
           in: body.invoiceIds,
         },
+        tenantId: request.user!.tenantId,
       },
       data: {
         status: "SENT",
@@ -285,6 +306,7 @@ taxInvoicesRouter.get(
   asyncHandler(async (request, response) => {
     // Check if authenticated or has a valid download token
     let userId = request.user?.id;
+    let tenantId = request.user?.tenantId;
     const token = request.query.token as string;
 
     if (!userId && token) {
@@ -292,20 +314,22 @@ taxInvoicesRouter.get(
         const decoded = verifyToken(token);
         if (decoded.purpose === "download") {
           userId = decoded.sub;
+          const u = await prisma.user.findUnique({ where: { id: decoded.sub } });
+          tenantId = u?.tenantId;
         }
       } catch (err) {
         throw new ApiError(401, "Invalid or expired download token");
       }
     }
 
-    if (!userId) {
+    if (!userId || !tenantId) {
       throw new ApiError(401, "Unauthorized");
     }
 
     const { id } = request.params;
     const [invoice, companyProfile, template] = await Promise.all([
-      prisma.taxInvoice.findUnique({
-        where: { id: id },
+      prisma.taxInvoice.findFirst({
+        where: { id: id, tenantId },
         include: {
           salesOrder: {
             include: {
@@ -332,8 +356,8 @@ taxInvoicesRouter.get(
           },
         },
       }),
-      prisma.companyProfile.findFirst(),
-      prisma.invoiceTemplate.findFirst(),
+      prisma.companyProfile.findFirst({ where: { tenantId } }),
+      prisma.invoiceTemplate.findFirst({ where: { tenantId } }),
     ]);
 
     if (!invoice) {
@@ -363,7 +387,7 @@ taxInvoicesRouter.get(
   validate(idParamSchema, "params"),
   asyncHandler(async (request, response) => {
     const params = request.validated?.params as { id: string };
-    const payload = await buildCbmsPayload(params.id);
+    const payload = await buildCbmsPayload(request.user!.tenantId, params.id);
     // In future phase: POST payload to IRD CBMS API endpoint
     response.json({
       status: "ready",
