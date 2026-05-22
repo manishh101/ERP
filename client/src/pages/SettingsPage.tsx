@@ -654,7 +654,7 @@ export function SettingsPage() {
 
               <DataTable
                 columns={warehouseColumns}
-                data={data.warehouses}
+                data={data?.warehouses ?? []}
                 pageSize={5}
                 emptyMessage="No warehouses configured."
               />
@@ -683,7 +683,7 @@ export function SettingsPage() {
 
               <DataTable
                 columns={taxRateColumns}
-                data={data.taxRates}
+                data={data?.taxRates ?? []}
                 pageSize={5}
                 emptyMessage="No tax rates configured."
               />
@@ -710,7 +710,7 @@ export function SettingsPage() {
 
               <DataTable
                 columns={userColumns}
-                data={data.users}
+                data={data?.users ?? []}
                 pageSize={10}
                 emptyMessage="No other users found."
               />
