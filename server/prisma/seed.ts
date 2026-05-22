@@ -1180,7 +1180,7 @@ const customers = await Promise.all(customersInput.map((customer) => prisma.cust
         lineItems: {
           create: [
             { productVariantId: variantMap.get("PC-72-daraj-3")!.id, quantity: 10, receivedQuantity: 6, unitCost: 10850 },
-            { productVariantId: variantMap.get("EP-72-daraj-s-4")!.id, quantity: 5, receivedQuantity: 2, unitCost: 8400 },
+            { productVariantId: variantMap.get("PC-72-daraj-super-5")!.id, quantity: 5, receivedQuantity: 2, unitCost: 8400 },
           ],
         },
       },
@@ -1199,7 +1199,7 @@ const customers = await Promise.all(customersInput.map((customer) => prisma.cust
         lineItems: {
           create: [
             { productVariantId: variantMap.get("PC-janki-model-78-9")!.id, quantity: 15, receivedQuantity: 15, unitCost: 21350 },
-            { productVariantId: variantMap.get("EP-filing-cabinet--28")!.id, quantity: 8, receivedQuantity: 8, unitCost: 13860 },
+            { productVariantId: variantMap.get("PC-filing-cabinet--24")!.id, quantity: 8, receivedQuantity: 8, unitCost: 13860 },
           ],
         },
       },
@@ -1218,7 +1218,7 @@ const customers = await Promise.all(customersInput.map((customer) => prisma.cust
         lineItems: {
           create: [
             { productVariantId: variantMap.get("PC-three-door-one--16")!.id, quantity: 5, receivedQuantity: 5, unitCost: 20090 },
-            { productVariantId: variantMap.get("EP-three-door-almi-14")!.id, quantity: 8, receivedQuantity: 8, unitCost: 15400 },
+            { productVariantId: variantMap.get("PC-three-door-one--15")!.id, quantity: 8, receivedQuantity: 8, unitCost: 15400 },
           ],
         },
       },
@@ -1322,7 +1322,7 @@ const customers = await Promise.all(customersInput.map((customer) => prisma.cust
         lineItems: {
           create: [
             { productVariantId: variantMap.get("PC-shreeman-shreem-6")!.id, quantity: 2, unitPrice: 22800, discountPct: 5 },
-            { productVariantId: variantMap.get("EP-shreeman-shreem-9")!.id, quantity: 1, unitPrice: 17000, discountPct: 0 },
+            { productVariantId: variantMap.get("PC-shreeman-shreem-8")!.id, quantity: 1, unitPrice: 17000, discountPct: 0 },
           ],
         },
       },
@@ -1345,7 +1345,7 @@ const customers = await Promise.all(customersInput.map((customer) => prisma.cust
         lineItems: {
           create: [
             { productVariantId: variantMap.get("PC-three-door-one--16")!.id, quantity: 1, unitPrice: 28700, discountPct: 0 },
-            { productVariantId: variantMap.get("EP-single-table-30-29")!.id, quantity: 2, unitPrice: 8200, discountPct: 0 },
+            { productVariantId: variantMap.get("PC-single-table-30-27")!.id, quantity: 2, unitPrice: 8200, discountPct: 0 },
           ],
         },
       },
@@ -1368,7 +1368,7 @@ const customers = await Promise.all(customersInput.map((customer) => prisma.cust
         lineItems: {
           create: [
             { productVariantId: variantMap.get("PC-filing-cabinet--25")!.id, quantity: 6, unitPrice: 21000, discountPct: 8 },
-            { productVariantId: variantMap.get("EP-three-piece-alm-17")!.id, quantity: 12, unitPrice: 48450, discountPct: 10 },
+            { productVariantId: variantMap.get("PC-one-locker-offi-17")!.id, quantity: 12, unitPrice: 48450, discountPct: 10 },
           ],
         },
       },
@@ -1391,7 +1391,7 @@ const customers = await Promise.all(customersInput.map((customer) => prisma.cust
         lineItems: {
           create: [
             { productVariantId: variantMap.get("PC-72-daraj-super-5")!.id, quantity: 4, unitPrice: 18800, discountPct: 0 },
-            { productVariantId: variantMap.get("EP-double-table-30-31")!.id, quantity: 6, unitPrice: 11500, discountPct: 0 },
+            { productVariantId: variantMap.get("PC-open-rack-6-she-31")!.id, quantity: 6, unitPrice: 11500, discountPct: 0 },
           ],
         },
       },
