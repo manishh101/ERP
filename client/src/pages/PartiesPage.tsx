@@ -149,7 +149,7 @@ export function PartiesPage() {
           <DataTable
             columns={partyColumns}
             data={filteredItems}
-            pageSize={15}
+            hidePagination={true}
             searchPlaceholder="Search parties..."
             actions={(row) => [
               {

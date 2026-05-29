@@ -38,9 +38,14 @@ export function AppShell() {
   }, []);
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex min-h-screen bg-background">
       {/* Desktop sidebar */}
-      <div className="hidden lg:block">
+      <div
+        className={cn(
+          "hidden lg:block fixed inset-y-0 left-0 z-50 transition-[width] duration-200",
+          collapsed ? "w-[60px]" : "w-[260px]"
+        )}
+      >
         <Sidebar collapsed={collapsed} onToggle={toggleCollapsed} />
       </div>
 
@@ -58,13 +63,18 @@ export function AppShell() {
       )}
 
       {/* Main content */}
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div
+        className={cn(
+          "flex flex-1 flex-col min-h-screen transition-[margin] duration-200",
+          collapsed ? "lg:ml-[60px]" : "lg:ml-[260px]"
+        )}
+      >
         <TopBar
           onMenuClick={() => setMobileOpen(true)}
           onSearchOpen={() => setSearchOpen(true)}
         />
 
-        <main className="flex-1 overflow-y-auto bg-background px-4 py-6 lg:px-6">
+        <main className="flex-1 px-4 py-6 lg:px-6">
           <div className="mx-auto w-full max-w-[1600px]">
             <Outlet />
           </div>
