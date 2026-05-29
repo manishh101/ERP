@@ -342,7 +342,7 @@ export const companyProfileSchema = z.object({
   address: z.string().min(4),
   panNo: z.string().optional(),
   vatNo: z.string().optional(),
-  bankDetails: z.string().min(4),
+  bankDetails: z.string().optional().default(""),
   email: z.string().email().or(z.literal("")).optional(),
   phone: z.string().optional(),
   website: z.string().url().or(z.literal("")).optional(),
