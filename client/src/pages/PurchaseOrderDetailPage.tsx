@@ -152,17 +152,7 @@ export function PurchaseOrderDetailPage() {
                       : "—"}
                   </p>
                 </div>
-                <div>
-                  <p className="text-muted-foreground">Shipping Terms</p>
-                  <p className="font-medium">{order.shippingTerms || "—"}</p>
-                </div>
               </div>
-              {order.notes && (
-                <div className="mt-4 text-sm">
-                  <p className="text-muted-foreground">Notes</p>
-                  <p>{order.notes}</p>
-                </div>
-              )}
             </CardContent>
           </Card>
 

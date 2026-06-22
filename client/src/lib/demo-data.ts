@@ -65,7 +65,7 @@ export const inventoryProducts: ProductRow[] = ([
   { id: "p3", name: "Luna Bed Frame", description: "Queen bed frame with upholstered headboard.", sku: "BED-LUN-003", category: "Bedroom", material: "Ash / Upholstered", status: "Active", stock: 4, margin: 35, valuation: 2240, sellingPrice: 980, defaultVariantId: "p3-v1" },
   { id: "p4", name: "Vela Executive Desk", description: "Executive desk with cable management and storage.", sku: "OFF-VEL-004", category: "Office", material: "Steel / Walnut", status: "Active", stock: 9, margin: 41, valuation: 5040, sellingPrice: 1260, defaultVariantId: "p4-v1" },
   { id: "p5", name: "Harbor Lounge Chair", description: "Outdoor lounge chair with weather-resistant weave.", sku: "OUT-HAR-005", category: "Outdoor", material: "Teak / Rope", status: "Discontinued", stock: 2, margin: 28, valuation: 1120, sellingPrice: 560, defaultVariantId: "p5-v1" },
-]);
+] as ProductRow[]);
 
 export const suppliers: SupplierRow[] = [
   { id: "sup1", name: "Kathmandu Woodcraft", country: "Nepal", leadTime: "8 days", onTimeRate: "95%", spend: 48200 },
@@ -78,19 +78,19 @@ export const salesOrders: SalesOrderRow[] = ([
   { id: "SO-2026-0037", customerId: "cus-2", customer: "Mia Thompson", customerType: "RETAIL", status: "Deposit Paid", rawStatus: "DEPOSIT_PAID", orderDate: "2026-03-11", deliveryDate: "2026-03-24", total: 3200, balanceDue: 2100, paidAmount: 1100, cogs: 1850 },
   { id: "SO-2026-0036", customerId: "cus-3", customer: "Urban Nest Studio", customerType: "BUSINESS", status: "Confirmed", rawStatus: "CONFIRMED", orderDate: "2026-03-12", deliveryDate: "2026-03-26", total: 12940, balanceDue: 12940, paidAmount: 0, cogs: 7710 },
   { id: "SO-2026-0035", customerId: "cus-4", customer: "Cedar Lane Hotels", customerType: "BUSINESS", status: "Delivered", rawStatus: "DELIVERED", orderDate: "2026-03-08", deliveryDate: "2026-03-19", total: 21450, balanceDue: 0, paidAmount: 21450, cogs: 13640 },
-]);
+] as SalesOrderRow[]);
 
 export const invoices: TaxInvoiceRow[] = ([
   { id: "inv1", soId: "SO-2026-0038", invoiceNumber: "INV-2026-0007", customer: "Evergreen Homes", status: "Sent", dueDate: "2026-03-28", amount: 8600, balance: 4200, invoiceType: "TAX" },
   { id: "inv2", soId: "SO-2026-0037", invoiceNumber: "INV-2026-0006", customer: "Mia Thompson", status: "Partially Paid", dueDate: "2026-03-29", amount: 3200, balance: 2100, invoiceType: "TAX" },
   { id: "inv3", soId: "SO-2026-0035", invoiceNumber: "INV-2026-0005", customer: "Cedar Lane Hotels", status: "Paid", dueDate: "2026-03-17", amount: 21450, balance: 0, invoiceType: "TAX" },
-]);
+] as TaxInvoiceRow[]);
 
 export const deliveries: DeliveryRow[] = ([
   { id: "DL-101", customer: "Evergreen Homes", driver: "Sanjay Driver", status: "Scheduled", scheduledDate: "2026-03-22", route: "Lalitpur / Ring Road", deliveryAddress: "Lalitpur, Ring Road", floor: 2, deliveryCharge: 1200, assemblyCharge: 500, floorDelivery: true, assemblyService: true },
   { id: "DL-102", customer: "Mia Thompson", driver: "Sanjay Driver", status: "Out for Delivery", scheduledDate: "2026-03-21", route: "Bhaktapur / Suryabinayak", deliveryAddress: "Bhaktapur, Suryabinayak", floor: 1, deliveryCharge: 900, assemblyCharge: 0, floorDelivery: true, assemblyService: false },
   { id: "DL-103", customer: "Cedar Lane Hotels", driver: "Priya Transport", status: "Delivered", scheduledDate: "2026-03-19", route: "Pokhara / Lakeside", deliveryAddress: "Pokhara, Lakeside", floor: 3, deliveryCharge: 1800, assemblyCharge: 650, floorDelivery: true, assemblyService: true },
-]);
+] as DeliveryRow[]);
 
 export const reportCatalog: ReportCard[] = [
   {

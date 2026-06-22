@@ -26,7 +26,7 @@ type MonthRow = {
 interface KhataAnalyticsTableProps {
   ledgerEntries: ArLedgerEntry[];
   salesOrders: Array<{
-    id: string;
+    id?: string;
     orderDate?: string;
     grandTotal?: number | string;
     orderAmount?: number | string;
@@ -132,7 +132,7 @@ export function KhataAnalyticsTable({ ledgerEntries, salesOrders }: KhataAnalyti
       })
       .flatMap((order) =>
         (order.lineItems ?? []).map((li) => ({
-          orderId: order.id,
+          orderId: order.id ?? "",
           product: li.product ?? "Unknown",
           variant: li.variant ?? "Default",
           quantity: toNumber(li.quantity),
