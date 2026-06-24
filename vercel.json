@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "framework": "vite",
+  "framework": null,
   "installCommand": "npm install",
   "buildCommand": "npm run generate --workspace server && npm run build --workspace client",
   "outputDirectory": "client/dist",
