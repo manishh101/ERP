@@ -28,6 +28,7 @@ npm install -g vercel
 2. Open Settings -> Database.
 3. Copy the pooled connection string.
 4. Save it as `DATABASE_URL` in Vercel.
+5. Copy the direct/non-pooled connection string and save it as `DIRECT_URL` in Vercel. The Prisma schema requires this value during build and migrations.
 
 ## Step 2: Set Up Upstash Redis
 
@@ -49,7 +50,8 @@ Add environment variables:
 
 ```env
 NODE_ENV=production
-DATABASE_URL=postgresql://...
+DATABASE_URL=postgresql://... # pooled URL, add connection_limit=1 if your provider supports it
+DIRECT_URL=postgresql://... # direct/non-pooled URL
 JWT_SECRET=<generate with openssl rand -base64 32>
 REDIS_URL=redis://...
 CORS_ORIGIN=https://YOUR_VERCEL_PROJECT.vercel.app
@@ -62,14 +64,14 @@ Run this before production release:
 
 ```bash
 cd server
-DATABASE_URL="<your-supabase-pooled-url>" npx prisma migrate deploy
+DATABASE_URL="<your-supabase-pooled-url>" DIRECT_URL="<your-supabase-direct-url>" npx prisma migrate deploy
 ```
 
 Optional seed:
 
 ```bash
 cd server
-DATABASE_URL="<your-supabase-pooled-url>" npm run seed
+DATABASE_URL="<your-supabase-pooled-url>" DIRECT_URL="<your-supabase-direct-url>" npm run seed
 ```
 
 ## Step 5: Deploy
@@ -96,7 +98,7 @@ curl https://YOUR_VERCEL_PROJECT.vercel.app/api/health
    Ensure `CORS_ORIGIN` exactly matches the browser origin.
 
 2. Prisma connection error:
-   Use the pooled Supabase URL and confirm migrations ran.
+   Use the pooled Supabase URL for `DATABASE_URL`, set `DIRECT_URL`, and confirm migrations ran.
 
 3. Frontend calling wrong API:
    Set `VITE_API_URL=/api` and redeploy.

@@ -12,11 +12,13 @@ export const basePrisma =
   global.basePrisma ??
   new PrismaClient({
     log: ["warn", "error"],
+    transactionOptions: {
+      maxWait: 5_000,
+      timeout: 15_000,
+    },
   });
 
-if (process.env.NODE_ENV !== "production") {
-  global.basePrisma = basePrisma;
-}
+global.basePrisma = basePrisma;
 
 // Recursively injects tenantId into nested create/upsert relational operations
 function injectTenantId(obj: any, tenantId: string) {

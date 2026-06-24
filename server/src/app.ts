@@ -5,8 +5,18 @@ import helmet from "helmet";
 import morgan from "morgan";
 import rateLimit from "express-rate-limit";
 import { env } from "./config/env";
+import { basePrisma } from "./config/prisma";
 import { errorHandler } from "./middleware/error-handler";
 import { registerRoutes } from "./routes";
+
+async function checkDatabase() {
+  await Promise.race([
+    basePrisma.$queryRawUnsafe("SELECT 1"),
+    new Promise((_, reject) => {
+      setTimeout(() => reject(new Error("Database health check timed out")), 2_500);
+    }),
+  ]);
+}
 
 export function createApp(): Express {
   const app = express();
@@ -54,11 +64,26 @@ export function createApp(): Express {
     });
   });
 
-  app.get("/api/health", (_request, response) => {
-    response.json({
-      status: "ok",
-      service: "furniture-erp-api",
-    });
+  app.get("/api/health", async (_request, response) => {
+    try {
+      await checkDatabase();
+      response.json({
+        status: "ok",
+        service: "furniture-erp-api",
+        database: "ok",
+      });
+    } catch (error) {
+      console.error("[HealthCheck] Database unavailable", {
+        message: (error as Error)?.message,
+        name: (error as Error)?.name,
+      });
+
+      response.status(503).json({
+        status: "error",
+        service: "furniture-erp-api",
+        database: "unavailable",
+      });
+    }
   });
 
   registerRoutes(app);

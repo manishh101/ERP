@@ -4,7 +4,9 @@
   "installCommand": "npm install",
   "buildCommand": "npm run generate --workspace server && npm run build --workspace client",
   "outputDirectory": "client/dist",
-  "regions": ["iad1"],
+  "regions": [
+    "iad1"
+  ],
   "headers": [
     {
       "source": "/(.*)",
@@ -34,7 +36,11 @@
       "destination": "/api/uploads/$1"
     },
     {
-      "source": "/(.*)",
+      "source": "/api/(.*)",
+      "destination": "/api/$1"
+    },
+    {
+      "source": "/((?!api/.*|uploads/.*|health$).*)",
       "destination": "/index.html"
     }
   ]

@@ -85,7 +85,7 @@ git push origin main
 1. Create a Supabase project.
 2. Copy the pooled Postgres connection string.
 3. Save it as `DATABASE_URL` in Vercel.
-4. If your migration workflow needs a direct connection, keep `DIRECT_URL` locally or in a secure CI secret.
+4. Copy the direct/non-pooled connection string and save it as `DIRECT_URL` in Vercel. The Prisma schema requires this value during build and migrations.
 
 ### Upstash Redis
 
@@ -121,7 +121,8 @@ Set these in Vercel Project Settings -> Environment Variables for Production, Pr
 
 ```env
 NODE_ENV=production
-DATABASE_URL=postgresql://postgres:...@...:6543/postgres?schema=public
+DATABASE_URL=postgresql://postgres:...@...:6543/postgres?schema=public&pgbouncer=true&connection_limit=1
+DIRECT_URL=postgresql://postgres:...@...:5432/postgres?schema=public
 JWT_SECRET=<generated-secret>
 JWT_EXPIRES_IN=8h
 REDIS_URL=redis://default:...@...:6379
@@ -145,17 +146,17 @@ Local migration against production:
 
 ```bash
 cd server
-DATABASE_URL="<your-supabase-pooled-url>" npx prisma migrate deploy
+DATABASE_URL="<your-supabase-pooled-url>" DIRECT_URL="<your-supabase-direct-url>" npx prisma migrate deploy
 ```
 
 Optional seed:
 
 ```bash
 cd server
-DATABASE_URL="<your-supabase-pooled-url>" npm run seed
+DATABASE_URL="<your-supabase-pooled-url>" DIRECT_URL="<your-supabase-direct-url>" npm run seed
 ```
 
-For CI, store `DATABASE_URL` as a protected GitHub Actions secret and run `npx prisma migrate deploy` before promoting a production deployment.
+For CI, store `DATABASE_URL` and `DIRECT_URL` as protected GitHub Actions secrets and run `npx prisma migrate deploy` before promoting a production deployment.
 
 ## Deployment
 
@@ -272,7 +273,7 @@ Keep backup copies outside the database provider and periodically test restore.
 ## Troubleshooting
 
 1. API returns 500:
-   Check Vercel Function logs, `DATABASE_URL`, `JWT_SECRET`, and whether migrations ran.
+   Check Vercel Function logs, `DATABASE_URL`, `DIRECT_URL`, `JWT_SECRET`, and whether migrations ran.
 
 2. Prisma client missing or stale:
    Confirm the Vercel build command includes `npm run generate --workspace server`.
@@ -313,6 +314,7 @@ DATABASE_URL="<url>" npx prisma migrate deploy
 
 - `NODE_ENV` - `production`
 - `DATABASE_URL` - Supabase pooled Postgres URL
+- `DIRECT_URL` - Supabase direct/non-pooled Postgres URL required by Prisma schema
 - `JWT_SECRET` - required strong random string
 - `JWT_EXPIRES_IN` - optional, defaults to `8h`
 - `REDIS_URL` - Upstash Redis URL

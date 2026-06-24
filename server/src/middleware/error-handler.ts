@@ -1,4 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
+import { Prisma } from "@prisma/client";
 import { ZodError } from "zod";
 import { ApiError } from "../utils/api-error";
 
@@ -29,20 +30,46 @@ export function errorHandler(
     stack: (error as Error)?.stack,
   });
 
-  // Detect Prisma connection / query errors or network-related database issues to give a clearer signal
-  const errName = (error as Error)?.name ?? "";
-  const errMsg = (error as Error)?.message ?? "";
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    if (["P1001", "P1002", "P1017", "P2024"].includes(error.code)) {
+      return response.status(503).json({
+        message: "Database connection error. Check DATABASE_URL, pooling, and database availability.",
+        code: error.code,
+      });
+    }
+
+    if (["P2021", "P2022"].includes(error.code)) {
+      return response.status(500).json({
+        message: "Database schema error. Run Prisma migrations against the production database.",
+        code: error.code,
+      });
+    }
+
+    return response.status(500).json({
+      message: "Database query failed. Check server logs for details.",
+      code: error.code,
+    });
+  }
+
   if (
-    errName.includes("Prisma") ||
-    errName.includes("PrismaClient") ||
-    errMsg.includes("Prisma") ||
-    errMsg.includes("database") ||
-    errMsg.includes("connection") ||
-    errMsg.includes("ECONNREFUSED") ||
-    errMsg.includes("ETIMEDOUT")
+    error instanceof Prisma.PrismaClientInitializationError ||
+    error instanceof Prisma.PrismaClientRustPanicError
   ) {
     return response.status(503).json({
-      message: "Database connection error — please check DATABASE_URL and network connectivity",
+      message: "Database connection error. Check DATABASE_URL, pooling, and network connectivity.",
+    });
+  }
+
+  // Detect network-related database issues that may not be wrapped by Prisma.
+  const errMsg = (error as Error)?.message ?? "";
+  if (
+    errMsg.includes("ECONNREFUSED") ||
+    errMsg.includes("ETIMEDOUT") ||
+    errMsg.includes("ENOTFOUND") ||
+    errMsg.includes("Connection terminated")
+  ) {
+    return response.status(503).json({
+      message: "Database connection error. Check DATABASE_URL and network connectivity.",
     });
   }
 

@@ -1,3 +1,9 @@
 import { createApp } from "../server/src/app";
 
-export default createApp();
+export const config = {
+  maxDuration: 60,
+};
+
+const app = createApp();
+
+export default app;
