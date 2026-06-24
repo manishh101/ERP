@@ -5,6 +5,7 @@ import { requireAuth, requireRole } from "../middleware/auth";
 import { asyncHandler } from "../middleware/async-handler";
 import { validate } from "../middleware/validate";
 import { ApiError } from "../utils/api-error";
+import { DEFAULT_CURRENCY, normalizeSupportedCurrencies } from "../utils/currency";
 import { normalizeEmail, normalizeName } from "../utils/identity";
 import {
   companyProfileSchema,
@@ -35,10 +36,22 @@ settingsRouter.get(
         prisma.warehouse.findMany({ where: { tenantId: _request.user!.tenantId }, orderBy: { name: "asc" } }),
       ]);
 
+    const supportedCurrencies = normalizeSupportedCurrencies(
+      currencySetting?.supportedCurrencies,
+    );
+
     response.json({
       companyProfile,
       taxRates,
-      currencySetting,
+      currencySetting: currencySetting
+        ? {
+            ...currencySetting,
+            baseCurrency: DEFAULT_CURRENCY,
+            supportedCurrencies,
+            multiCurrencyEnabled:
+              currencySetting.multiCurrencyEnabled && supportedCurrencies.length > 1,
+          }
+        : currencySetting,
       invoiceTemplate,
       notificationSetting,
       warehouses,
@@ -112,19 +125,22 @@ settingsRouter.patch(
   asyncHandler(async (request, response) => {
     const body = request.validated?.body as ReturnType<typeof currencySettingSchema.parse>;
     const existing = await prisma.currencySetting.findFirst({ where: { tenantId: request.user!.tenantId } });
+    const supportedCurrencies = normalizeSupportedCurrencies(body.supportedCurrencies);
+    const normalizedBody = {
+      ...body,
+      baseCurrency: DEFAULT_CURRENCY,
+      supportedCurrencies,
+      multiCurrencyEnabled: body.multiCurrencyEnabled && supportedCurrencies.length > 1,
+    };
 
     const currencySetting = existing
       ? await prisma.currencySetting.update({
           where: { id: existing.id },
-          data: {
-            ...body,
-            supportedCurrencies: body.supportedCurrencies,
-          },
+          data: normalizedBody,
         })
       : await prisma.currencySetting.create({
           data: {
-            ...body,
-            supportedCurrencies: body.supportedCurrencies,
+            ...normalizedBody,
             tenantId: request.user!.tenantId,
           },
         });

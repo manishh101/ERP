@@ -250,6 +250,9 @@ taxInvoicesRouter.patch(
   }),
 );
 
+// #38 Fix: Email delivery is simulated — no actual SMTP integration yet.
+// Marking status as SENT optimistically. Integrate a mail service (e.g. Resend, SendGrid)
+// by replacing this handler when email infrastructure is available.
 taxInvoicesRouter.post(
   "/:id/send",
   requireRole(["ADMIN", "ACCOUNTANT", "SALES"]),
@@ -263,14 +266,15 @@ taxInvoicesRouter.post(
 
     const invoice = await prisma.taxInvoice.update({
       where: { id: params.id },
-      data: {
-        status: "SENT",
-      },
+      data: { status: "SENT" },
     });
 
     response.json({
       ...invoice,
-      emailQueued: true,
+      // simulated: true — no real email is sent until SMTP is configured
+      simulated: true,
+      emailQueued: false,
+      message: "Invoice marked as sent. Email delivery requires SMTP configuration.",
     });
   }),
 );
@@ -284,19 +288,18 @@ taxInvoicesRouter.post(
 
     const updated = await prisma.taxInvoice.updateMany({
       where: {
-        id: {
-          in: body.invoiceIds,
-        },
+        id: { in: body.invoiceIds },
         tenantId: request.user!.tenantId,
       },
-      data: {
-        status: "SENT",
-      },
+      data: { status: "SENT" },
     });
 
     response.json({
       updatedCount: updated.count,
-      emailQueued: true,
+      // simulated: true — no real email is sent until SMTP is configured
+      simulated: true,
+      emailQueued: false,
+      message: "Invoices marked as sent. Email delivery requires SMTP configuration.",
     });
   }),
 );
@@ -310,15 +313,15 @@ taxInvoicesRouter.get(
     const token = request.query.token as string;
 
     if (!userId && token) {
-      try {
-        const decoded = verifyToken(token);
-        if (decoded.purpose === "download") {
-          userId = decoded.sub;
-          const u = await prisma.user.findUnique({ where: { id: decoded.sub } });
-          tenantId = u?.tenantId;
-        }
-      } catch (err) {
-        throw new ApiError(401, "Invalid or expired download token");
+      // #3 Fix: Read tenantId from token payload — no DB lookup needed
+      const decoded = verifyToken(token);
+      if (decoded.purpose !== "download") {
+        throw new ApiError(401, "Invalid download token purpose");
+      }
+      userId = decoded.sub;
+      tenantId = decoded.tenantId;
+      if (!tenantId) {
+        throw new ApiError(401, "Download token missing tenant context");
       }
     }
 

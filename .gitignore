@@ -2,7 +2,9 @@ node_modules
 dist
 .DS_Store
 .env
-.env.local
+.env.*
+!.env.example
+!.env.*.example
 coverage
 client/dist
 server/dist
@@ -10,4 +12,9 @@ server/generated
 server/uploads/*
 !.gitkeep
 *.log
+
+# Debug artifacts
+tsc_errors.log
+ts_errors.txt
+tsc-output.txt
 

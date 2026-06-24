@@ -10,6 +10,7 @@ import { registerRoutes } from "./routes";
 
 export function createApp(): Express {
   const app = express();
+  const isVercel = Boolean(process.env.VERCEL);
 
   // Security & Logging
   app.use(helmet());
@@ -24,7 +25,7 @@ export function createApp(): Express {
   });
   app.use("/api", limiter as any);
 
-  // Support comma-separated CORS origins for split deployments (e.g. Vercel + Render)
+  // Support comma-separated CORS origins for production and preview deployments.
   const allowedOrigins = env.CORS_ORIGIN.split(",").map((o) => o.trim());
 
   app.use(
@@ -36,9 +37,24 @@ export function createApp(): Express {
 
   app.use(express.json({ limit: "10mb" }));
   app.use(express.urlencoded({ extended: true }));
-  app.use("/uploads", express.static("uploads"));
+  if (isVercel) {
+    app.get(["/uploads/*", "/api/uploads/*"], (_request, response) => {
+      response.status(410).json({
+        message: "Local uploaded files are not available on Vercel. Configure persistent object storage for product images.",
+      });
+    });
+  } else {
+    app.use("/uploads", express.static("uploads"));
+  }
 
   app.get("/health", (_request, response) => {
+    response.json({
+      status: "ok",
+      service: "furniture-erp-api",
+    });
+  });
+
+  app.get("/api/health", (_request, response) => {
     response.json({
       status: "ok",
       service: "furniture-erp-api",
@@ -50,4 +66,3 @@ export function createApp(): Express {
 
   return app;
 }
-

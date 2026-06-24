@@ -1,78 +1,82 @@
-# Deployment Secrets Checklist (Vercel + Render)
+# Deployment Secrets Checklist (Vercel)
 
 Keep this file private and never commit real secrets.
 
 ## Accounts
+
 - [ ] Vercel
-- [ ] Render
 - [ ] Supabase
 - [ ] Upstash
 - [ ] GitHub
 
-## Secrets to prepare
+## Secrets To Prepare
 
 ```env
 DATABASE_URL=postgresql://postgres:...@...:6543/postgres?schema=public
 REDIS_URL=redis://default:...@...:6379
 JWT_SECRET=<generate with openssl rand -base64 32>
 CORS_ORIGIN=https://YOUR_VERCEL_PROJECT.vercel.app
-VITE_API_URL=https://furniture-erp-api.onrender.com/api
+VITE_API_URL=/api
 ```
 
 Generate JWT secret:
+
 ```bash
 openssl rand -base64 32
 ```
 
-## Render setup
-
-1. Import repo as Blueprint or Web Service.
-2. If manual service:
-   - Type: Web Service
-   - Environment: Docker
-   - Dockerfile path: `server/Dockerfile`
-   - Health check: `/health`
-3. Add env vars:
-   - `DATABASE_URL`
-   - `JWT_SECRET`
-   - `REDIS_URL`
-   - `CORS_ORIGIN`
-4. Deploy.
-5. Open Render Shell and run:
-```bash
-npx prisma migrate deploy
-```
-
-## Vercel setup
+## Vercel Setup
 
 1. Import repo in Vercel.
-2. Build command:
-```bash
-npm run build --workspace client
-```
-3. Output directory: `client/dist`
-4. Install command:
+2. Root directory: `.`
+3. Install command:
+
 ```bash
 npm install
 ```
-5. Add env var:
-```env
-VITE_API_URL=https://furniture-erp-api.onrender.com/api
+
+4. Build command:
+
+```bash
+npm run generate --workspace server && npm run build --workspace client
 ```
-6. Deploy.
+
+5. Output directory: `client/dist`
+6. Add env vars:
+
+```env
+NODE_ENV=production
+DATABASE_URL=postgresql://postgres:...@...:6543/postgres?schema=public
+JWT_SECRET=<generated-secret>
+REDIS_URL=redis://default:...@...:6379
+CORS_ORIGIN=https://YOUR_VERCEL_PROJECT.vercel.app
+VITE_API_URL=/api
+```
+
+7. Deploy.
+
+## Migrations
+
+Run migrations before production release:
+
+```bash
+cd server
+DATABASE_URL="<your-supabase-pooled-url>" npx prisma migrate deploy
+```
 
 ## Validation
 
 ```bash
-curl https://furniture-erp-api.onrender.com/health
-curl https://furniture-erp-api.onrender.com/api/health
 curl https://YOUR_VERCEL_PROJECT.vercel.app
-./health-check.sh https://YOUR_VERCEL_PROJECT.vercel.app https://furniture-erp-api.onrender.com
+curl https://YOUR_VERCEL_PROJECT.vercel.app/health
+curl https://YOUR_VERCEL_PROJECT.vercel.app/api/health
+./health-check.sh https://YOUR_VERCEL_PROJECT.vercel.app https://YOUR_VERCEL_PROJECT.vercel.app
 ```
 
 ## Troubleshooting
 
-1. CORS: update `CORS_ORIGIN` in Render and redeploy.
-2. API 500: check Render logs and `DATABASE_URL`.
-3. Prisma migration failed: rerun `npx prisma migrate deploy` in Render Shell.
-4. Frontend using old API URL: update Vercel env and redeploy.
+1. CORS: update `CORS_ORIGIN` in Vercel and redeploy.
+2. API 500: check Vercel Function logs, `DATABASE_URL`, and `JWT_SECRET`.
+3. Prisma migration failed: rerun `npx prisma migrate deploy` with the production `DATABASE_URL`.
+4. Frontend using old API URL: set `VITE_API_URL=/api` and redeploy.
+5. Uploads disappearing: move product images to persistent object storage.

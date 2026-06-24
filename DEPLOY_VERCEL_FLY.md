@@ -1,161 +1,113 @@
-# Deploy to Vercel (Frontend) + Render (Backend)
+# Deploy to Vercel (Frontend + Backend)
 
-This guide deploys your ERP with a free-friendly stack:
-- Frontend: Vercel (React + Vite)
-- Backend: Render (Docker Web Service)
-- Database: Supabase (PostgreSQL)
-- Cache: Upstash (Redis)
+This guide deploys your ERP on one Vercel project:
+
+- Frontend: Vercel static build from `client/dist`
+- Backend: Vercel Node.js Functions under `/api/*`
+- Database: Supabase PostgreSQL
+- Cache: Upstash Redis
+
+For the full runbook, use `DEPLOYMENT_FULL.md`.
 
 ## Prerequisites
 
 1. GitHub account
 2. Vercel account
-3. Render account
-4. Supabase account
-5. Upstash account
+3. Supabase account
+4. Upstash account
 
-Optional CLI tools:
+Optional CLI:
+
 ```bash
 npm install -g vercel
 ```
 
-## Step 1: Set up Supabase (PostgreSQL)
+## Step 1: Set Up Supabase
 
-1. Create project in Supabase.
+1. Create a Supabase project.
 2. Open Settings -> Database.
-3. Copy the pooled connection string (`postgresql://...`).
-4. Save it as `DATABASE_URL`.
+3. Copy the pooled connection string.
+4. Save it as `DATABASE_URL` in Vercel.
 
-## Step 2: Set up Upstash Redis
+## Step 2: Set Up Upstash Redis
 
-1. Create Redis database in Upstash.
-2. Copy Redis URL (`redis://...`).
-3. Save it as `REDIS_URL`.
+1. Create a Redis database in Upstash.
+2. Copy the Redis URL.
+3. Save it as `REDIS_URL` in Vercel.
 
-## Step 3: Deploy backend on Render
+## Step 3: Configure Vercel
 
-Use `render.yaml` from repo root.
+Import the repo in Vercel and use:
 
-### Option A: Render Blueprint (recommended)
+- Root directory: `.`
+- Install command: `npm install`
+- Build command: `npm run generate --workspace server && npm run build --workspace client`
+- Output directory: `client/dist`
+- Framework preset: Vite
 
-1. Push repo to GitHub.
-2. In Render Dashboard, select New -> Blueprint.
-3. Connect your repo.
-4. Render creates service from `render.yaml`.
-5. Set secret env vars in Render:
-   - `DATABASE_URL`
-   - `JWT_SECRET`
-   - `REDIS_URL`
-   - `CORS_ORIGIN` (your Vercel URL)
+Add environment variables:
 
-### Option B: Manual Web Service
+```env
+NODE_ENV=production
+DATABASE_URL=postgresql://...
+JWT_SECRET=<generate with openssl rand -base64 32>
+REDIS_URL=redis://...
+CORS_ORIGIN=https://YOUR_VERCEL_PROJECT.vercel.app
+VITE_API_URL=/api
+```
 
-1. New -> Web Service in Render.
-2. Connect GitHub repo.
-3. Configure:
-   - Environment: `Docker`
-   - Dockerfile path: `server/Dockerfile`
-   - Health check path: `/health`
-4. Add env vars above.
-5. Deploy.
+## Step 4: Run Prisma Migrations
 
-After deploy, backend URL looks like:
-`https://furniture-erp-api.onrender.com`
+Run this before production release:
 
-## Step 4: Run Prisma migration
-
-Use Render Shell for backend service:
 ```bash
-npx prisma migrate deploy
+cd server
+DATABASE_URL="<your-supabase-pooled-url>" npx prisma migrate deploy
 ```
 
 Optional seed:
+
 ```bash
-npm run seed
+cd server
+DATABASE_URL="<your-supabase-pooled-url>" npm run seed
 ```
 
-## Step 5: Deploy frontend on Vercel
+## Step 5: Deploy
 
-### Option A: Vercel dashboard
-
-1. Import GitHub repo.
-2. Root directory: repo root (`.`).
-3. Build command:
-```bash
-npm run build --workspace client
-```
-4. Output directory: `client/dist`
-5. Install command:
-```bash
-npm install
-```
-6. Add env var:
-   - `VITE_API_URL=https://furniture-erp-api.onrender.com/api`
-
-### Option B: Vercel CLI
+Dashboard deployment happens automatically after import. CLI deployment:
 
 ```bash
 cd /home/manish/Documents/ERP
 vercel --prod
 ```
 
-When prompted, set:
-- Build command: `npm run build --workspace client`
-- Output directory: `client/dist`
-- Install command: `npm install`
+## Step 6: Verify
 
-## Step 6: Verify deployment
-
-Backend health:
-```bash
-curl https://furniture-erp-api.onrender.com/health
-```
-
-API health:
-```bash
-curl https://furniture-erp-api.onrender.com/api/health
-```
-
-Frontend:
 ```bash
 curl https://YOUR_VERCEL_PROJECT.vercel.app
+curl https://YOUR_VERCEL_PROJECT.vercel.app/health
+curl https://YOUR_VERCEL_PROJECT.vercel.app/api/health
+./health-check.sh https://YOUR_VERCEL_PROJECT.vercel.app https://YOUR_VERCEL_PROJECT.vercel.app
 ```
 
-End-to-end check:
-```bash
-./health-check.sh https://YOUR_VERCEL_PROJECT.vercel.app https://furniture-erp-api.onrender.com
-```
-
-## Required environment variables
-
-Render backend:
-- `NODE_ENV=production`
-- `PORT=4000`
-- `DATABASE_URL=postgresql://...`
-- `JWT_SECRET=...`
-- `REDIS_URL=redis://...`
-- `CORS_ORIGIN=https://YOUR_VERCEL_PROJECT.vercel.app`
-
-Vercel frontend:
-- `VITE_API_URL=https://furniture-erp-api.onrender.com/api`
-
-## Common issues
+## Common Issues
 
 1. CORS error:
-   - Ensure Render `CORS_ORIGIN` exactly matches Vercel domain.
+   Ensure `CORS_ORIGIN` exactly matches the browser origin.
+
 2. Prisma connection error:
-   - Use pooled Supabase URL.
-3. Cold starts on Render free tier:
-   - First request may be slow after inactivity.
-4. Frontend calling wrong API:
-   - Confirm `VITE_API_URL` in Vercel project env and redeploy.
+   Use the pooled Supabase URL and confirm migrations ran.
 
-## Redeploy workflow
+3. Frontend calling wrong API:
+   Set `VITE_API_URL=/api` and redeploy.
 
-Backend (Render): auto-deploy on git push.
-Frontend (Vercel): auto-deploy on git push.
+4. Product uploads disappear:
+   Vercel function storage is ephemeral. Move uploads to persistent object storage.
 
-Manual trigger by push:
+## Redeploy Workflow
+
+Vercel auto-deploys on git push. Manual trigger:
+
 ```bash
 git add .
 git commit -m "deploy update"

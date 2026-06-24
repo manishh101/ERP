@@ -19,6 +19,7 @@ export function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [googleScriptLoaded, setGoogleScriptLoaded] = useState(false);
+  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
   const modeRef = useRef(mode);
   const companyNameRef = useRef(companyName);
@@ -48,24 +49,33 @@ export function LoginPage() {
 
   // Initialize official Google button if script is loaded and client ID exists
   useEffect(() => {
-    const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
     if (!googleClientId || !googleScriptLoaded) return;
 
     try {
-      const g = (window as any).google;
+      const g = window.google;
       if (!g?.accounts?.id) return;
 
       g.accounts.id.initialize({
         client_id: googleClientId,
-        callback: async (response: any) => {
+        callback: async (response) => {
           setSubmitting(true);
           setError(null);
           try {
               const currentMode = modeRef.current;
               const currentCompany = companyNameRef.current;
+              const credential = response.credential;
+
+              if (!credential) {
+                throw new Error("Google did not return a credential.");
+              }
+
+              if (currentMode === "register" && !currentCompany.trim()) {
+                setError("Company name is required to create a workspace with Google.");
+                return;
+              }
 
               const user = await loginWithGoogle(
-                response.credential,
+                credential,
                 currentMode,
                 currentMode === "register" ? currentCompany : undefined,
               );
@@ -98,7 +108,7 @@ export function LoginPage() {
     } catch (err) {
       console.error("Failed to initialize Google Sign-In:", err);
     }
-  }, [googleScriptLoaded, mode]);
+  }, [googleClientId, googleScriptLoaded, loginWithGoogle, mode, navigate]);
 
   if (status === "authenticated") {
     return <Navigate to="/" replace />;
@@ -306,7 +316,13 @@ export function LoginPage() {
               </div>
 
               {/* Google Sign-In Button Container */}
-              <div id="google-signin-btn-container" className="flex justify-center w-full min-h-[44px]" />
+              {googleClientId ? (
+                <div id="google-signin-btn-container" className="flex min-h-[44px] w-full justify-center" />
+              ) : (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-800">
+                  Google sign-in is not configured. Add VITE_GOOGLE_CLIENT_ID and GOOGLE_CLIENT_ID to enable it.
+                </div>
+              )}
 
               {/* Dev Mock Sign-In Button */}
               {import.meta.env.DEV && (

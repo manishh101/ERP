@@ -1,249 +1,213 @@
-# Furniture ERP — Production Deployment & Runbook
+# Furniture ERP - Vercel Production Deployment & Runbook
 
-This document is a single, detailed runbook describing how to deploy, operate, and maintain the Furniture ERP application in production (Vercel frontend + Render backend). It includes step-by-step commands, required environment variables, troubleshooting, monitoring, scaling guidance, and maintenance best-practices.
+This runbook describes how to deploy, operate, and maintain the Furniture ERP application in production with Vercel hosting both the frontend and backend. The app remains a monorepo:
 
----
-
-## Table of Contents
-
-- Overview
-- Architecture
-- Prerequisites
-- Preparing the repository
-- Provision managed services (Supabase, Upstash)
-- Backend deployment (Render)
-  - Render Blueprint (recommended)
-  - Manual Web Service
-  - Secrets and env vars
-  - Run migrations & seed
-- Frontend deployment (Vercel)
-  - Project settings
-  - Build & environment variables
-- DNS, SSL, and custom domains
-- Verification and health checks
-- CI/CD & automated deploys
-- Monitoring, logs, and alerting
-- Backups & recovery
-- Scaling & performance
-- Security checklist
-- Troubleshooting common issues
-- Useful commands & quick reference
-
----
+- `client/` - React + Vite frontend
+- `server/` - Express API with Prisma and PostgreSQL
+- `api/` - Vercel serverless entrypoints that mount the Express app
 
 ## Overview
 
-This repo contains a full-stack ERP application with two workspaces:
-- `client/` — React + Vite frontend
-- `server/` — Express API with Prisma & PostgreSQL
+Recommended production stack:
 
-Recommended production stack (free-friendly):
-- Frontend: Vercel (static SPA)
-- Backend: Render (Docker Web Service)
-- Database: Supabase (managed Postgres)
-- Redis/Cache: Upstash (serverless Redis)
+- Frontend: Vercel static build from `client/dist`
+- Backend: Vercel Node.js Functions under `/api/*`
+- Database: Supabase managed Postgres
+- Redis/Cache: Upstash Redis
+- File uploads: external object storage recommended for production
 
-The existing repo includes the following production-ready artifacts:
-- `server/Dockerfile` — multi-stage Docker build for the API
-- `client/nginx.conf` and `client/Dockerfile` — optional static server
-- `render.yaml` — Render blueprint for backend
-- `vercel.json` — Vercel config for frontend
-- `docker-compose.prod.yml` — optional docker-compose for VPS-based deployments
-- `validate-production.sh` and `health-check.sh` — validation and health scripts
+The Vercel setup is handled by:
 
----
+- `vercel.json` - monorepo build, output directory, headers, and rewrites
+- `api/[...path].ts` - catches backend API routes on Vercel
+- `api/index.ts` - supports the `/api` entrypoint
+- `server/src/app.ts` - creates the Express app without requiring `app.listen`
+
+Important limitation: Vercel function storage is ephemeral. Product image uploads currently use local disk (`uploads/products`), so use S3, Supabase Storage, Cloudinary, or another persistent object store before relying on uploads in production.
 
 ## Architecture
 
-- User -> Vercel-hosted SPA (`client/dist`) served over HTTPS
-- SPA → Backend API (`/api/*`) hosted on Render
-- Backend → Supabase (Postgres) for persistent data
-- Backend → Upstash/Redis for caching, session/state
-- Prisma client in backend connects to Postgres; use pooled connection URL
-- Files and uploads stored in `server/uploads` (mounted volume on Render if needed)
+- User -> Vercel-hosted SPA served over HTTPS
+- SPA -> same Vercel deployment at `/api/*`
+- Vercel Function -> Express app from `server/src/app.ts`
+- Express -> Supabase Postgres through Prisma
+- Express -> Upstash Redis for cache
 
----
+Because frontend and backend share the same Vercel domain, the frontend can use:
+
+```env
+VITE_API_URL=/api
+```
+
+For a separate frontend/backend Vercel project split, set `VITE_API_URL` to the backend project's URL plus `/api`.
 
 ## Prerequisites
 
-- GitHub repository (connected to Vercel and Render)
-- Accounts: Vercel, Render, Supabase, Upstash, GitHub
-- Local tools (optional but helpful): `vercel`, `flyctl` not needed now, `render` CLI optional
-
-Install CLI tools (optional):
+- GitHub repository connected to Vercel
+- Vercel account
+- Supabase account
+- Upstash account
+- Local Node.js/npm for verification
+- Optional Vercel CLI:
 
 ```bash
 npm install -g vercel
-# Render CLI optional: curl -sL https://cdn.render.com/cli/install.sh | bash
 ```
 
----
+## Prepare The Repository
 
-## Preparing the repository
-
-1. Ensure your repository is on GitHub and up-to-date:
+1. Confirm dependencies install and the frontend builds:
 
 ```bash
-cd /home/manish/Documents/ERP
+npm install
+npm run generate --workspace server
+npm run build --workspace client
+```
+
+2. Confirm the backend TypeScript still passes:
+
+```bash
+npm run lint --workspace server
+```
+
+3. Push the repository to GitHub:
+
+```bash
 git add .
-git commit -m "Prepare for production deployment"
+git commit -m "Deploy backend on Vercel"
 git push origin main
 ```
 
-2. Confirm build artifacts locally:
+## Provision Managed Services
+
+### Supabase Postgres
+
+1. Create a Supabase project.
+2. Copy the pooled Postgres connection string.
+3. Save it as `DATABASE_URL` in Vercel.
+4. If your migration workflow needs a direct connection, keep `DIRECT_URL` locally or in a secure CI secret.
+
+### Upstash Redis
+
+1. Create an Upstash Redis database.
+2. Copy the Redis URL.
+3. Save it as `REDIS_URL` in Vercel.
+
+### JWT Secret
+
+Generate a strong secret:
 
 ```bash
-npm run build
-# check outputs
-ls -lh client/dist
-ls -lh server/dist
+openssl rand -base64 32
 ```
 
-3. Run validation script to ensure setup is correct:
+Save it as `JWT_SECRET` in Vercel.
+
+## Vercel Project Setup
+
+Import the repository in Vercel and use these settings:
+
+- Root directory: `.`
+- Install command: `npm install`
+- Build command: `npm run generate --workspace server && npm run build --workspace client`
+- Output directory: `client/dist`
+- Framework preset: Vite
+
+These values are also committed in `vercel.json`, so Vercel should pick them up automatically.
+
+## Vercel Environment Variables
+
+Set these in Vercel Project Settings -> Environment Variables for Production, Preview, and Development as needed:
+
+```env
+NODE_ENV=production
+DATABASE_URL=postgresql://postgres:...@...:6543/postgres?schema=public
+JWT_SECRET=<generated-secret>
+JWT_EXPIRES_IN=8h
+REDIS_URL=redis://default:...@...:6379
+CORS_ORIGIN=https://YOUR_VERCEL_PROJECT.vercel.app
+VITE_API_URL=/api
+```
+
+If you add a custom domain, update `CORS_ORIGIN` to that exact origin. For multiple allowed origins, use a comma-separated value:
+
+```env
+CORS_ORIGIN=https://yourdomain.com,https://YOUR_VERCEL_PROJECT.vercel.app
+```
+
+`PORT` is not required for Vercel Functions. The existing `server/src/index.ts` still uses `PORT` for local or container deployments.
+
+## Prisma Migrations
+
+Vercel deploys the serverless function, but it should not be your primary migration runner. Run migrations intentionally before or during release.
+
+Local migration against production:
 
 ```bash
-./validate-production.sh
+cd server
+DATABASE_URL="<your-supabase-pooled-url>" npx prisma migrate deploy
 ```
 
-If the validation script reports any issues, resolve them before proceeding.
-
----
-
-## Provision managed services
-
-### Supabase (Postgres)
-
-1. Create a new project on https://app.supabase.com
-2. Select a project name (e.g., `furniture-erp`) and region
-3. Record the **Connection pooling** Postgres URL (use pooled connection to avoid idle connection limits)
-4. Save that URL as `DATABASE_URL` (see env var list below)
-
-### Upstash (Redis)
-
-1. Create a Redis database at https://console.upstash.com
-2. Copy the Redis connection URL (e.g. `redis://default:<token>@<host>:6379`)
-3. Save as `REDIS_URL`
-
-Environment secrets / values you will collect:
-- `DATABASE_URL` (Supabase pooled connection string)
-- `REDIS_URL` (Upstash)
-- `JWT_SECRET` (generate: `openssl rand -base64 32`)
-- `CORS_ORIGIN` (set to the final frontend domain, e.g., `https://your-app.vercel.app`)
-
----
-
-## Backend deployment (Render)
-
-We recommend using the `render.yaml` blueprint in the repo so Render can create the service automatically.
-
-### A — Render Blueprint (recommended)
-
-1. Push your GitHub repo
-2. Go to https://dashboard.render.com → New → Blueprint
-3. Connect your GitHub repo and select the repository
-4. Render will detect `render.yaml` and propose a service. Confirm.
-5. In Render service settings, add the required secrets (Environment > Encrypted env vars):
-   - `DATABASE_URL` (Supabase pooled URL)
-   - `JWT_SECRET`
-   - `REDIS_URL`
-   - `CORS_ORIGIN`
-6. Deploy — Render will build using `server/Dockerfile` and run the container.
-
-### B — Manual Web Service
-
-1. Dashboard → New → Web Service
-2. Connect GitHub repo and choose service type `Docker`
-3. Set Dockerfile path: `server/Dockerfile`
-4. Set Health check path: `/health`
-5. Add environment variables (same list above)
-6. Deploy
-
-### Secrets and environment variables (Render)
-
-- `NODE_ENV=production`
-- `PORT=4000`
-- `DATABASE_URL` (required)
-- `JWT_SECRET` (required)
-- `REDIS_URL` (required if caching/session used)
-- `CORS_ORIGIN` (frontend domain)
-
-Set these in the Render dashboard under the service’s Environment tab (Encrypted).
-
-### Run migrations & seed on Render
-
-Open the Render Shell (from the service) and run:
+Optional seed:
 
 ```bash
-npx prisma migrate deploy
-# optional
-npm run seed
+cd server
+DATABASE_URL="<your-supabase-pooled-url>" npm run seed
 ```
 
-If you prefer local migration against the same `DATABASE_URL` you can run:
+For CI, store `DATABASE_URL` as a protected GitHub Actions secret and run `npx prisma migrate deploy` before promoting a production deployment.
+
+## Deployment
+
+### Dashboard
+
+1. Go to Vercel and import the GitHub repository.
+2. Confirm the project settings above.
+3. Add environment variables.
+4. Deploy.
+
+### CLI
 
 ```bash
-DATABASE_URL="<your-supabase-url>" npx prisma migrate deploy
+vercel
+vercel --prod
 ```
 
----
+## DNS, SSL, And Domains
 
-## Frontend deployment (Vercel)
+- Vercel manages HTTPS certificates for the frontend and API.
+- Add your custom domain in the Vercel dashboard.
+- Update `CORS_ORIGIN` after the domain is active.
+- Keep `VITE_API_URL=/api` when the SPA and API share one deployment.
 
-1. Go to https://vercel.com/new and import the GitHub repository.
-2. When configuring the project, set:
-   - Root directory: `.` (repo root)
-   - Install command: `npm install`
-   - Build command: `npm run build --workspace client`
-   - Output directory: `client/dist`
-3. Add Environment Variable (in Vercel project settings):
-   - `VITE_API_URL` = `https://<render-service>.onrender.com/api` (or your custom API domain)
-4. Deploy — Vercel will build and publish the static site.
-
-Notes: Vercel performs automatic deployments on each push.
-
----
-
-## DNS, SSL, and custom domains
-
-- Vercel will manage SSL for your frontend domain automatically when you add a custom domain.
-- For API (Render) you can use the `.onrender.com` domain or add a custom subdomain (`api.yourdomain.com`) via the Render dashboard and create the DNS CNAME entry.
-- After setting the custom domains, update `CORS_ORIGIN` on Render and `VITE_API_URL` on Vercel to match the live domains.
-
----
-
-## Verification & health checks
-
-Use the health-check script to confirm both frontend and backend are responsive:
-
-```bash
-./health-check.sh https://YOUR_VERCEL_PROJECT.vercel.app https://furniture-erp-api.onrender.com
-```
+## Verification
 
 Manual checks:
 
 ```bash
-# Backend
-curl -i https://furniture-erp-api.onrender.com/health
-curl -i https://furniture-erp-api.onrender.com/api/health
-
-# Frontend
 curl -i https://YOUR_VERCEL_PROJECT.vercel.app
+curl -i https://YOUR_VERCEL_PROJECT.vercel.app/health
+curl -i https://YOUR_VERCEL_PROJECT.vercel.app/api/health
 ```
 
-Open the site and perform the main user flows (login, list pages, create records).
+Health-check script:
 
----
+```bash
+./health-check.sh https://YOUR_VERCEL_PROJECT.vercel.app https://YOUR_VERCEL_PROJECT.vercel.app
+```
 
-## CI/CD & automated deploys
+Then open the app and test:
 
-- Vercel: automatic on push to configured branches (e.g., `main`).
-- Render: automatic on push if enabled (Blueprint or manual). Render also supports webhooks for custom pipelines.
+- Login
+- Dashboard load
+- Product list
+- Invoice creation
+- PDF download
+- Any Redis-backed dashboard/reporting endpoints
 
-Recommended GitHub Actions (example):
-- Run tests and TypeScript checks on PRs
-- Run `npm run build` on `main` before merge
+## CI/CD
 
-Example GitHub Action skeleton (create `.github/workflows/ci.yml`):
+Vercel deploys automatically on pushes to connected branches. Recommended CI checks before merge:
 
 ```yaml
 name: CI
@@ -252,142 +216,107 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
       - run: npm ci
-      - run: npm run lint
+      - run: npm run lint --workspace server
       - run: npm run build --workspace client
-      - run: npm run build --workspace server
 ```
 
-Deployments will be handled by Vercel/Render on push.
+Run production migrations as a separate protected release step, not on every preview deployment.
 
----
+## Monitoring And Logs
 
-## Monitoring, logs, and alerting
-
-- **Render**: view logs in service → Logs. Use Render alerts for failure or deployment issues.
-- **Vercel**: check Deployments page and logs for build/runtime issues.
-- **Supabase**: monitor database usage, backups, slow queries.
-- **Upstash**: monitor command usage and latency.
+- Vercel: deployment logs, function logs, runtime errors, and analytics
+- Supabase: database usage, backups, slow queries, and connection count
+- Upstash: Redis command usage and latency
 
 Recommended additions:
-- Sentry for error tracking in both client and server
-- Prometheus/Grafana or a hosted APM (Datadog/New Relic) for traces and metrics
-- Uptime monitor (UptimeRobot, Healthchecks.io) pinging `/health` endpoints
 
----
+- Sentry for client and server errors
+- Uptime monitor pinging `/api/health`
+- Database backup alerts
 
-## Backups & recovery
+## Backups And Recovery
 
-- Supabase: enable automated snapshots and daily backups (check project settings)
-- Manual backup using `pg_dump`:
+Enable Supabase backups. For manual backups:
 
 ```bash
-# create backup from a machine with access to DB
-pg_dump $DATABASE_URL > backup.sql
-# restore
-psql $DATABASE_URL < backup.sql
+pg_dump "$DATABASE_URL" > backup.sql
+psql "$DATABASE_URL" < backup.sql
 ```
 
-- Keep backup copies off-site (S3, bucket) and test restore procedures periodically.
+Keep backup copies outside the database provider and periodically test restore.
 
----
+## Scaling And Performance
 
-## Scaling & performance
+- Use Supabase connection pooling for `DATABASE_URL`.
+- Keep Prisma queries efficient and indexed.
+- Cache expensive dashboard/reporting endpoints in Upstash Redis.
+- Move uploads to object storage before heavy product-image usage.
+- Watch Vercel function duration and memory usage for PDF generation and large reports.
 
-- Render scales by increasing plan or concurrent instances.
-- Use Redis (Upstash) to cache expensive queries and sessions.
-- Add database indexes where queries are slow; profile via Supabase query logs.
-- For frontend, enable CDN (Vercel provides this by default) and set long cache headers for static assets.
-- Use gzip compression (already enabled in `server/app.ts` and Nginx) and image optimization.
+## Security Checklist
 
----
+- [ ] Use a strong `JWT_SECRET`
+- [ ] Store all secrets in Vercel, not in Git
+- [ ] Set `CORS_ORIGIN` to exact production/preview origins
+- [ ] Use Supabase pooled database URL
+- [ ] Restrict database privileges where possible
+- [ ] Keep Redis password-protected
+- [ ] Keep dependencies updated
+- [ ] Replace local disk uploads with persistent object storage
 
-## Security checklist
+## Troubleshooting
 
-- [ ] Use a strong `JWT_SECRET` and rotate periodically
-- [ ] Do not commit `.env` files to Git; use Render/Vercel secret stores
-- [ ] Configure `CORS_ORIGIN` to only allow your frontend domains
-- [ ] Ensure TLS/HTTPS everywhere (Vercel & Render manage certificates)
-- [ ] Limit database user privileges and avoid exposing DB to public internet
-- [ ] Ensure Redis access is limited and password-protected
-- [ ] Enable rate limiting and security middleware (helmet, rate-limit) — already present
-- [ ] Keep dependencies up-to-date and schedule monthly audits
+1. API returns 500:
+   Check Vercel Function logs, `DATABASE_URL`, `JWT_SECRET`, and whether migrations ran.
 
----
+2. Prisma client missing or stale:
+   Confirm the Vercel build command includes `npm run generate --workspace server`.
 
-## Troubleshooting common issues
+3. CORS errors:
+   Confirm `CORS_ORIGIN` exactly matches the browser origin, including `https://`.
 
-1. CORS errors:
-   - Confirm `CORS_ORIGIN` value on Render matches Vercel domain exactly (including https://)
-2. Prisma connection errors:
-   - Make sure `DATABASE_URL` is the pooled connection string
-   - Check DB network & allowed IPs
-3. Backend 500 errors:
-   - Check Render logs and stack traces
-   - Re-run migrations
-4. Frontend build fails on Vercel:
-   - Run `npm run build --workspace client` locally to reproduce
-   - Ensure `VITE_API_URL` is set in Vercel environment variables
-5. Uploads not persisting:
-   - Ensure `server/uploads` is persisted (on Render use persistent disk or external object storage)
+4. Frontend calls the wrong backend:
+   Use `VITE_API_URL=/api` for the single-project Vercel setup and redeploy after changing env vars.
 
----
+5. Uploads disappear:
+   This is expected on Vercel's ephemeral function filesystem. Move image storage to a persistent provider.
 
-## Useful commands & quick reference
+6. Long report or PDF requests fail:
+   Check Vercel function duration limits and optimize the query/PDF generation path.
+
+## Useful Commands
 
 ```bash
-# Build locally
-npm run build
+# Local frontend build
+npm run build --workspace client
 
-# Validate production readiness
-./validate-production.sh
+# Generate Prisma client
+npm run generate --workspace server
 
-# Health check
-./health-check.sh https://YOUR_VERCEL_PROJECT.vercel.app https://furniture-erp-api.onrender.com
+# Server type check
+npm run lint --workspace server
 
-# Render: manual deploy (if using CLI)
-# (Render CLI install instructions are on Render docs)
-render deploy --service furniture-erp-api
-
-# Vercel: deploy via CLI
+# Deploy with Vercel CLI
 vercel --prod
 
-# Prisma migrations locally
+# Production migrations
+cd server
 DATABASE_URL="<url>" npx prisma migrate deploy
-npx prisma db seed
-
-# Backup DB
-pg_dump $DATABASE_URL > backup.sql
-
-# Restore DB
-psql $DATABASE_URL < backup.sql
 ```
 
----
+## Environment Variable Reference
 
-## Appendix: Environment variables (full list)
+- `NODE_ENV` - `production`
+- `DATABASE_URL` - Supabase pooled Postgres URL
+- `JWT_SECRET` - required strong random string
+- `JWT_EXPIRES_IN` - optional, defaults to `8h`
+- `REDIS_URL` - Upstash Redis URL
+- `CORS_ORIGIN` - frontend origin(s), comma-separated if needed
+- `VITE_API_URL` - `/api` for single-project Vercel deployments
 
-- `NODE_ENV` — `production`
-- `PORT` — `4000` (Render will set HTTP port)
-- `DATABASE_URL` — Supabase pooled Postgres URL (required)
-- `JWT_SECRET` — strong random string (required)
-- `JWT_EXPIRES_IN` — e.g. `8h` (optional)
-- `REDIS_URL` — Upstash URL (optional but recommended)
-- `CORS_ORIGIN` — frontend domain, e.g., `https://your-app.vercel.app`
-- `VITE_API_URL` — set in Vercel to point to Render API (e.g., `https://furniture-erp-api.onrender.com/api`)
-
----
-
-## Final notes
-
-- This runbook aims to be complete and actionable. Follow the steps in the order provided.
-- Keep `DEPLOY_SECRETS_CHECKLIST.md` private; never commit secrets.
-- If you want, I can now: (A) walk you through Render’s Blueprint import step-by-step, (B) run the Vercel CLI deploy locally, or (C) prepare a PR with these docs and the required `render.yaml` already added (done).
-
----
-
-*Created on May 11, 2026.*
+*Updated on June 22, 2026.*

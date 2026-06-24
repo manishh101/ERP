@@ -1,6 +1,9 @@
 {
   "version": 2,
   "framework": "vite",
+  "installCommand": "npm install",
+  "buildCommand": "npm run generate --workspace server && npm run build --workspace client",
+  "outputDirectory": "client/dist",
   "regions": ["iad1"],
   "headers": [
     {
@@ -22,6 +25,14 @@
     }
   ],
   "rewrites": [
+    {
+      "source": "/health",
+      "destination": "/api/health"
+    },
+    {
+      "source": "/uploads/(.*)",
+      "destination": "/api/uploads/$1"
+    },
     {
       "source": "/(.*)",
       "destination": "/index.html"

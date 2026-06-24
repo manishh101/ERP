@@ -35,8 +35,8 @@ const emptyCompanyProfile = {
 };
 
 const emptyCurrencySettings = {
-  baseCurrency: "USD",
-  supportedCurrencies: "USD",
+  baseCurrency: "NPR",
+  supportedCurrencies: "NPR",
   multiCurrencyEnabled: false,
 };
 
@@ -62,6 +62,17 @@ function parseCsvInput(value: string) {
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function normalizeCurrencyCode(value: string) {
+  const normalized = value.trim().toUpperCase();
+  return normalized && /^[A-Z]{3}$/.test(normalized) && normalized !== "USD"
+    ? normalized
+    : "NPR";
+}
+
+function formatSupportedCurrencies(value: string) {
+  return formatCsv(Array.from(new Set(parseCsvInput(value).map(normalizeCurrencyCode))));
 }
 
 export function SettingsPage() {
@@ -141,8 +152,10 @@ export function SettingsPage() {
         website: data.companyProfile.website ?? "",
       });
       setCurrencySettings({
-        baseCurrency: data.currency.baseCurrency,
-        supportedCurrencies: formatCsv(data.currency.supportedCurrencies),
+        baseCurrency: normalizeCurrencyCode(data.currency.baseCurrency),
+        supportedCurrencies: formatCsv(
+          data.currency.supportedCurrencies.map(normalizeCurrencyCode),
+        ),
         multiCurrencyEnabled: data.currency.multiCurrencyEnabled,
       });
       setNotificationSettings({
@@ -267,7 +280,7 @@ export function SettingsPage() {
 
     const supportedCurrencies = parseCsvInput(
       currencySettings.supportedCurrencies,
-    ).map((item) => item.toUpperCase());
+    ).map(normalizeCurrencyCode);
     const overdueInvoiceDays = parseCsvInput(
       notificationSettings.overdueInvoiceDays,
     )
@@ -296,7 +309,7 @@ export function SettingsPage() {
           method: "PATCH",
           token,
           body: {
-            baseCurrency: currencySettings.baseCurrency.toUpperCase(),
+            baseCurrency: normalizeCurrencyCode(currencySettings.baseCurrency),
             supportedCurrencies,
             multiCurrencyEnabled: currencySettings.multiCurrencyEnabled,
           },
@@ -509,15 +522,10 @@ export function SettingsPage() {
             <div className="space-y-3 rounded-2xl border border-border bg-white p-4">
               <p className="font-semibold">Currency</p>
               <Input
-                value={currencySettings.baseCurrency}
-                onChange={(event) =>
-                  setCurrencySettings((current) => ({
-                    ...current,
-                    baseCurrency: event.target.value.toUpperCase(),
-                  }))
-                }
+                value="NPR"
                 placeholder="Base currency"
                 maxLength={3}
+                disabled
               />
               <Input
                 value={currencySettings.supportedCurrencies}
@@ -525,6 +533,12 @@ export function SettingsPage() {
                   setCurrencySettings((current) => ({
                     ...current,
                     supportedCurrencies: event.target.value,
+                  }))
+                }
+                onBlur={(event) =>
+                  setCurrencySettings((current) => ({
+                    ...current,
+                    supportedCurrencies: formatSupportedCurrencies(event.target.value),
                   }))
                 }
                 placeholder="Supported currencies, comma separated"

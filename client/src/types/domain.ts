@@ -27,6 +27,7 @@ export type AuthUser = {
   role: UserRole;
   isActive?: boolean;
   workspaceName?: string;
+  currency?: string;
 };
 
 export type DashboardRecentSalesOrder = {

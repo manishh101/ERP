@@ -686,6 +686,18 @@ function normalizeStringArray(value: unknown) {
   return value.filter((item): item is string => typeof item === "string");
 }
 
+function normalizeCurrencyCode(value?: string | null) {
+  const normalized = value?.trim().toUpperCase();
+  return normalized && /^[A-Z]{3}$/.test(normalized) && normalized !== "USD"
+    ? normalized
+    : "NPR";
+}
+
+function normalizeSupportedCurrencies(value: unknown) {
+  const currencies = normalizeStringArray(value).map(normalizeCurrencyCode);
+  return Array.from(new Set(["NPR", ...currencies]));
+}
+
 function normalizeNumberArray(value: unknown) {
   if (!Array.isArray(value)) {
     return [];
@@ -839,6 +851,10 @@ function mapUsers(payload: PaginatedResponse<RawUser>) {
 }
 
 function mapSettings(payload: RawSettingsPayload): SettingsPayload {
+  const supportedCurrencies = normalizeSupportedCurrencies(
+    payload.currencySetting?.supportedCurrencies,
+  );
+
   return {
     companyProfile: {
       name: payload.companyProfile?.name ?? "",
@@ -851,9 +867,11 @@ function mapSettings(payload: RawSettingsPayload): SettingsPayload {
       website: payload.companyProfile?.website ?? "",
     },
     currency: {
-      baseCurrency: payload.currencySetting?.baseCurrency ?? "USD",
-      supportedCurrencies: normalizeStringArray(payload.currencySetting?.supportedCurrencies),
-      multiCurrencyEnabled: payload.currencySetting?.multiCurrencyEnabled ?? false,
+      baseCurrency: "NPR",
+      supportedCurrencies,
+      multiCurrencyEnabled:
+        (payload.currencySetting?.multiCurrencyEnabled ?? false) &&
+        supportedCurrencies.length > 1,
     },
     invoiceTemplate: {
       primaryColor: payload.invoiceTemplate?.primaryColor ?? "#7c5c45",

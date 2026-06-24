@@ -9,6 +9,7 @@ import { validate } from "../middleware/validate";
 import { rateLimit } from "../middleware/rate-limit";
 import { changePasswordSchema, loginSchema, registerSchema } from "../schemas/domain";
 import { ApiError } from "../utils/api-error";
+import { normalizeCurrencyCode } from "../utils/currency";
 import { normalizeEmail, normalizeName } from "../utils/identity";
 import { signToken } from "../utils/jwt";
 
@@ -113,9 +114,9 @@ async function seedTenantDefaults(
   await tx.currencySetting.create({
     data: {
       tenantId,
-      baseCurrency: "USD",
-      supportedCurrencies: ["USD", "NPR", "INR"],
-      multiCurrencyEnabled: true,
+      baseCurrency: "NPR",
+      supportedCurrencies: ["NPR"],
+      multiCurrencyEnabled: false,
     },
   });
 
@@ -198,7 +199,7 @@ async function seedTenantDefaults(
 // Helper: build the standard JWT + response payload
 // ---------------------------------------------------------------------------
 
-function buildAuthResponse(user: {
+async function buildAuthResponse(user: {
   id: string;
   tenantId: string;
   role: string;
@@ -214,6 +215,11 @@ function buildAuthResponse(user: {
     name: user.name,
   });
 
+  const currencySetting = await prisma.currencySetting.findFirst({
+    where: { tenantId: user.tenantId },
+    select: { baseCurrency: true },
+  });
+
   return {
     token,
     user: {
@@ -223,6 +229,7 @@ function buildAuthResponse(user: {
       role: user.role,
       tenantId: user.tenantId,
       workspaceName: user.tenant?.name,
+      currency: normalizeCurrencyCode(currencySetting?.baseCurrency),
     },
   };
 }
@@ -306,7 +313,8 @@ authRouter.post(
       passwordHash: await bcrypt.hash(body.password, 10),
     });
 
-    response.status(201).json(buildAuthResponse(user));
+    const authResponse = await buildAuthResponse(user);
+    response.status(201).json(authResponse);
   }),
 );
 
@@ -355,7 +363,8 @@ authRouter.post(
         googleId: sub,
       });
 
-      response.status(201).json(buildAuthResponse(createdUser));
+      const authResponse = await buildAuthResponse(createdUser);
+      response.status(201).json(authResponse);
       return;
     }
 
@@ -383,7 +392,8 @@ authRouter.post(
       );
     }
 
-    response.status(200).json(buildAuthResponse(user));
+    const authResponse = await buildAuthResponse(user);
+    response.status(200).json(authResponse);
   }),
 );
 
@@ -420,7 +430,8 @@ authRouter.post(
       throw new ApiError(401, "Invalid credentials");
     }
 
-    response.json(buildAuthResponse(user));
+    const authResponse = await buildAuthResponse(user);
+    response.json(authResponse);
   }),
 );
 
@@ -484,24 +495,30 @@ authRouter.get(
   "/me",
   requireAuth,
   asyncHandler(async (request, response) => {
-    const user = await prisma.user.findUnique({
-      where: {
-        id: request.user!.id,
-      },
-      select: {
-        id: true,
-        tenantId: true,
-        name: true,
-        email: true,
-        role: true,
-        isActive: true,
-        tenant: {
-          select: {
-            name: true,
+    const [user, currencySetting] = await Promise.all([
+      prisma.user.findUnique({
+        where: {
+          id: request.user!.id,
+        },
+        select: {
+          id: true,
+          tenantId: true,
+          name: true,
+          email: true,
+          role: true,
+          isActive: true,
+          tenant: {
+            select: {
+              name: true,
+            },
           },
         },
-      },
-    });
+      }),
+      prisma.currencySetting.findFirst({
+        where: { tenantId: request.user!.tenantId },
+        select: { baseCurrency: true },
+      }),
+    ]);
 
     if (!user) {
       throw new ApiError(404, "User not found");
@@ -515,6 +532,7 @@ authRouter.get(
       role: user.role,
       isActive: user.isActive,
       workspaceName: user.tenant?.name,
+      currency: normalizeCurrencyCode(currencySetting?.baseCurrency),
     });
   }),
 );

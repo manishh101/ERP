@@ -18,9 +18,11 @@ import { getPagination } from "../utils/pagination";
 import { ApiError } from "../utils/api-error";
 
 export const productsRouter = Router();
+const isVercel = Boolean(process.env.VERCEL);
 
 // ── Multer setup for product images ──────────────────────────────────────────
-const uploadDir = path.join(process.cwd(), "uploads", "products");
+const uploadRoot = isVercel ? path.join("/tmp", "uploads") : path.join(process.cwd(), "uploads");
+const uploadDir = path.join(uploadRoot, "products");
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
 const storage = multer.diskStorage({
@@ -330,6 +332,14 @@ productsRouter.post(
   "/:id/images",
   requireRole(["ADMIN", "WAREHOUSE", "SALES"]),
   validate(idParamSchema, "params"),
+  (request, response, next) => {
+    if (isVercel) {
+      return response.status(501).json({
+        message: "Product image uploads need persistent object storage on Vercel.",
+      });
+    }
+    next();
+  },
   upload.array("images", 10) as any,
   asyncHandler(async (request, response) => {
     const params = request.validated?.params as { id: string };
@@ -382,4 +392,3 @@ productsRouter.delete(
     response.json({ imageUrls: updated.imageUrls });
   }),
 );
-

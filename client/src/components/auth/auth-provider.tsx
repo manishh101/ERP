@@ -4,6 +4,8 @@ import { apiRequest } from "@/lib/api";
 import { queryClient } from "@/lib/query-client";
 import type { AuthUser } from "@/types/domain";
 
+import { setGlobalCurrency } from "@/lib/utils";
+
 type AuthStatus = "loading" | "authenticated" | "unauthenticated";
 
 type LoginPayload = {
@@ -57,6 +59,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(() => getStoredToken());
   const [user, setUser] = useState<AuthUser | null>(null);
   const [status, setStatus] = useState<AuthStatus>(() => (getStoredToken() ? "loading" : "unauthenticated"));
+
+  // Keep formatCurrency aligned with the logged-in user's tenant base currency
+  useEffect(() => {
+    if (user?.currency) {
+      setGlobalCurrency(user.currency);
+    } else {
+      setGlobalCurrency("NPR");
+    }
+  }, [user]);
 
   useEffect(() => {
     if (!token) {

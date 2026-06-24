@@ -166,18 +166,33 @@ inventoryRouter.get(
 
 inventoryRouter.get(
   "/valuation",
+  validate(listQuerySchema, "query"),
   asyncHandler(async (request, response) => {
-    const variants = await prisma.productVariant.findMany({
-      where: { tenantId: request.user!.tenantId },
-      include: {
-        product: true,
-        inventoryItems: {
-          include: {
-            warehouse: true,
+    // #17 Fix: Paginate valuation instead of loading everything into memory
+    const query = request.validated?.query as {
+      page: number;
+      pageSize: number;
+    };
+
+    const where = {
+      tenantId: request.user!.tenantId,
+    };
+
+    const [variants, total] = await Promise.all([
+      prisma.productVariant.findMany({
+        where,
+        include: {
+          product: true,
+          inventoryItems: {
+            include: {
+              warehouse: true,
+            },
           },
         },
-      },
-    });
+        ...getPagination(query.page, query.pageSize),
+      }),
+      prisma.productVariant.count({ where }),
+    ]);
 
     const items = variants.map((variant) => {
       const unitCost = toNumber(variant.product.costPrice) + toNumber(variant.additionalCost);
@@ -201,9 +216,28 @@ inventoryRouter.get(
       };
     });
 
+    // Calculate total valuation across all variants (not just this page)
+    const allVariants = await prisma.productVariant.findMany({
+      where,
+      include: { product: { select: { costPrice: true } } },
+      select: {
+        stockQuantity: true,
+        additionalCost: true,
+        product: { select: { costPrice: true } },
+      },
+    });
+
+    const totalValue = allVariants.reduce((sum, v) => {
+      const uc = toNumber(v.product.costPrice) + toNumber(v.additionalCost);
+      return sum + uc * v.stockQuantity;
+    }, 0);
+
     response.json({
       items,
-      totalValue: items.reduce((sum, item) => sum + item.totalValue, 0),
+      total,
+      page: query.page,
+      pageSize: query.pageSize,
+      totalValue,
     });
   }),
 );

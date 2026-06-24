@@ -17,6 +17,7 @@ import { toNumber } from "../utils/number";
 import { getBsDate, getCurrentFiscalYear } from "../shared/fiscal-year.util";
 import { createOrder, confirmOrder, cancelOrder } from "../modules/sales-orders/sales-order.service";
 import { recordPayment } from "../modules/payments/payment.service";
+import { invalidateCache, CACHE_KEYS } from "../config/redis";
 
 export const salesOrdersRouter = Router();
 
@@ -123,6 +124,16 @@ salesOrdersRouter.post(
       isCustomOrder: body.isCustomOrder,
       expectedReadyDate: body.expectedReadyDate,
     });
+
+    // #19: Invalidate dashboard caches after financial mutation
+    const tenantId = request.user!.tenantId;
+    await invalidateCache(
+      CACHE_KEYS.AR_AGING(tenantId),
+      CACHE_KEYS.TOP_ENTITIES(tenantId),
+      CACHE_KEYS.FINANCIAL_SUMMARY_TODAY(tenantId),
+      CACHE_KEYS.FINANCIAL_SUMMARY_MONTH(tenantId),
+      CACHE_KEYS.FINANCIAL_SUMMARY_YEAR(tenantId),
+    );
 
     response.status(201).json(order);
   }),

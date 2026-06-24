@@ -7,11 +7,26 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-/** Format currency in Nepali Lakhs/Crores system (e.g., Rs.1,50,000) */
-export function formatCurrency(value: number, currency = "NPR") {
+const DEFAULT_CURRENCY = "NPR";
+
+function normalizeCurrency(currency?: string) {
+  const normalized = currency?.trim().toUpperCase();
+  return normalized && /^[A-Z]{3}$/.test(normalized) && normalized !== "USD"
+    ? normalized
+    : DEFAULT_CURRENCY;
+}
+
+let globalCurrency = DEFAULT_CURRENCY;
+
+export function setGlobalCurrency(currency: string) {
+  globalCurrency = normalizeCurrency(currency);
+}
+
+/** Format currency in Nepali Lakhs/Crores system (e.g., NPR 1,50,000) */
+export function formatCurrency(value: number, currency = globalCurrency) {
   return new Intl.NumberFormat("en-IN", {
     style: "currency",
-    currency,
+    currency: normalizeCurrency(currency),
     maximumFractionDigits: 0,
   }).format(value);
 }

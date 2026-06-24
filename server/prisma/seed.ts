@@ -138,9 +138,9 @@ async function main() {
 
   await prisma.currencySetting.create({
     data: {
-      baseCurrency: "USD",
-      supportedCurrencies: ["USD", "NPR", "INR"],
-      multiCurrencyEnabled: true,
+      baseCurrency: "NPR",
+      supportedCurrencies: ["NPR"],
+      multiCurrencyEnabled: false,
     },
   });
 

@@ -2,8 +2,14 @@ import type { NextFunction, Request, Response } from "express";
 import type { UserRole } from "@prisma/client";
 import { ApiError } from "../utils/api-error";
 import { verifyToken } from "../utils/jwt";
-import { tenantStorage } from "../config/prisma";
+import { tenantStorage, basePrisma } from "../config/prisma";
 
+/**
+ * Authentication middleware.
+ *
+ * Verifies the JWT, checks the user is still active in the database,
+ * and runs downstream handlers inside the tenant's AsyncLocalStorage context.
+ */
 export function requireAuth(request: Request, _response: Response, next: NextFunction) {
   const header = request.headers.authorization;
   let token = "";
@@ -25,18 +31,31 @@ export function requireAuth(request: Request, _response: Response, next: NextFun
       return next(new ApiError(401, "Invalid token payload: missing required fields"));
     }
 
-    request.user = {
-      id: payload.sub,
-      tenantId: payload.tenantId,
-      role: payload.role as UserRole,
-      email: payload.email,
-      name: payload.name,
-    };
+    // #5 Fix: Verify user is still active (prevents deactivated users from
+    // continuing to use previously-issued JWTs until expiry)
+    basePrisma.user
+      .findUnique({ where: { id: payload.sub }, select: { isActive: true } })
+      .then((user) => {
+        if (!user || !user.isActive) {
+          return next(new ApiError(401, "Account has been deactivated"));
+        }
 
-    // Run the remaining middlewares/route-handlers in the context of the active tenantId
-    return tenantStorage.run({ tenantId: payload.tenantId }, () => {
-      next();
-    });
+        request.user = {
+          id: payload.sub,
+          tenantId: payload.tenantId,
+          role: payload.role as UserRole,
+          email: payload.email as string,
+          name: payload.name as string,
+        };
+
+        // Run the remaining middlewares/route-handlers in the context of the active tenantId
+        return tenantStorage.run({ tenantId: payload.tenantId }, () => {
+          next();
+        });
+      })
+      .catch(() => {
+        return next(new ApiError(500, "Failed to verify user status"));
+      });
   } catch (err) {
     if (err instanceof ApiError) return next(err);
     return next(new ApiError(401, "Invalid or expired token"));

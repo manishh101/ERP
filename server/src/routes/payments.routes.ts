@@ -16,6 +16,7 @@ import { toNumber } from "../utils/number";
 import { getBsDate, getCurrentFiscalYear } from "../shared/fiscal-year.util";
 import { recordPayment } from "../modules/payments/payment.service";
 import { logAudit } from "../services/audit.service";
+import { invalidateCache, CACHE_KEYS } from "../config/redis";
 
 export const paymentsRouter = Router();
 
@@ -89,12 +90,14 @@ paymentsRouter.post(
   validate(paymentSchema),
   asyncHandler(async (request, response) => {
     const body = request.validated?.body as ReturnType<typeof paymentSchema.parse>;
+    const tenantId = request.user!.tenantId;
 
     let payment: any;
 
     if (body.salesOrderId) {
+      // #8 Fix: Record payment, journal entry, and audit inside ONE transaction
       payment = await recordPayment({
-        tenantId: request.user!.tenantId,
+        tenantId,
         salesOrderId: body.salesOrderId,
         amount: body.amount,
         method: body.method,
@@ -103,28 +106,25 @@ paymentsRouter.post(
         paymentDate: body.paymentDate,
         bsDate: getBsDate(body.paymentDate),
         fiscalYear: getCurrentFiscalYear(body.paymentDate),
-      });
-
-      // Audit log — immutable record of payment (PRD §7)
-      await logAudit({
-        tenantId: request.user!.tenantId,
-        userId: request.user!.id,
-        action: "RECORD_PAYMENT",
-        entityType: "Payment",
-        entityId: payment.id,
-        newState: {
-          salesOrderId: body.salesOrderId,
-          amount: body.amount,
-          method: body.method,
-          reference: body.reference ?? null,
-        },
+        // #8/#9: Pass context so journal + audit can run inside the same tx
+        createdById: request.user!.id,
         ipAddress: request.ip,
       });
+
+      // #19: Invalidate dashboard caches after financial mutation
+      await invalidateCache(
+        CACHE_KEYS.AR_AGING(tenantId),
+        CACHE_KEYS.TOP_ENTITIES(tenantId),
+        CACHE_KEYS.FINANCIAL_SUMMARY_TODAY(tenantId),
+        CACHE_KEYS.FINANCIAL_SUMMARY_MONTH(tenantId),
+        CACHE_KEYS.FINANCIAL_SUMMARY_YEAR(tenantId),
+      );
     } else {
+      // Supplier payments: journal entry inside the transaction
       payment = await prisma.$transaction(async (tx) => {
         if (body.supplierInvoiceId) {
           const existingInv = await tx.supplierInvoice.findFirst({
-            where: { id: body.supplierInvoiceId, tenantId: request.user!.tenantId },
+            where: { id: body.supplierInvoiceId, tenantId },
           });
           if (!existingInv) throw new ApiError(404, "Supplier invoice not found");
         }
@@ -132,7 +132,7 @@ paymentsRouter.post(
         const created = await tx.payment.create({
           data: {
             ...body,
-            tenantId: request.user!.tenantId,
+            tenantId,
           },
         });
 
@@ -156,25 +156,17 @@ paymentsRouter.post(
           });
         }
 
+        // #8 Fix: Post GL journal entry INSIDE the transaction
+        if (body.purchaseOrderId || body.supplierInvoiceId) {
+          await postSupplierPaymentJournalEntry({
+            tenantId,
+            paymentId: created.id,
+            amount: body.amount,
+            createdById: request.user!.id,
+          });
+        }
+
         return created;
-      });
-    }
-
-    if (body.salesOrderId) {
-      await postCustomerPaymentJournalEntry({
-        tenantId: request.user!.tenantId,
-        paymentId: payment.id!,
-        amount: body.amount,
-        createdById: request.user!.id,
-      });
-    }
-
-    if (body.purchaseOrderId || body.supplierInvoiceId) {
-      await postSupplierPaymentJournalEntry({
-        tenantId: request.user!.tenantId,
-        paymentId: payment.id!,
-        amount: body.amount,
-        createdById: request.user!.id,
       });
     }
 
@@ -189,15 +181,17 @@ paymentsRouter.get("/:id/receipt", asyncHandler(async (request, response) => {
   const token = request.query.token as string;
 
   if (!userId && token) {
-    try {
-      const decoded = verifyToken(token);
-      if (decoded.purpose === "download") {
-        userId = decoded.sub;
-        const u = await prisma.user.findUnique({ where: { id: decoded.sub } });
-        tenantId = u?.tenantId;
-      }
-    } catch (err) {
-      throw new ApiError(401, "Invalid or expired download token");
+    const decoded = verifyToken(token);
+    if (decoded.purpose !== "download") {
+      throw new ApiError(401, "Invalid download token purpose");
+    }
+    // #3 Fix: Use tenantId from the token payload directly instead of a DB lookup.
+    // This ensures the token's tenant context is honoured and prevents cross-tenant leaks.
+    userId = decoded.sub;
+    tenantId = decoded.tenantId;
+
+    if (!tenantId) {
+      throw new ApiError(401, "Download token missing tenant context");
     }
   }
 
@@ -205,15 +199,55 @@ paymentsRouter.get("/:id/receipt", asyncHandler(async (request, response) => {
     throw new ApiError(401, "Unauthorized");
   }
 
-  try {
-    const { id } = idParamSchema.parse(request.params);
-    const companyProfile = await prisma.companyProfile.findFirst({
-      where: { tenantId },
-    });
+  const { id } = idParamSchema.parse(request.params);
+  const companyProfile = await prisma.companyProfile.findFirst({
+    where: { tenantId },
+  });
 
-    // 1. Fetch the requested payment
-    const payment = await prisma.payment.findFirst({
-      where: { id, tenantId },
+  // 1. Fetch the requested payment
+  const payment = await prisma.payment.findFirst({
+    where: { id, tenantId },
+    include: {
+      salesOrder: {
+        include: {
+          customer: true,
+          lineItems: {
+            include: {
+              productVariant: {
+                include: { product: true },
+              },
+            },
+          },
+        },
+      },
+      purchaseOrder: { include: { supplier: true } },
+      supplierInvoice: { include: { supplier: true } },
+    },
+  });
+
+  if (!payment) {
+    throw new ApiError(404, "Payment not found");
+  }
+
+  // 2. Group payments if this is a sales order payment
+  let groupedPayments = [payment];
+
+  if (payment.salesOrder) {
+    const timeMin = new Date(payment.createdAt.getTime() - 5000);
+    const timeMax = new Date(payment.createdAt.getTime() + 5000);
+
+    groupedPayments = await prisma.payment.findMany({
+      where: {
+        tenantId,
+        createdAt: {
+          gte: timeMin,
+          lte: timeMax,
+        },
+        method: payment.method,
+        salesOrder: {
+          customerId: payment.salesOrder.customer.id,
+        },
+      },
       include: {
         salesOrder: {
           include: {
@@ -230,57 +264,12 @@ paymentsRouter.get("/:id/receipt", asyncHandler(async (request, response) => {
         purchaseOrder: { include: { supplier: true } },
         supplierInvoice: { include: { supplier: true } },
       },
+      orderBy: { createdAt: "asc" },
     });
-
-    if (!payment) {
-      throw new ApiError(404, "Payment not found");
-    }
-
-    // 2. Group payments if this is a sales order payment
-    let groupedPayments = [payment];
-
-    if (payment.salesOrder) {
-      const timeMin = new Date(payment.createdAt.getTime() - 5000);
-      const timeMax = new Date(payment.createdAt.getTime() + 5000);
-
-      groupedPayments = await prisma.payment.findMany({
-        where: {
-          tenantId,
-          createdAt: {
-            gte: timeMin,
-            lte: timeMax,
-          },
-          method: payment.method,
-          salesOrder: {
-            customerId: payment.salesOrder.customer.id,
-          },
-        },
-        include: {
-          salesOrder: {
-            include: {
-              customer: true,
-              lineItems: {
-                include: {
-                  productVariant: {
-                    include: { product: true },
-                  },
-                },
-              },
-            },
-          },
-          purchaseOrder: { include: { supplier: true } },
-          supplierInvoice: { include: { supplier: true } },
-        },
-        orderBy: { createdAt: "asc" },
-      });
-    }
-
-    const buffer = await renderReceiptPdfBuffer({ payments: groupedPayments, companyProfile });
-    response.setHeader("Content-Type", "application/pdf");
-    response.setHeader("Content-Disposition", `inline; filename=receipt-${payment.id}.pdf`);
-    response.send(buffer);
-  } catch (error) {
-    console.error("PDF Generation Error:", error);
-    response.status(500).json({ error: "Failed to generate PDF" });
   }
+
+  const buffer = await renderReceiptPdfBuffer({ payments: groupedPayments, companyProfile });
+  response.setHeader("Content-Type", "application/pdf");
+  response.setHeader("Content-Disposition", `inline; filename=receipt-${payment.id}.pdf`);
+  response.send(buffer);
 }));

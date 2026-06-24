@@ -269,13 +269,18 @@ export async function getShowroomAnalytics(tenantId: string, customerId: string)
 export async function getDashboardSummary(tenantId: string) {
   const monthStart = startOfCurrentMonth();
 
+  // #16 Fix: Bound the "all orders" query to last 12 months instead of loading
+  // every order ever created into memory. This prevents OOM as the DB grows.
+  const twelveMonthsAgo = new Date();
+  twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
+
   const [
     monthOrders,
     inventoryItems,
     deliveries,
     lowStockItems,
     recentSalesOrders,
-    allSalesOrders,
+    recentSalesOrdersForCharts,
   ] = await Promise.all([
     prisma.salesOrder.findMany({
       where: {
@@ -322,8 +327,12 @@ export async function getDashboardSummary(tenantId: string) {
       },
       take: 8,
     }),
+    // #16 Fix: Only load last 12 months of orders for charts (not all-time)
     prisma.salesOrder.findMany({
-      where: { tenantId },
+      where: {
+        tenantId,
+        orderDate: { gte: twelveMonthsAgo },
+      },
       include: {
         lineItems: {
           include: {
@@ -396,12 +405,12 @@ export async function getDashboardSummary(tenantId: string) {
     return { month: label, inflow: 0, outflow: 0 };
   });
 
-  // Also compute total COGS across all orders for server-side Net Profit
-  let allTimeTotalRevenue = 0;
-  let allTimeTotalCogs = 0;
+  // Compute COGS across recent orders (last 12 months) for charts & Net Profit
+  let recentTotalRevenue = 0;
+  let recentTotalCogs = 0;
   let mtdNetProfit = 0;
 
-  allSalesOrders.forEach((order) => {
+  recentSalesOrdersForCharts.forEach((order) => {
     const isMtd = order.orderDate >= monthStart;
     const bucket = revenueVsCogs.find(
       (item) => item.month === new NepaliDate(order.orderDate).format("MMMM")
@@ -422,8 +431,8 @@ export async function getDashboardSummary(tenantId: string) {
         bucket.revenue += revenue;
         bucket.cogs += cogs;
       }
-      allTimeTotalRevenue += revenue;
-      allTimeTotalCogs += cogs;
+      recentTotalRevenue += revenue;
+      recentTotalCogs += cogs;
       if (isMtd) {
         mtdNetProfit += (revenue - cogs);
       }
@@ -445,7 +454,7 @@ export async function getDashboardSummary(tenantId: string) {
   });
 
   const topProductMap = new Map<string, number>();
-  allSalesOrders.forEach((order) => {
+  recentSalesOrdersForCharts.forEach((order) => {
     order.lineItems.forEach((lineItem) => {
       const name = lineItem.productVariant 
         ? `${lineItem.productVariant.product.name} / ${lineItem.productVariant.variantName}`
@@ -532,10 +541,10 @@ export async function getDashboardSummary(tenantId: string) {
     topProducts: topSellingProducts,
     arAging, // AR Aging buckets added to summary response
     arAgingByCustomer, // Per-customer aging buckets by days overdue (Fix #5)
-    // Server-side COGS/Net Profit (Fix #2) — single source of truth
-    totalRevenue: allTimeTotalRevenue,
-    totalCogs: allTimeTotalCogs,
-    netProfit: allTimeTotalRevenue - allTimeTotalCogs,
+    // Server-side COGS/Net Profit — based on last 12 months
+    totalRevenue: recentTotalRevenue,
+    totalCogs: recentTotalCogs,
+    netProfit: recentTotalRevenue - recentTotalCogs,
     recentSalesOrders: recentSalesOrders.map((order) => ({
       id: order.id,
       customer: order.customer.name,
