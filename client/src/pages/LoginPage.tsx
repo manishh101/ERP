@@ -19,7 +19,9 @@ export function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [googleScriptLoaded, setGoogleScriptLoaded] = useState(false);
+  const [googleButtonReady, setGoogleButtonReady] = useState(false);
   const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+  const showDevGoogleFallback = import.meta.env.DEV && !googleButtonReady;
 
   const modeRef = useRef(mode);
   const companyNameRef = useRef(companyName);
@@ -49,6 +51,8 @@ export function LoginPage() {
 
   // Initialize official Google button if script is loaded and client ID exists
   useEffect(() => {
+    setGoogleButtonReady(false);
+    let observer: MutationObserver | undefined;
     if (!googleClientId || !googleScriptLoaded) return;
 
     try {
@@ -97,24 +101,32 @@ export function LoginPage() {
       if (container) {
         // Clear container before rendering to prevent duplicates on strict mode
         container.innerHTML = "";
-        
+
+        const updateGoogleButtonReady = () => setGoogleButtonReady(container.childElementCount > 0);
+        observer = new MutationObserver(updateGoogleButtonReady);
+        observer.observe(container, { childList: true });
+
         g.accounts.id.renderButton(container, {
           theme: "outline",
           size: "large",
           width: container.clientWidth || 320,
           text: modeRef.current === "register" ? "signup_with" : "signin_with",
+          locale: "en",
         });
+        updateGoogleButtonReady();
       }
     } catch (err) {
       console.error("Failed to initialize Google Sign-In:", err);
     }
+
+    return () => observer?.disconnect();
   }, [googleClientId, googleScriptLoaded, loginWithGoogle, mode, navigate]);
 
   if (status === "authenticated") {
     return <Navigate to="/" replace />;
   }
 
-  async function handleMockGoogleLogin() {
+  async function handleDevGoogleAuth() {
     setSubmitting(true);
     setError(null);
     try {
@@ -131,13 +143,13 @@ export function LoginPage() {
       const user = await loginWithGoogle(token, mode, mode === "register" ? mockCompany : undefined);
 
       if (mode === "register") {
-        toast.success("Workspace created (Simulated)", { description: `Welcome to your new workspace, ${user.name}.` });
+        toast.success("Workspace created", { description: `Welcome to your new workspace, ${user.name}.` });
       } else {
-        toast.success("Signed in (Simulated)", { description: `Welcome back, ${user.name}.` });
+        toast.success("Signed in", { description: `Welcome back, ${user.name}.` });
       }
       navigate("/", { replace: true });
     } catch (err) {
-      setError(getErrorMessage(err, "Mock Google sign-in failed."));
+      setError(getErrorMessage(err, "Google authentication failed."));
     } finally {
       setSubmitting(false);
     }
@@ -202,12 +214,12 @@ export function LoginPage() {
             <div className="mx-auto w-full max-w-sm space-y-8">
               <div className="space-y-2">
                 <h2 className="text-3xl font-bold tracking-tight text-stone-900">
-                  {mode === "login" ? "Welcome Back" : "Create Workspace"}
+                  {mode === "login" ? "Welcome Back" : "Register Workspace"}
                 </h2>
                 <p className="text-sm text-stone-500">
                   {mode === "login" 
-                    ? "Please enter your credentials to continue" 
-                    : "Register to get a new isolated company ERP environment"}
+                    ? "Sign in if your account is already registered" 
+                    : "Create a new company ERP environment"}
                 </p>
               </div>
 
@@ -315,21 +327,21 @@ export function LoginPage() {
                 <div className="flex-grow border-t border-stone-200" />
               </div>
 
-              {/* Google Sign-In Button Container */}
+              {/* Google auth button */}
               {googleClientId ? (
-                <div id="google-signin-btn-container" className="flex min-h-[44px] w-full justify-center" />
+                <div id="google-signin-btn-container" className="flex w-full justify-center" />
               ) : (
                 <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-800">
-                  Google sign-in is not configured. Add VITE_GOOGLE_CLIENT_ID and GOOGLE_CLIENT_ID to enable it.
+                  Google sign-in is not configured. Add VITE_GOOGLE_CLIENT_ID to enable the Google button.
                 </div>
               )}
 
-              {/* Dev Mock Sign-In Button */}
-              {import.meta.env.DEV && (
+              {/* Local Google auth fallback for development */}
+              {showDevGoogleFallback && (
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={handleMockGoogleLogin}
+                  onClick={handleDevGoogleAuth}
                   className="h-11 w-full rounded-xl border border-stone-200 bg-white text-stone-700 transition-all hover:bg-stone-50 hover:text-stone-950 active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-3 font-semibold shadow-sm"
                   disabled={submitting || status === "loading"}
                 >
@@ -351,7 +363,7 @@ export function LoginPage() {
                       d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
                     />
                   </svg>
-                  <span>{mode === "login" ? "Sign in with Google (Mock)" : "Create with Google (Mock)"}</span>
+                  <span>{mode === "login" ? "Sign in with Google" : "Sign up with Google"}</span>
                 </Button>
               )}
 
@@ -359,12 +371,12 @@ export function LoginPage() {
               <div className="text-center text-xs text-stone-500">
                 {mode === "login" ? (
                   <>
-                    Need a dedicated environment?{" "}
+                    Don't have an account?{" "}
                     <button 
                       onClick={() => { setMode("register"); setError(null); }}
                       className="font-bold text-stone-900 underline underline-offset-4 hover:text-stone-700"
                     >
-                      Create a Workspace
+                      Register
                     </button>
                   </>
                 ) : (
@@ -374,7 +386,7 @@ export function LoginPage() {
                       onClick={() => { setMode("login"); setError(null); }}
                       className="font-bold text-stone-900 underline underline-offset-4 hover:text-stone-700"
                     >
-                      Sign In here
+                      Sign In
                     </button>
                   </>
                 )}

@@ -49,11 +49,11 @@ async function verifyGoogleToken(
     return { email, name, sub };
   }
 
-  const googleClientId = process.env.GOOGLE_CLIENT_ID;
+  const googleClientId = process.env.GOOGLE_CLIENT_ID || process.env.VITE_GOOGLE_CLIENT_ID;
   if (!googleClientId) {
     throw new ApiError(
       500,
-      "Google Sign-In is not configured (GOOGLE_CLIENT_ID missing).",
+      "Google Sign-In is not configured (GOOGLE_CLIENT_ID or VITE_GOOGLE_CLIENT_ID missing).",
     );
   }
 

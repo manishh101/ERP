@@ -24,6 +24,7 @@ interface Window {
             size?: "large" | "medium" | "small";
             width?: number;
             text?: "signin_with" | "signup_with" | "continue_with" | "signin";
+            locale?: string;
           },
         ) => void;
       };
