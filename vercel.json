@@ -2,7 +2,7 @@
   "version": 2,
   "framework": null,
   "installCommand": "npm install --include=dev",
-  "buildCommand": "npm run generate --workspace server && npm run build --workspace client",
+  "buildCommand": "npm run generate --workspace server && npm run build --workspace server && npm run build --workspace client",
   "outputDirectory": "client/dist",
   "regions": [
     "iad1"
