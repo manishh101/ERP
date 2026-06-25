@@ -22,6 +22,10 @@ export function createApp(): Express {
   const app = express();
   const isVercel = Boolean(process.env.VERCEL);
 
+  if (isVercel || env.NODE_ENV === "production") {
+    app.set("trust proxy", 1);
+  }
+
   // Security & Logging
   app.use(helmet());
   app.use(compression() as any);
