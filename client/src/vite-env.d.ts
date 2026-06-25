@@ -1,6 +1,11 @@
 /// <reference types="vite/client" />
 
 interface ImportMetaEnv {
+  readonly BASE_URL: string;
+  readonly DEV: boolean;
+  readonly MODE: string;
+  readonly PROD: boolean;
+  readonly SSR: boolean;
   readonly VITE_API_URL?: string;
   readonly VITE_GOOGLE_CLIENT_ID?: string;
 }
@@ -31,3 +36,6 @@ interface Window {
     };
   };
 }
+
+declare module "*.css";
+declare module "@sbmdkl/nepali-datepicker-reactjs/dist/index.css";
