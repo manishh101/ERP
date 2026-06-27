@@ -723,9 +723,9 @@ function mapSalesOrder(order: RawSalesOrder): SalesOrderRow {
     paidAmount: toNumber(order.paidAmount),
     cogs: order.lineItems
       ? order.lineItems.reduce((acc: number, li: any) => {
-          const cost =
-            toNumber(li.productVariant?.product?.costPrice) +
-            toNumber(li.productVariant?.additionalCost);
+          const cost = li.productVariant
+            ? (toNumber(li.productVariant.product?.costPrice) + toNumber(li.productVariant.additionalCost))
+            : (toNumber(li.unitPrice) * 0.7);
           return acc + li.quantity * cost;
         }, 0)
       : 0,

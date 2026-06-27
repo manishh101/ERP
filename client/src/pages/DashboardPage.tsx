@@ -59,22 +59,41 @@ export function DashboardPage() {
 
   const [selectedMonth, setSelectedMonth] = useState<string>("ALL");
 
+  // ─── Filter active orders in 12-month window ───
+  const active12MonthsOrders = useMemo(() => {
+    const monthKeys = new Set(availableMonths.map((m) => m.key));
+    return orders.filter((o) => {
+      if (o.rawStatus === "CANCELLED") return false;
+      try {
+        const dStr = o.orderDate;
+        if (!dStr) return false;
+        const d = new NepaliDate(new Date(dStr));
+        const key = `${d.getYear()}-${String(d.getMonth()).padStart(2, "0")}`;
+        return monthKeys.has(key);
+      } catch {
+        return false;
+      }
+    });
+  }, [orders, availableMonths]);
+
+  // Make sure we have the standalone filtered array isolated for Showroom & metrics
+  const filteredOrders = useMemo(() => {
+    if (selectedMonth === "ALL") return active12MonthsOrders;
+    return active12MonthsOrders.filter((o) => {
+      try {
+        const dStr = o.orderDate;
+        if (!dStr) return false;
+        const d = new NepaliDate(new Date(dStr));
+        const key = `${d.getYear()}-${String(d.getMonth()).padStart(2, "0")}`;
+        return key === selectedMonth;
+      } catch {
+        return false;
+      }
+    });
+  }, [active12MonthsOrders, selectedMonth]);
+
   // ─── Compute Filtered KPIs ───
   const customKpis = useMemo(() => {
-    const filtered = selectedMonth === "ALL"
-      ? orders
-      : orders.filter((o) => {
-          try {
-            const dStr = o.orderDate;
-            if (!dStr) return false;
-            const d = new NepaliDate(new Date(dStr));
-            const key = `${d.getYear()}-${String(d.getMonth()).padStart(2, "0")}`;
-            return key === selectedMonth;
-          } catch {
-            return false;
-          }
-        });
-
     let revenue = 0;
     let showroomRevenue = 0;
     let retailRevenue = 0;
@@ -82,7 +101,7 @@ export function DashboardPage() {
     let delivered = 0;
     let totalCogs = 0;
 
-    filtered.forEach((o) => {
+    filteredOrders.forEach((o) => {
       revenue += toNumber(o.total);
       if (o.customerType === "SHOWROOM") {
         showroomRevenue += toNumber(o.total);
@@ -111,7 +130,7 @@ export function DashboardPage() {
       },
       {
         label: "Total Orders",
-        value: String(filtered.length),
+        value: String(filteredOrders.length),
         change: "Created",
         tone: "neutral" as const,
       },
@@ -139,27 +158,13 @@ export function DashboardPage() {
     if (inventoryKpi) result.push(inventoryKpi);
 
     return result;
-  }, [orders, selectedMonth, data]);
+  }, [filteredOrders, selectedMonth, data]);
 
   // ─── Compute Filtered Top Products ───
   const customTopProducts = useMemo(() => {
     if (selectedMonth === "ALL") return data?.topProducts ?? [];
 
     const map = new Map<string, number>();
-    const filteredOrders = selectedMonth === "ALL" 
-      ? orders 
-      : orders.filter((o) => {
-          try {
-            const dStr = o.orderDate;
-            if (!dStr) return false;
-            const d = new NepaliDate(new Date(dStr));
-            const key = `${d.getYear()}-${String(d.getMonth()).padStart(2, "0")}`;
-            return key === selectedMonth;
-          } catch {
-            return false;
-          }
-        });
-
     filteredOrders.forEach((o) => {
       o.items?.forEach((item) => {
         map.set(item.name, (map.get(item.name) || 0) + item.quantity);
@@ -170,23 +175,7 @@ export function DashboardPage() {
       .map(([name, quantity]) => ({ name, quantity }))
       .sort((a, b) => b.quantity - a.quantity)
       .slice(0, 10);
-  }, [orders, selectedMonth, data]);
-
-  // Make sure we have the standalone filtered array isolated for Showroom
-  const filteredOrders = useMemo(() => {
-    if (selectedMonth === "ALL") return orders;
-    return orders.filter((o) => {
-      try {
-        const dStr = o.orderDate;
-        if (!dStr) return false;
-        const d = new NepaliDate(new Date(dStr));
-        const key = `${d.getYear()}-${String(d.getMonth()).padStart(2, "0")}`;
-        return key === selectedMonth;
-      } catch {
-        return false;
-      }
-    });
-  }, [orders, selectedMonth]);
+  }, [filteredOrders, selectedMonth, data]);
 
   if (isLoading) {
     return (

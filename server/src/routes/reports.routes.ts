@@ -92,6 +92,7 @@ reportsRouter.get(
     const orders = await prisma.salesOrder.findMany({
       where: {
         tenantId: request.user!.tenantId,
+        status: { not: "CANCELLED" },
         orderDate: {
           gte: query.startDate,
           lte: query.endDate,
@@ -197,7 +198,12 @@ reportsRouter.get(
   validate(reportQuerySchema, "query"),
   asyncHandler(async (request, response) => {
     const lineItems = await prisma.salesOrderLineItem.findMany({
-      where: { tenantId: request.user!.tenantId },
+      where: {
+        tenantId: request.user!.tenantId,
+        salesOrder: {
+          status: { not: "CANCELLED" },
+        },
+      },
       include: {
         productVariant: {
           include: {
@@ -274,9 +280,12 @@ reportsRouter.get(
       where: { tenantId: request.user!.tenantId },
       include: {
         salesOrders: {
+          where: {
+            status: { not: "CANCELLED" },
+          },
           include: {
             taxInvoices: true,
-            lineItems: true, // Also need lineItems for revenue calculation
+            lineItems: true,
           },
         },
       },

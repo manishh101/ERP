@@ -327,11 +327,11 @@ export async function getDashboardSummary(tenantId: string) {
       },
       take: 8,
     }),
-    // #16 Fix: Only load last 12 months of orders for charts (not all-time)
     prisma.salesOrder.findMany({
       where: {
         tenantId,
         orderDate: { gte: twelveMonthsAgo },
+        status: { not: "CANCELLED" },
       },
       include: {
         lineItems: {
