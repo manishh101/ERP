@@ -1,4 +1,4 @@
-import type { AccountType, Prisma } from "@prisma/client";
+import type { AccountType, Prisma, Account } from "@prisma/client";
 import { prisma } from "../config/prisma";
 import { ApiError } from "../utils/api-error";
 import { toNumber } from "../utils/number";
@@ -26,7 +26,7 @@ export async function createBalancedJournalEntry(input: {
   sourceId?: string;
   createdById?: string;
   lines: JournalLineInput[];
-}) {
+}, tx?: any) {
   const totalDebit = input.lines.reduce((sum, line) => sum + line.debit, 0);
   const totalCredit = input.lines.reduce((sum, line) => sum + line.credit, 0);
 
@@ -34,7 +34,9 @@ export async function createBalancedJournalEntry(input: {
     throw new ApiError(400, "Journal entry is not balanced");
   }
 
-  const accounts = await prisma.account.findMany({
+  const client = tx || prisma;
+
+  const accounts: Account[] = await client.account.findMany({
     where: {
       id: {
         in: input.lines.map((line) => line.accountId),
@@ -42,10 +44,10 @@ export async function createBalancedJournalEntry(input: {
     },
   });
 
-  const accountMap = new Map(accounts.map((account) => [account.id, account]));
+  const accountMap = new Map<string, Account>(accounts.map((account) => [account.id, account]));
 
-  return prisma.$transaction(async (tx) => {
-    const entry = await tx.journalEntry.create({
+  const execute = async (t: any) => {
+    const entry = await t.journalEntry.create({
       data: {
         tenantId: input.tenantId,
         date: input.date,
@@ -72,7 +74,7 @@ export async function createBalancedJournalEntry(input: {
 
       const delta = calculateBalanceDelta(account.type, line.debit, line.credit);
 
-      await tx.account.update({
+      await t.account.update({
         where: { id: account.id },
         data: {
           balance: {
@@ -83,11 +85,14 @@ export async function createBalancedJournalEntry(input: {
     }
 
     return entry;
-  });
+  };
+
+  return tx ? execute(tx) : prisma.$transaction(execute);
 }
 
-async function requireAccountByCode(tenantId: string, code: string) {
-  const account = await prisma.account.findFirst({
+async function requireAccountByCode(tenantId: string, code: string, tx?: any) {
+  const client = tx || prisma;
+  const account = await client.account.findFirst({
     where: {
       code,
       tenantId,
@@ -106,9 +111,9 @@ export async function postSalesOrderJournalEntry(input: {
   salesOrderId: string;
   total: Prisma.Decimal | number;
   createdById?: string;
-}) {
-  const accountsReceivable = await requireAccountByCode(input.tenantId, "1100");
-  const revenue = await requireAccountByCode(input.tenantId, "4000");
+}, tx?: any) {
+  const accountsReceivable = await requireAccountByCode(input.tenantId, "1100", tx);
+  const revenue = await requireAccountByCode(input.tenantId, "4000", tx);
 
   const total = toNumber(input.total);
 
@@ -124,7 +129,7 @@ export async function postSalesOrderJournalEntry(input: {
       { accountId: accountsReceivable.id, debit: total, credit: 0 },
       { accountId: revenue.id, debit: 0, credit: total },
     ],
-  });
+  }, tx);
 }
 
 export async function postCustomerPaymentJournalEntry(input: {
@@ -132,9 +137,9 @@ export async function postCustomerPaymentJournalEntry(input: {
   paymentId: string;
   amount: Prisma.Decimal | number;
   createdById?: string;
-}) {
-  const cash = await requireAccountByCode(input.tenantId, "1000");
-  const accountsReceivable = await requireAccountByCode(input.tenantId, "1100");
+}, tx?: any) {
+  const cash = await requireAccountByCode(input.tenantId, "1000", tx);
+  const accountsReceivable = await requireAccountByCode(input.tenantId, "1100", tx);
   const amount = toNumber(input.amount);
 
   return createBalancedJournalEntry({
@@ -149,7 +154,7 @@ export async function postCustomerPaymentJournalEntry(input: {
       { accountId: cash.id, debit: amount, credit: 0 },
       { accountId: accountsReceivable.id, debit: 0, credit: amount },
     ],
-  });
+  }, tx);
 }
 
 export async function postSupplierPaymentJournalEntry(input: {
@@ -157,9 +162,9 @@ export async function postSupplierPaymentJournalEntry(input: {
   paymentId: string;
   amount: Prisma.Decimal | number;
   createdById?: string;
-}) {
-  const accountsPayable = await requireAccountByCode(input.tenantId, "2000");
-  const cash = await requireAccountByCode(input.tenantId, "1000");
+}, tx?: any) {
+  const accountsPayable = await requireAccountByCode(input.tenantId, "2000", tx);
+  const cash = await requireAccountByCode(input.tenantId, "1000", tx);
   const amount = toNumber(input.amount);
 
   return createBalancedJournalEntry({
@@ -174,6 +179,54 @@ export async function postSupplierPaymentJournalEntry(input: {
       { accountId: accountsPayable.id, debit: amount, credit: 0 },
       { accountId: cash.id, debit: 0, credit: amount },
     ],
-  });
+  }, tx);
+}
+
+export async function postTaxInvoiceJournalEntry(input: {
+  tenantId: string;
+  taxInvoiceId: string;
+  subtotal: number;
+  taxAmount: number;
+  invoiceType: string;
+  createdById?: string;
+}, tx?: any) {
+  const accountsReceivable = await requireAccountByCode(input.tenantId, "1100", tx);
+  const salesRevenue = await requireAccountByCode(input.tenantId, "4000", tx);
+
+  const subtotal = toNumber(input.subtotal);
+  const taxAmount = toNumber(input.taxAmount);
+  const total = subtotal + taxAmount;
+
+  if (input.invoiceType === "VAT") {
+    const vatPayable = await requireAccountByCode(input.tenantId, "2100", tx);
+    return createBalancedJournalEntry({
+      tenantId: input.tenantId,
+      date: new Date(),
+      description: "VAT Invoice posted",
+      reference: input.taxInvoiceId,
+      sourceType: "tax_invoice",
+      sourceId: input.taxInvoiceId,
+      createdById: input.createdById,
+      lines: [
+        { accountId: accountsReceivable.id, debit: total, credit: 0 },
+        { accountId: salesRevenue.id, debit: 0, credit: subtotal },
+        { accountId: vatPayable.id, debit: 0, credit: taxAmount },
+      ],
+    }, tx);
+  } else {
+    return createBalancedJournalEntry({
+      tenantId: input.tenantId,
+      date: new Date(),
+      description: `${input.invoiceType} Invoice posted`,
+      reference: input.taxInvoiceId,
+      sourceType: "tax_invoice",
+      sourceId: input.taxInvoiceId,
+      createdById: input.createdById,
+      lines: [
+        { accountId: accountsReceivable.id, debit: total, credit: 0 },
+        { accountId: salesRevenue.id, debit: 0, credit: total },
+      ],
+    }, tx);
+  }
 }
 

@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { ApiError } from "../../utils/api-error";
 import { nextInvoiceNumber, nextEstimateNumber } from "../../shared/invoice-seq.util";
 import { postEntry } from "../vat-register/vat-register.service";
+import { postTaxInvoiceJournalEntry } from "../../services/accounting.service";
 
 /**
  * Tax Invoice Service
@@ -142,8 +143,19 @@ export async function createTaxInvoice(
       });
     }
 
-    // 6. TODO (Phase 2): Post GL journal entry
+    // 6. Post GL journal entry
     // Dr Accounts Receivable (1100) | Cr VAT Payable (2100) | Cr Sales Revenue (4000)
+    try {
+      await postTaxInvoiceJournalEntry({
+        tenantId: input.tenantId,
+        taxInvoiceId: taxInvoice.id,
+        subtotal: subtotal,
+        taxAmount: taxAmount,
+        invoiceType: input.invoiceType,
+      }, tx);
+    } catch (err) {
+      console.warn(`[TaxInvoice] Journal entry skipped: ${(err as Error).message}`);
+    }
 
     return taxInvoice;
   };
