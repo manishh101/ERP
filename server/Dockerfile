@@ -16,7 +16,7 @@ COPY server ./server
 # Generate Prisma client (needed for TypeScript types)
 RUN npx prisma generate --schema=server/prisma/schema.prisma
 
-# Prevent TypeScript out-of-memory issues / swapping on Render
+# Prevent TypeScript out-of-memory issues / swapping on constrained builders
 ENV NODE_OPTIONS="--max-old-space-size=2048"
 
 # Build

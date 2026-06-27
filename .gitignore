@@ -18,3 +18,5 @@ tsc_errors.log
 ts_errors.txt
 tsc-output.txt
 
+*.tsbuildinfo
+tsc-output*.txt
