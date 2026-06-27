@@ -38,9 +38,9 @@ export async function recordPayment(input: {
       paidAmount: any;
       balanceDue: any;
     }>>`
-      SELECT "id", "customerId", "status", "paidAmount", "balanceDue"
-      FROM "SalesOrder"
-      WHERE "id" = ${input.salesOrderId}
+      SELECT id, customer_id AS "customerId", status, paid_amount AS "paidAmount", balance_due AS "balanceDue"
+      FROM sales_orders
+      WHERE id = ${input.salesOrderId}
       FOR UPDATE
     `;
 
@@ -58,12 +58,12 @@ export async function recordPayment(input: {
       balanceDue: any;
       orderDate: Date;
     }>>`
-      SELECT "id", "customerId", "status", "paidAmount", "balanceDue", "orderDate"
-      FROM "SalesOrder"
-      WHERE "customerId" = ${firstOrder.customerId}
-        AND "balanceDue" > 0
-        AND "id" != ${firstOrder.id}
-      ORDER BY "orderDate" ASC
+      SELECT id, customer_id AS "customerId", status, paid_amount AS "paidAmount", balance_due AS "balanceDue", order_date AS "orderDate"
+      FROM sales_orders
+      WHERE customer_id = ${firstOrder.customerId}
+        AND balance_due > 0
+        AND id != ${firstOrder.id}
+      ORDER BY order_date ASC
       FOR UPDATE
     `;
 
