@@ -1,6 +1,7 @@
 import { Router } from "express";
 import multer from "multer";
 import path from "path";
+import { put, del } from "@vercel/blob";
 import fs from "fs";
 import { prisma } from "../config/prisma";
 import { requireAuth, requireRole } from "../middleware/auth";
@@ -21,17 +22,8 @@ export const productsRouter = Router();
 const isVercel = Boolean(process.env.VERCEL);
 
 // ── Multer setup for product images ──────────────────────────────────────────
-const uploadRoot = isVercel ? path.join("/tmp", "uploads") : path.join(process.cwd(), "uploads");
-const uploadDir = path.join(uploadRoot, "products");
-if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
-
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, uploadDir),
-  filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    cb(null, `${Date.now()}-${Math.round(Math.random() * 1e6)}${ext}`);
-  },
-});
+// Vercel deployment requires memory storage, as local disk writes are ephemeral.
+const storage = multer.memoryStorage();
 const upload = multer({
   storage,
   limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
@@ -332,14 +324,6 @@ productsRouter.post(
   "/:id/images",
   requireRole(["ADMIN", "WAREHOUSE", "SALES"]),
   validate(idParamSchema, "params"),
-  (request, response, next) => {
-    if (isVercel) {
-      return response.status(501).json({
-        message: "Product image uploads need persistent object storage on Vercel.",
-      });
-    }
-    next();
-  },
   upload.array("images", 10) as any,
   asyncHandler(async (request, response) => {
     const params = request.validated?.params as { id: string };
@@ -349,7 +333,16 @@ productsRouter.post(
       return response.status(400).json({ message: "No images uploaded." });
     }
 
-    const newUrls = files.map((f) => `/uploads/products/${f.filename}`);
+    // Upload to Vercel Blob
+    const uploadPromises = files.map((file) => 
+      put(`products/${Date.now()}-${Math.round(Math.random() * 1e6)}${path.extname(file.originalname)}`, file.buffer, {
+        access: 'public',
+        contentType: file.mimetype,
+      })
+    );
+
+    const blobs = await Promise.all(uploadPromises);
+    const newUrls = blobs.map((blob) => blob.url);
 
     const existingProduct = await prisma.product.findFirst({
       where: { id: params.id, tenantId: request.user!.tenantId },
@@ -379,10 +372,17 @@ productsRouter.delete(
     });
     if (!product) throw new ApiError(404, "Product not found");
 
-    // Remove from disk
-    const filename = path.basename(url);
-    const filePath = path.join(uploadDir, filename);
-    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    // Remove from Vercel Blob
+    if (url.includes('public.blob.vercel-storage.com')) {
+      await del(url);
+    } else {
+      // Fallback for local files if they still exist during transition
+      const filename = path.basename(url);
+      const uploadRoot = isVercel ? path.join("/tmp", "uploads") : path.join(process.cwd(), "uploads");
+      const uploadDir = path.join(uploadRoot, "products");
+      const filePath = path.join(uploadDir, filename);
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    }
 
     const updated = await prisma.product.update({
       where: { id: params.id },
