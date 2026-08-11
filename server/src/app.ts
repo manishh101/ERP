@@ -64,7 +64,7 @@ export function createApp(): Express {
   app.get("/health", (_request, response) => {
     response.json({
       status: "ok",
-      service: "furniture-erp-api",
+      service: "myerp-api",
     });
   });
 
@@ -73,7 +73,7 @@ export function createApp(): Express {
       await checkDatabase();
       response.json({
         status: "ok",
-        service: "furniture-erp-api",
+        service: "myerp-api",
         database: "ok",
       });
     } catch (error) {
@@ -84,7 +84,7 @@ export function createApp(): Express {
 
       response.status(503).json({
         status: "error",
-        service: "furniture-erp-api",
+        service: "myerp-api",
         database: "unavailable",
       });
     }

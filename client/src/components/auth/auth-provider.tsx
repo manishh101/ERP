@@ -23,7 +23,7 @@ type AuthContextValue = {
   logout: () => void;
 };
 
-const TOKEN_STORAGE_KEY = "furniture-erp.token";
+const TOKEN_STORAGE_KEY = "myerp.token";
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 function getStoredToken() {

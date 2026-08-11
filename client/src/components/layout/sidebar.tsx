@@ -108,12 +108,12 @@ export function Sidebar({
       {/* Branding */}
       <div className={cn("flex items-center gap-3 px-4 py-5", collapsed && "justify-center px-2")}>
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-sidebar-accent text-sm font-bold">
-          M
+          {(user?.workspaceName ?? "M").charAt(0).toUpperCase()}
         </div>
         {!collapsed && (
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold">Manish Steel</p>
-            <p className="truncate text-xs text-sidebar-muted">Enterprise ERP</p>
+            <p className="truncate text-sm font-semibold">{user?.workspaceName ?? "My Workspace"}</p>
+            <p className="truncate text-xs text-sidebar-muted">Workspace</p>
           </div>
         )}
       </div>

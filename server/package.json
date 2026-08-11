@@ -1,5 +1,5 @@
 {
-  "name": "@furniture-erp/server",
+  "name": "@myerp/server",
   "private": true,
   "version": "1.0.0",
   "scripts": {

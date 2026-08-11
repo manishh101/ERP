@@ -194,18 +194,18 @@ export function LoginPage() {
               </div>
               <div className="space-y-4">
                 <h1 className="font-display text-5xl font-bold leading-tight tracking-tight text-white">
-                  Industrial <br /> 
-                  <span className="text-stone-500">Intelligence.</span>
+                  Business <br /> 
+                  <span className="text-stone-500">Operating System.</span>
                 </h1>
                 <p className="max-w-xs text-sm leading-relaxed text-stone-400">
-                  Secure, precision management for modern steel and furniture operations. Instant workspace creation for your team.
+                  The complete ERP for SMEs and manufacturing businesses. Create your workspace in seconds.
                 </p>
               </div>
             </div>
 
             <div className="flex items-center gap-4 text-[10px] font-bold uppercase tracking-[0.3em] text-stone-600">
               <span className="h-px w-8 bg-stone-800" />
-              <span>Manish Steel Management</span>
+              <span>MyERP Platform</span>
             </div>
           </section>
 
@@ -235,7 +235,7 @@ export function LoginPage() {
                         type="text"
                         required
                         className="h-11 border-stone-200 bg-stone-50/50 px-4 transition-all focus:border-stone-900 focus:ring-0" 
-                        placeholder="e.g. Manish Furniture Udhyog"
+                        placeholder="e.g. Sunrise Manufacturing"
                         value={companyName} 
                         onChange={(event) => setCompanyName(event.target.value)} 
                       />
@@ -250,7 +250,7 @@ export function LoginPage() {
                         type="text"
                         required
                         className="h-11 border-stone-200 bg-stone-50/50 px-4 transition-all focus:border-stone-900 focus:ring-0" 
-                        placeholder="e.g. Manish Adhikari"
+                        placeholder="e.g. Ram Sharma"
                         value={name} 
                         onChange={(event) => setName(event.target.value)} 
                       />
@@ -405,7 +405,7 @@ export function LoginPage() {
       {/* Production Footer */}
       <footer className="relative z-10 flex flex-col items-center justify-between gap-4 border-t border-stone-100 bg-white/50 px-8 py-6 backdrop-blur-md sm:flex-row">
         <p className="text-[10px] font-medium text-stone-400 uppercase tracking-[0.2em]">
-          © 2024 Manish Steel Management System. All rights reserved.
+          © 2025 MyERP. All rights reserved.
         </p>
         <div className="flex items-center gap-6">
           <span className="text-[10px] font-bold uppercase tracking-widest text-stone-300">v1.2.4-stable</span>
