@@ -439,6 +439,30 @@ export async function getDashboardSummary(tenantId: string) {
     });
   });
 
+  // Prefer GL-based MTD Net Profit if General Ledger entries exist
+  const glMtdLines = await prisma.journalEntryLine.findMany({
+    where: {
+      tenantId,
+      journalEntry: {
+        date: { gte: monthStart },
+      },
+    },
+    include: { account: true },
+  });
+
+  if (glMtdLines.length > 0) {
+    let glIncome = 0;
+    let glExpense = 0;
+    for (const line of glMtdLines) {
+      if (line.account.type === "INCOME") {
+        glIncome += toNumber(line.credit) - toNumber(line.debit);
+      } else if (line.account.type === "EXPENSE") {
+        glExpense += toNumber(line.debit) - toNumber(line.credit);
+      }
+    }
+    mtdNetProfit = glIncome - glExpense;
+  }
+
   invoicePayments.forEach((payment) => {
     const bucket = cashFlowSeries.find(
       (item) => item.month === new NepaliDate(payment.paymentDate).format("MMMM")

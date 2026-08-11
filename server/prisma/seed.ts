@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import { type AccountType, type CustomerType, type UserRole } from "@prisma/client";
 import { prisma, tenantStorage, basePrisma } from "../src/config/prisma";
+import { ensureStandardAccounts } from "../src/services/ensure-accounts";
 
 const DEFAULT_PASSWORD = "M@nish123";
 
@@ -110,6 +111,8 @@ async function main() {
   });
 
   await tenantStorage.run({ tenantId: defaultTenant.id }, async () => {
+    await ensureStandardAccounts(defaultTenant.id);
+
     const passwordHash = await bcrypt.hash(DEFAULT_PASSWORD, 10);
 
     const users = {

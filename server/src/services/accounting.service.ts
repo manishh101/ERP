@@ -2,6 +2,7 @@ import type { AccountType, Prisma, Account } from "@prisma/client";
 import { prisma } from "../config/prisma";
 import { ApiError } from "../utils/api-error";
 import { toNumber } from "../utils/number";
+import { ensureStandardAccounts } from "./ensure-accounts";
 
 type JournalLineInput = {
   accountId: string;
@@ -35,6 +36,22 @@ export async function createBalancedJournalEntry(input: {
   }
 
   const client = tx || prisma;
+
+  // Idempotency check: if a journal entry already exists for this sourceType + sourceId, return it
+  if (input.sourceType && input.sourceId) {
+    const existingEntry = await client.journalEntry.findFirst({
+      where: {
+        tenantId: input.tenantId,
+        sourceType: input.sourceType,
+        sourceId: input.sourceId,
+      },
+      include: { lines: true },
+    });
+    if (existingEntry) {
+      console.warn(`[GL] Journal entry already exists for ${input.sourceType}:${input.sourceId}. Skipping duplicate creation.`);
+      return existingEntry;
+    }
+  }
 
   const accounts: Account[] = await client.account.findMany({
     where: {
@@ -92,7 +109,7 @@ export async function createBalancedJournalEntry(input: {
 
 async function requireAccountByCode(tenantId: string, code: string, tx?: any) {
   const client = tx || prisma;
-  const account = await client.account.findFirst({
+  let account = await client.account.findFirst({
     where: {
       code,
       tenantId,
@@ -100,10 +117,61 @@ async function requireAccountByCode(tenantId: string, code: string, tx?: any) {
   });
 
   if (!account) {
-    throw new ApiError(500, `Required account ${code} is missing`);
+    // Auto-provision standard chart of accounts if missing
+    await ensureStandardAccounts(tenantId, client);
+    account = await client.account.findFirst({
+      where: {
+        code,
+        tenantId,
+      },
+    });
+  }
+
+  if (!account) {
+    throw new ApiError(500, `Required account ${code} is missing and could not be provisioned.`);
   }
 
   return account;
+}
+
+export async function reverseJournalEntry(input: {
+  tenantId: string;
+  sourceType: string;
+  sourceId: string;
+  reason: string;
+  createdById?: string;
+}, tx?: any) {
+  const client = tx || prisma;
+
+  const existing = await client.journalEntry.findFirst({
+    where: {
+      tenantId: input.tenantId,
+      sourceType: input.sourceType,
+      sourceId: input.sourceId,
+    },
+    include: {
+      lines: true,
+    },
+  });
+
+  if (!existing) return null;
+
+  const reversingLines = existing.lines.map((line: any) => ({
+    accountId: line.accountId,
+    debit: toNumber(line.credit),
+    credit: toNumber(line.debit),
+  }));
+
+  return createBalancedJournalEntry({
+    tenantId: input.tenantId,
+    date: new Date(),
+    description: `Reversal of ${existing.sourceType} (${existing.reference || existing.sourceId}): ${input.reason}`,
+    reference: `REV-${existing.id}`,
+    sourceType: `reversal_${input.sourceType}`,
+    sourceId: input.sourceId,
+    createdById: input.createdById,
+    lines: reversingLines,
+  }, tx);
 }
 
 export async function postSalesOrderJournalEntry(input: {
@@ -225,6 +293,52 @@ export async function postTaxInvoiceJournalEntry(input: {
       lines: [
         { accountId: accountsReceivable.id, debit: total, credit: 0 },
         { accountId: salesRevenue.id, debit: 0, credit: total },
+      ],
+    }, tx);
+  }
+}
+
+export async function postSupplierInvoiceJournalEntry(input: {
+  tenantId: string;
+  supplierInvoiceId: string;
+  totalAmount: number;
+  taxAmount: number;
+  createdById?: string;
+}, tx?: any) {
+  const accountsPayable = await requireAccountByCode(input.tenantId, "2000", tx);
+  const inventory = await requireAccountByCode(input.tenantId, "1200", tx);
+  const totalAmount = toNumber(input.totalAmount);
+  const taxAmount = toNumber(input.taxAmount);
+  const subtotal = totalAmount - taxAmount;
+
+  if (taxAmount > 0) {
+    const vatPayable = await requireAccountByCode(input.tenantId, "2100", tx);
+    return createBalancedJournalEntry({
+      tenantId: input.tenantId,
+      date: new Date(),
+      description: "Supplier Invoice posted",
+      reference: input.supplierInvoiceId,
+      sourceType: "supplier_invoice",
+      sourceId: input.supplierInvoiceId,
+      createdById: input.createdById,
+      lines: [
+        { accountId: inventory.id, debit: subtotal, credit: 0 },
+        { accountId: vatPayable.id, debit: taxAmount, credit: 0 },
+        { accountId: accountsPayable.id, debit: 0, credit: totalAmount },
+      ],
+    }, tx);
+  } else {
+    return createBalancedJournalEntry({
+      tenantId: input.tenantId,
+      date: new Date(),
+      description: "Supplier Invoice posted",
+      reference: input.supplierInvoiceId,
+      sourceType: "supplier_invoice",
+      sourceId: input.supplierInvoiceId,
+      createdById: input.createdById,
+      lines: [
+        { accountId: inventory.id, debit: totalAmount, credit: 0 },
+        { accountId: accountsPayable.id, debit: 0, credit: totalAmount },
       ],
     }, tx);
   }

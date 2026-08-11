@@ -3,7 +3,7 @@ import { Prisma, SalesOrderStatus } from "@prisma/client";
 import { ApiError } from "../../utils/api-error";
 import { postDebit } from "../ar-ledger/ar-ledger.service";
 import { createTaxInvoice } from "../tax-invoices/tax-invoice.service";
-import { postSalesOrderJournalEntry } from "../../services/accounting.service";
+import { postSalesOrderJournalEntry, reverseJournalEntry } from "../../services/accounting.service";
 
 /**
  * Sales Order Service
@@ -110,7 +110,7 @@ export async function createOrder(input: {
     // 4. Update Customer Balance
     const latestBalance = await tx.arLedger.findFirst({
       where: { customerId: input.customerId },
-      orderBy: { entryDate: "desc" },
+      orderBy: [{ entryDate: "desc" }, { id: "desc" }],
     });
 
     if (latestBalance) {
@@ -120,8 +120,7 @@ export async function createOrder(input: {
       });
     }
 
-    // 5. If depositAmount > 0, record the payment inline (cannot call recordPayment here
-    //    because that opens its own prisma.$transaction, which can't see the uncommitted order)
+    // 5. If depositAmount > 0, record the payment inline
     if (deposit > 0) {
       const payment = await tx.payment.create({
         data: {
@@ -134,8 +133,6 @@ export async function createOrder(input: {
           paymentDate: new Date(),
         },
       });
-
-      // No need to update salesOrder paidAmount/balanceDue/status — already set correctly at creation
 
       // Post the AR credit for the deposit
       const lastArEntry = await tx.arLedger.findFirst({
@@ -173,8 +170,7 @@ export async function createOrder(input: {
       }
     }
 
-    // 6. Post GL journal
-    // Dr Accounts Receivable (1100) / Cr Sales Revenue (4000)
+    // 6. Post GL journal (Sales Order commercial revenue entry)
     try {
       await postSalesOrderJournalEntry({
         tenantId: input.tenantId,
@@ -186,7 +182,6 @@ export async function createOrder(input: {
     }
 
     // 7. AUTOMATIC ESTIMATE CREATION
-    // Ensure every new order has an Estimate Bill (non-tax invoice) created automatically
     await createTaxInvoice({
       tenantId: input.tenantId,
       salesOrderId: order.id,
@@ -217,7 +212,7 @@ export async function confirmOrder(tenantId: string, orderId: string) {
     if (!order) throw new ApiError(404, "Order not found");
     if (order.status !== "QUOTE") throw new ApiError(400, "Only quotes can be confirmed");
 
-    // Stock Reservation Logic (Bug 6 fix)
+    // Stock Reservation Logic
     for (const item of order.lineItems) {
       if (!item.productVariantId) continue;
       const variant = await tx.productVariant.findUnique({
@@ -226,7 +221,6 @@ export async function confirmOrder(tenantId: string, orderId: string) {
 
       if (!variant) throw new ApiError(404, `Variant ${item.productVariantId} not found`);
 
-      // Update stock and record movement
       await tx.productVariant.update({
         where: { id: item.productVariantId },
         data: { stockQuantity: { decrement: item.quantity } }
@@ -236,10 +230,10 @@ export async function confirmOrder(tenantId: string, orderId: string) {
         data: {
           tenantId: order.tenantId,
           productVariantId: item.productVariantId,
-          warehouseId: order.assignedWarehouseId || "system", // Should ideally have a default or picked warehouse
+          warehouseId: order.assignedWarehouseId || "system",
           type: "RESERVATION",
           quantity: item.quantity,
-          balanceAfter: variant.stockQuantity - item.quantity, // BUG 6 FIX
+          balanceAfter: variant.stockQuantity - item.quantity,
           source: `Order ${order.id}`,
         }
       });
@@ -256,7 +250,7 @@ export async function cancelOrder(tenantId: string, orderId: string) {
   return prisma.$transaction(async (tx) => {
     const order = await tx.salesOrder.findFirst({
       where: { id: orderId, tenantId },
-      include: { lineItems: true }
+      include: { lineItems: true, taxInvoices: true }
     });
 
     if (!order) throw new ApiError(404, "Order not found");
@@ -265,19 +259,19 @@ export async function cancelOrder(tenantId: string, orderId: string) {
     }
 
     if (order.status === "CONFIRMED" || order.status === "IN_WAREHOUSE" || order.status === "DISPATCHED" || order.status === "OUT_FOR_DELIVERY") {
-      // Revert stock reservation
+      // 1. Revert stock reservation
       for (const item of order.lineItems) {
         if (!item.productVariantId) continue;
         const variant = await tx.productVariant.findUnique({
           where: { id: item.productVariantId }
         });
-  
+
         if (variant) {
           await tx.productVariant.update({
             where: { id: item.productVariantId },
             data: { stockQuantity: { increment: item.quantity } }
           });
-  
+
           await tx.stockMovement.create({
             data: {
               tenantId: order.tenantId,
@@ -291,6 +285,63 @@ export async function cancelOrder(tenantId: string, orderId: string) {
           });
         }
       }
+    }
+
+    // 2. Revert AR Ledger entry (post CREDIT entry to offset initial DEBIT)
+    const orderAmountNum = Number(order.orderAmount);
+    const lastArEntry = await tx.arLedger.findFirst({
+      where: { customerId: order.customerId },
+      orderBy: [{ entryDate: "desc" }, { id: "desc" }],
+    });
+    const currentBalance = lastArEntry ? Number(lastArEntry.runningBalance) : 0;
+
+    await tx.arLedger.create({
+      data: {
+        tenantId: order.tenantId,
+        customerId: order.customerId,
+        salesOrderId: order.id,
+        entryType: "CREDIT",
+        amount: orderAmountNum,
+        runningBalance: currentBalance - orderAmountNum,
+        fiscalYear: order.fiscalYear ?? "",
+        bsDate: order.bsDate ?? "",
+        entryDate: new Date(),
+        narration: `Reversal for Cancelled Order ${order.id}`,
+      },
+    });
+
+    // Sync Customer balance
+    const latestArEntry = await tx.arLedger.findFirst({
+      where: { customerId: order.customerId },
+      orderBy: [{ entryDate: "desc" }, { id: "desc" }],
+    });
+    if (latestArEntry) {
+      await tx.customer.update({
+        where: { id: order.customerId },
+        data: { outstandingBalance: latestArEntry.runningBalance },
+      });
+    }
+
+    // 3. Revert GL journal entries for Sales Order
+    await reverseJournalEntry({
+      tenantId: order.tenantId,
+      sourceType: "sales_order",
+      sourceId: order.id,
+      reason: `Order ${order.id} cancelled`,
+    }, tx);
+
+    // 4. Cancel and revert GL entries for linked tax invoices
+    for (const inv of order.taxInvoices) {
+      await tx.taxInvoice.update({
+        where: { id: inv.id },
+        data: { status: "CANCELLED" }
+      });
+      await reverseJournalEntry({
+        tenantId: order.tenantId,
+        sourceType: "tax_invoice",
+        sourceId: inv.id,
+        reason: `Order ${order.id} cancelled`,
+      }, tx);
     }
 
     return tx.salesOrder.update({

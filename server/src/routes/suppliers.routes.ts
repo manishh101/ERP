@@ -5,6 +5,7 @@ import { asyncHandler } from "../middleware/async-handler";
 import { validate } from "../middleware/validate";
 import { idParamSchema, listQuerySchema, supplierInvoiceSchema, supplierSchema } from "../schemas/domain";
 import { getApAgingReport } from "../services/report.service";
+import { postSupplierInvoiceJournalEntry } from "../services/accounting.service";
 import { getPagination } from "../utils/pagination";
 import { toNumber } from "../utils/number";
 import { ApiError } from "../utils/api-error";
@@ -82,29 +83,42 @@ suppliersRouter.post(
   validate(supplierInvoiceSchema),
   asyncHandler(async (request, response) => {
     const body = request.validated?.body as ReturnType<typeof supplierInvoiceSchema.parse>;
+    const tenantId = request.user!.tenantId;
 
     // Verify supplier ownership
     const supplierExists = await prisma.supplier.findFirst({
-      where: { id: body.supplierId, tenantId: request.user!.tenantId },
+      where: { id: body.supplierId, tenantId },
     });
     if (!supplierExists) throw new ApiError(404, "Supplier not found");
 
     if (body.purchaseOrderId) {
       const poExists = await prisma.purchaseOrder.findFirst({
-        where: { id: body.purchaseOrderId, tenantId: request.user!.tenantId },
+        where: { id: body.purchaseOrderId, tenantId },
       });
       if (!poExists) throw new ApiError(404, "Purchase Order not found");
     }
 
-    const invoice = await prisma.supplierInvoice.create({
-      data: {
-        ...body,
-        tenantId: request.user!.tenantId,
-      },
-      include: {
-        supplier: true,
-        purchaseOrder: true,
-      },
+    const invoice = await prisma.$transaction(async (tx) => {
+      const created = await tx.supplierInvoice.create({
+        data: {
+          ...body,
+          tenantId,
+        },
+        include: {
+          supplier: true,
+          purchaseOrder: true,
+        },
+      });
+
+      await postSupplierInvoiceJournalEntry({
+        tenantId,
+        supplierInvoiceId: created.id,
+        totalAmount: toNumber(created.totalAmount),
+        taxAmount: toNumber(created.taxAmount),
+        createdById: request.user!.id,
+      }, tx);
+
+      return created;
     });
 
     response.status(201).json(invoice);

@@ -63,23 +63,31 @@ export async function getVatSummary(tenantId: string, fiscalYear?: string, start
 }
 
 export async function getMonthlySummary(tenantId: string, fiscalYear: string) {
-  const result = await prisma.vatRegister.groupBy({
-    by: ["bsDate"],
-    _sum: {
-      taxableAmount: true,
-      outputVat: true,
-    },
+  const entries = await prisma.vatRegister.findMany({
     where: {
       tenantId,
       fiscalYear,
     },
   });
 
-  return result.map((r) => ({
-    month: r.bsDate.substring(5, 7),
-    taxableAmount: r._sum.taxableAmount,
-    vatAmount: r._sum.outputVat,
-  }));
+  const monthlyMap = new Map<string, { taxableAmount: number; vatAmount: number }>();
+
+  for (const entry of entries) {
+    // bsDate is in format "YYYY-MM-DD" e.g., "2081-05-15"
+    const month = entry.bsDate ? entry.bsDate.substring(5, 7) : "00";
+    const current = monthlyMap.get(month) || { taxableAmount: 0, vatAmount: 0 };
+    current.taxableAmount += Number(entry.taxableAmount);
+    current.vatAmount += Number(entry.outputVat);
+    monthlyMap.set(month, current);
+  }
+
+  return Array.from(monthlyMap.entries())
+    .map(([month, data]) => ({
+      month,
+      taxableAmount: data.taxableAmount,
+      vatAmount: data.vatAmount,
+    }))
+    .sort((a, b) => a.month.localeCompare(b.month));
 }
 
 export async function getEntries(tenantId: string, fiscalYear: string, month?: string) {

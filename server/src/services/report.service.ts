@@ -24,6 +24,7 @@ export async function getAraAgingReport(tenantId: string) {
     where: {
       tenantId,
       balanceDue: { gt: 0 },
+      status: { not: "CANCELLED" },
     },
     include: {
       customer: true,
@@ -153,16 +154,34 @@ export async function getTrialBalance(tenantId: string) {
     orderBy: [{ code: "asc" }],
   });
 
-  return accounts.map((account: any) => ({
-    code: account.code,
-    name: account.name,
-    type: account.type,
-    debit: account.type === "ASSET" || account.type === "EXPENSE" ? toNumber(account.balance) : 0,
-    credit:
-      account.type === "LIABILITY" || account.type === "EQUITY" || account.type === "INCOME"
-        ? toNumber(account.balance)
-        : 0,
-  }));
+  return accounts.map((account: any) => {
+    const bal = toNumber(account.balance);
+    const isNormalDebit = account.type === "ASSET" || account.type === "EXPENSE";
+    let debit = 0;
+    let credit = 0;
+
+    if (isNormalDebit) {
+      if (bal >= 0) {
+        debit = bal;
+      } else {
+        credit = Math.abs(bal);
+      }
+    } else {
+      if (bal >= 0) {
+        credit = bal;
+      } else {
+        debit = Math.abs(bal);
+      }
+    }
+
+    return {
+      code: account.code,
+      name: account.name,
+      type: account.type,
+      debit,
+      credit,
+    };
+  });
 }
 
 export async function getCashFlow(tenantId: string, startDate?: Date, endDate?: Date) {

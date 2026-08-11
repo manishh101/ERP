@@ -140,7 +140,7 @@ export async function recordPayment(input: {
     // SYNC CUSTOMER BALANCE
     const latestBalance = await tx.arLedger.findFirst({
       where: { customerId: firstOrder.customerId },
-      orderBy: { entryDate: "desc" },
+      orderBy: [{ entryDate: "desc" }, { id: "desc" }],
     });
 
     if (latestBalance) {
@@ -150,19 +150,14 @@ export async function recordPayment(input: {
       });
     }
 
-    // #8 Fix: Post GL journal entry INSIDE the transaction
+    // #8 Fix: Post GL journal entry INSIDE the transaction atomically
     if (firstPaymentRecord) {
-      try {
-        await postCustomerPaymentJournalEntry({
-          tenantId: input.tenantId,
-          paymentId: firstPaymentRecord.id,
-          amount: input.amount,
-          createdById: input.createdById,
-        });
-      } catch (err) {
-        // If GL accounts don't exist yet, log warning but don't block payment
-        console.warn("[Payment] Journal entry skipped (accounts may not be seeded):", (err as Error).message);
-      }
+      await postCustomerPaymentJournalEntry({
+        tenantId: input.tenantId,
+        paymentId: firstPaymentRecord.id,
+        amount: input.amount,
+        createdById: input.createdById,
+      }, tx);
     }
 
     // #9 Fix: Audit logging inside the transaction

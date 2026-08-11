@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import { ApiError } from "../../utils/api-error";
 import { nextInvoiceNumber, nextEstimateNumber } from "../../shared/invoice-seq.util";
 import { postEntry } from "../vat-register/vat-register.service";
-import { postTaxInvoiceJournalEntry } from "../../services/accounting.service";
+import { postTaxInvoiceJournalEntry, reverseJournalEntry } from "../../services/accounting.service";
 
 /**
  * Tax Invoice Service
@@ -143,18 +143,29 @@ export async function createTaxInvoice(
       });
     }
 
-    // 6. Post GL journal entry
-    // Dr Accounts Receivable (1100) | Cr VAT Payable (2100) | Cr Sales Revenue (4000)
-    try {
-      await postTaxInvoiceJournalEntry({
-        tenantId: input.tenantId,
-        taxInvoiceId: taxInvoice.id,
-        subtotal: subtotal,
-        taxAmount: taxAmount,
-        invoiceType: input.invoiceType,
-      }, tx);
-    } catch (err) {
-      console.warn(`[TaxInvoice] Journal entry skipped: ${(err as Error).message}`);
+    // 6. Post GL journal entry (VAT / PAN invoices ONLY — ESTIMATE never posts to GL)
+    if (input.invoiceType !== "ESTIMATE") {
+      try {
+        // If a commercial sales_order GL entry was posted previously, reverse it so tax_invoice takes precedence
+        if (input.salesOrderId) {
+          await reverseJournalEntry({
+            tenantId: input.tenantId,
+            sourceType: "sales_order",
+            sourceId: input.salesOrderId,
+            reason: "Replaced by official Tax Invoice GL entry",
+          }, tx);
+        }
+
+        await postTaxInvoiceJournalEntry({
+          tenantId: input.tenantId,
+          taxInvoiceId: taxInvoice.id,
+          subtotal: subtotal,
+          taxAmount: taxAmount,
+          invoiceType: input.invoiceType,
+        }, tx);
+      } catch (err) {
+        console.warn(`[TaxInvoice] Journal entry skipped: ${(err as Error).message}`);
+      }
     }
 
     return taxInvoice;

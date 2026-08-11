@@ -62,24 +62,49 @@ async function deletePayment(paymentId: string) {
         data: { matchedPaymentId: null },
       });
 
-      // 4. Delete AR Ledger Entry
+      // 4. Post Reversing AR Ledger Entry instead of physical deletion
       const ledgerEntry = await tx.arLedger.findFirst({
         where: { paymentId },
       });
 
-      if (ledgerEntry) {
-        console.log(`Deleting AR Ledger entry: ${ledgerEntry.id}`);
-        await tx.arLedger.delete({
-          where: { id: ledgerEntry.id },
-        });
+      if (ledgerEntry && salesOrderId) {
+        const order = await tx.salesOrder.findUnique({ where: { id: salesOrderId } });
+        if (order) {
+          const lastAr = await tx.arLedger.findFirst({
+            where: { customerId: order.customerId },
+            orderBy: [{ entryDate: "desc" }, { id: "desc" }],
+          });
+          const currentBal = lastAr ? Number(lastAr.runningBalance) : 0;
+
+          const reversalEntry = await tx.arLedger.create({
+            data: {
+              tenantId: payment.tenantId,
+              customerId: order.customerId,
+              salesOrderId: salesOrderId,
+              paymentId: paymentId,
+              entryType: "DEBIT",
+              amount: amountNum,
+              runningBalance: currentBal + amountNum,
+              fiscalYear: ledgerEntry.fiscalYear,
+              bsDate: ledgerEntry.bsDate,
+              entryDate: new Date(),
+              narration: `Reversal of Payment ${paymentId}`,
+            },
+          });
+          console.log(`Created AR Ledger reversal entry: ${reversalEntry.id}`);
+        }
       }
 
-      // 5. Delete Payment record itself
-      await tx.payment.delete({
+      // 5. Soft-cancel / Reverse Payment note instead of destructive deletion
+      await tx.payment.update({
         where: { id: paymentId },
+        data: {
+          note: `[REVERSED] ${payment.note || "Payment voided"}`,
+          amount: 0,
+        },
       });
 
-      console.log(`Payment ${paymentId} deleted successfully.`);
+      console.log(`Payment ${paymentId} safely marked as REVERSED.`);
 
       // 6. Recalculate customer's outstanding balance
       if (salesOrderId) {
@@ -89,7 +114,7 @@ async function deletePayment(paymentId: string) {
         if (order) {
           const latestBalance = await tx.arLedger.findFirst({
             where: { customerId: order.customerId },
-            orderBy: { entryDate: "desc" },
+            orderBy: [{ entryDate: "desc" }, { id: "desc" }],
           });
 
           if (latestBalance) {
@@ -103,7 +128,7 @@ async function deletePayment(paymentId: string) {
       }
     });
 
-    console.log("Safe deletion complete!");
+    console.log("Safe reversal complete!");
   } catch (error: any) {
     console.error("Failed to delete payment:", error.message);
   }

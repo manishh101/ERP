@@ -163,7 +163,7 @@ paymentsRouter.post(
             paymentId: created.id,
             amount: body.amount,
             createdById: request.user!.id,
-          });
+          }, tx);
         }
 
         return created;
