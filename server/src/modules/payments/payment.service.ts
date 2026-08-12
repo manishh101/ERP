@@ -137,19 +137,6 @@ export async function recordPayment(input: {
       remainingAmount -= amountToApply;
     }
 
-    // SYNC CUSTOMER BALANCE
-    const latestBalance = await tx.arLedger.findFirst({
-      where: { customerId: firstOrder.customerId },
-      orderBy: [{ entryDate: "desc" }, { id: "desc" }],
-    });
-
-    if (latestBalance) {
-      await tx.customer.update({
-        where: { id: firstOrder.customerId },
-        data: { outstandingBalance: latestBalance.runningBalance },
-      });
-    }
-
     // #8 Fix: Post GL journal entry INSIDE the transaction atomically
     if (firstPaymentRecord) {
       await postCustomerPaymentJournalEntry({

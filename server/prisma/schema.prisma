@@ -506,6 +506,7 @@ model TaxInvoice {
   @@unique([invoiceNumber, tenantId])
   @@index([soId])
   @@index([status, dueDate])
+  @@index([tenantId, invoiceType])
   @@map("tax_invoices")
 }
 
@@ -550,6 +551,7 @@ model Payment {
   arLedgers         ArLedger[]
 
   @@index([salesOrderId, purchaseOrderId, supplierInvoiceId])
+  @@index([tenantId, paymentDate])
   @@map("payments")
 }
 
@@ -601,6 +603,7 @@ model JournalEntry {
   lines       JournalEntryLine[]
 
   @@index([date])
+  @@index([tenantId, sourceType, sourceId])
   @@map("journal_entries")
 }
 
@@ -817,6 +820,7 @@ model ArLedger {
   payment    Payment?   @relation(fields: [paymentId], references: [id])
 
   @@index([customerId, fiscalYear, entryDate])
+  @@index([tenantId, customerId, entryDate])
   @@map("ar_ledger")
 }
 

@@ -29,7 +29,7 @@ export async function postDebit(
   const newBalance = lastBalance + input.amount;
 
   // 2. Create ArLedger entry
-  return tx.arLedger.create({
+  const entry = await tx.arLedger.create({
     data: {
       tenantId: input.tenantId,
       customerId: input.customerId,
@@ -43,6 +43,14 @@ export async function postDebit(
       narration: input.narration ?? `Sales`,
     },
   });
+
+  // 3. Keep customer outstanding balance in sync
+  await tx.customer.update({
+    where: { id: input.customerId },
+    data: { outstandingBalance: newBalance },
+  });
+
+  return entry;
 }
 
 export async function postCredit(
@@ -51,7 +59,7 @@ export async function postCredit(
     tenantId: string;
     customerId: string;
     salesOrderId: string;
-    paymentId: string;
+    paymentId?: string;
     amount: number;
     bsDate: string;
     fiscalYear: string;
@@ -68,12 +76,12 @@ export async function postCredit(
   const newBalance = lastBalance - input.amount;
 
   // 2. Create ArLedger entry
-  return tx.arLedger.create({
+  const entry = await tx.arLedger.create({
     data: {
       tenantId: input.tenantId,
       customerId: input.customerId,
       salesOrderId: input.salesOrderId,
-      paymentId: input.paymentId,
+      paymentId: input.paymentId ?? null,
       entryType: "CREDIT",
       amount: input.amount,
       runningBalance: newBalance,
@@ -83,6 +91,14 @@ export async function postCredit(
       narration: input.narration ?? `Payment`,
     },
   });
+
+  // 3. Keep customer outstanding balance in sync
+  await tx.customer.update({
+    where: { id: input.customerId },
+    data: { outstandingBalance: newBalance },
+  });
+
+  return entry;
 }
 
 export interface LedgerEntry {

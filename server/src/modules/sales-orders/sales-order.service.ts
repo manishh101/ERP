@@ -1,9 +1,9 @@
 import { prisma } from "../../config/prisma";
 import { Prisma, SalesOrderStatus } from "@prisma/client";
 import { ApiError } from "../../utils/api-error";
-import { postDebit } from "../ar-ledger/ar-ledger.service";
+import { postCredit, postDebit } from "../ar-ledger/ar-ledger.service";
 import { createTaxInvoice } from "../tax-invoices/tax-invoice.service";
-import { postSalesOrderJournalEntry, reverseJournalEntry } from "../../services/accounting.service";
+import { reverseJournalEntry } from "../../services/accounting.service";
 
 /**
  * Sales Order Service
@@ -107,20 +107,7 @@ export async function createOrder(input: {
       narration: `Sales Order ${order.id} confirmed`,
     });
 
-    // 4. Update Customer Balance
-    const latestBalance = await tx.arLedger.findFirst({
-      where: { customerId: input.customerId },
-      orderBy: [{ entryDate: "desc" }, { id: "desc" }],
-    });
-
-    if (latestBalance) {
-      await tx.customer.update({
-        where: { id: input.customerId },
-        data: { outstandingBalance: latestBalance.runningBalance },
-      });
-    }
-
-    // 5. If depositAmount > 0, record the payment inline
+    // 4. If depositAmount > 0, record the payment inline
     if (deposit > 0) {
       const payment = await tx.payment.create({
         data: {
@@ -134,51 +121,17 @@ export async function createOrder(input: {
         },
       });
 
-      // Post the AR credit for the deposit
-      const lastArEntry = await tx.arLedger.findFirst({
-        where: { customerId: input.customerId },
-        orderBy: [{ entryDate: "desc" }, { id: "desc" }],
-      });
-      const lastBalance = lastArEntry ? Number(lastArEntry.runningBalance) : 0;
-
-      await tx.arLedger.create({
-        data: {
-          tenantId: input.tenantId,
-          customerId: input.customerId,
-          salesOrderId: order.id,
-          paymentId: payment.id,
-          entryType: "CREDIT",
-          amount: deposit,
-          runningBalance: lastBalance - deposit,
-          fiscalYear: input.fiscalYear,
-          bsDate: input.bsDate,
-          entryDate: new Date(),
-          narration: "Initial deposit",
-        },
-      });
-
-      // Sync customer outstanding balance
-      const latestEntry = await tx.arLedger.findFirst({
-        where: { customerId: input.customerId },
-        orderBy: [{ entryDate: "desc" }, { id: "desc" }],
-      });
-      if (latestEntry) {
-        await tx.customer.update({
-          where: { id: input.customerId },
-          data: { outstandingBalance: latestEntry.runningBalance },
-        });
-      }
-    }
-
-    // 6. Post GL journal (Sales Order commercial revenue entry)
-    try {
-      await postSalesOrderJournalEntry({
+      // Post the AR credit for the deposit using centralized ar-ledger service
+      await postCredit(tx, {
         tenantId: input.tenantId,
+        customerId: input.customerId,
         salesOrderId: order.id,
-        total: orderAmount,
-      }, tx);
-    } catch (err) {
-      console.warn(`[SalesOrder] Journal entry skipped: ${(err as Error).message}`);
+        paymentId: payment.id,
+        amount: deposit,
+        bsDate: input.bsDate,
+        fiscalYear: input.fiscalYear,
+        narration: "Initial deposit",
+      });
     }
 
     // 7. AUTOMATIC ESTIMATE CREATION
@@ -289,38 +242,15 @@ export async function cancelOrder(tenantId: string, orderId: string) {
 
     // 2. Revert AR Ledger entry (post CREDIT entry to offset initial DEBIT)
     const orderAmountNum = Number(order.orderAmount);
-    const lastArEntry = await tx.arLedger.findFirst({
-      where: { customerId: order.customerId },
-      orderBy: [{ entryDate: "desc" }, { id: "desc" }],
+    await postCredit(tx, {
+      tenantId: order.tenantId,
+      customerId: order.customerId,
+      salesOrderId: order.id,
+      amount: orderAmountNum,
+      bsDate: order.bsDate ?? "",
+      fiscalYear: order.fiscalYear ?? "",
+      narration: `Reversal for Cancelled Order ${order.id}`,
     });
-    const currentBalance = lastArEntry ? Number(lastArEntry.runningBalance) : 0;
-
-    await tx.arLedger.create({
-      data: {
-        tenantId: order.tenantId,
-        customerId: order.customerId,
-        salesOrderId: order.id,
-        entryType: "CREDIT",
-        amount: orderAmountNum,
-        runningBalance: currentBalance - orderAmountNum,
-        fiscalYear: order.fiscalYear ?? "",
-        bsDate: order.bsDate ?? "",
-        entryDate: new Date(),
-        narration: `Reversal for Cancelled Order ${order.id}`,
-      },
-    });
-
-    // Sync Customer balance
-    const latestArEntry = await tx.arLedger.findFirst({
-      where: { customerId: order.customerId },
-      orderBy: [{ entryDate: "desc" }, { id: "desc" }],
-    });
-    if (latestArEntry) {
-      await tx.customer.update({
-        where: { id: order.customerId },
-        data: { outstandingBalance: latestArEntry.runningBalance },
-      });
-    }
 
     // 3. Revert GL journal entries for Sales Order
     await reverseJournalEntry({
