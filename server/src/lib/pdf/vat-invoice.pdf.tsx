@@ -17,291 +17,388 @@ const fmtDate = (d: string | Date | undefined) => {
 };
 
 function getInvoiceTitle(invoiceType: string, isEstimate: boolean): string {
-  if (isEstimate) return "Estimate Bill";
-  if (invoiceType === "VAT") return "Tax Invoice";
-  return "Invoice (PAN)";
+  if (isEstimate || invoiceType === "ESTIMATE") return "ESTIMATE BILL";
+  if (invoiceType === "VAT") return "TAX INVOICE";
+  return "INVOICE (PAN)";
 }
 
-// ─── Styles ─────────────────────────────────────────────────────────────────
-const LINE = "#222222";
-const THIN = 0.6;
-
+// ─── Precise Classic Grid Styles matching reference screenshot ──────────────
 const S = StyleSheet.create({
   page: {
-    paddingTop: 36,
+    paddingTop: 30,
     paddingBottom: 50,
-    paddingHorizontal: 40,
+    paddingHorizontal: 35,
     fontSize: 9,
-    fontFamily: "Helvetica",
-    color: "#1a1a1a",
+    fontFamily: "Times-Roman",
+    color: "#000000",
+    backgroundColor: "#ffffff",
   },
 
-  /* ── Header ─────────────────────────────────────────────────────────── */
+  /* ── Header Section ──────────────────────────────────────────────────── */
   topBar: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "flex-end",
-    marginBottom: 6,
+    alignItems: "flex-start",
+    marginBottom: 4,
+  },
+  
+  companySection: {
+    maxWidth: "60%",
   },
   companyName: {
-    fontSize: 15,
-    fontFamily: "Helvetica-Bold",
-    color: "#111111",
-    marginBottom: 1,
+    fontSize: 16,
+    fontFamily: "Times-Bold",
+    color: "#000000",
+    marginBottom: 3,
   },
   companyDetail: {
-    fontSize: 8,
-    color: "#444444",
-    lineHeight: 1.45,
+    fontSize: 9,
+    fontFamily: "Times-Roman",
+    color: "#000000",
+    lineHeight: 1.35,
+  },
+  
+  titleSection: {
+    alignItems: "flex-end",
   },
   titleText: {
-    fontSize: 20,
-    fontFamily: "Helvetica-Bold",
-    color: "#111111",
+    fontSize: 18,
+    fontFamily: "Times-Bold",
+    color: "#000000",
     textTransform: "uppercase",
-    letterSpacing: 2,
+    letterSpacing: 0.5,
+  },
+  titleUnderline: {
+    borderBottomWidth: 1.5,
+    borderBottomColor: "#000000",
+    marginTop: 2,
+    width: "100%",
   },
 
-  dividerThick: {
-    borderBottomWidth: 1.5,
-    borderBottomColor: LINE,
+  headerRule: {
+    borderBottomWidth: 1,
+    borderBottomColor: "#000000",
+    marginTop: 8,
     marginBottom: 14,
   },
 
-  /* ── Bill-To & Meta ─────────────────────────────────────────────────── */
+  /* ── Bill-To & Meta Section ─────────────────────────────────────────── */
   infoSection: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 18,
+    alignItems: "flex-start",
+    marginBottom: 16,
   },
+  
   infoCol: {
-    width: "52%",
+    width: "55%",
   },
+  
   metaCol: {
-    width: "40%",
-    alignItems: "flex-end",
+    width: "42%",
   },
-  sectionLabel: {
-    fontSize: 7,
-    fontFamily: "Helvetica-Bold",
-    color: "#888888",
-    textTransform: "uppercase",
-    letterSpacing: 1,
+  
+  billToLabel: {
+    fontSize: 10,
+    fontFamily: "Times-BoldItalic",
+    color: "#000000",
     marginBottom: 4,
   },
+  
   partyName: {
-    fontSize: 11,
-    fontFamily: "Helvetica-Bold",
-    color: "#111111",
-    marginBottom: 2,
+    fontSize: 10,
+    fontFamily: "Times-Bold",
+    color: "#000000",
+    marginBottom: 3,
   },
+  
   infoText: {
-    fontSize: 8.5,
-    color: "#333333",
-    lineHeight: 1.5,
+    fontSize: 9,
+    fontFamily: "Times-Roman",
+    color: "#000000",
+    lineHeight: 1.35,
   },
 
   metaRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    width: "100%",
+    alignItems: "center",
     marginBottom: 3,
   },
+  
   metaLabel: {
-    fontSize: 8,
-    color: "#777777",
-    width: "48%",
-    textAlign: "right",
+    fontSize: 9,
+    fontFamily: "Times-Roman",
+    color: "#000000",
+    width: "42%",
   },
-  metaValue: {
-    fontSize: 8.5,
-    fontFamily: "Helvetica-Bold",
-    color: "#111111",
-    width: "50%",
-    textAlign: "right",
+  
+  metaColon: {
+    fontSize: 9,
+    fontFamily: "Times-Roman",
+    color: "#000000",
+    width: "8%",
+    textAlign: "center",
   },
 
-  /* ── Table ──────────────────────────────────────────────────────────── */
-  table: {
-    borderTopWidth: THIN,
-    borderTopColor: LINE,
-    borderBottomWidth: THIN,
-    borderBottomColor: LINE,
-    marginBottom: 6,
+  metaValue: {
+    fontSize: 9.5,
+    fontFamily: "Times-Bold",
+    color: "#000000",
+    width: "50%",
   },
+
+  /* ── Full Grid Table Section ────────────────────────────────────────── */
+  table: {
+    borderWidth: 1,
+    borderColor: "#000000",
+    marginBottom: 14,
+  },
+  
   tableHead: {
     flexDirection: "row",
-    borderBottomWidth: THIN,
-    borderBottomColor: LINE,
-    paddingVertical: 6,
-    paddingHorizontal: 2,
+    alignItems: "stretch",
+    borderBottomWidth: 1,
+    borderBottomColor: "#000000",
+    minHeight: 22,
+    backgroundColor: "#ffffff",
   },
-  th: {
-    fontSize: 7.5,
-    fontFamily: "Helvetica-Bold",
-    color: "#555555",
+  
+  thCell: {
+    paddingVertical: 5,
+    paddingHorizontal: 4,
+    borderRightWidth: 1,
+    borderRightColor: "#000000",
+    justifyContent: "center",
+  },
+
+  thText: {
+    fontSize: 8.5,
+    fontFamily: "Times-Bold",
+    color: "#000000",
     textTransform: "uppercase",
-    letterSpacing: 0.3,
   },
+  
   tr: {
     flexDirection: "row",
-    paddingVertical: 5,
-    paddingHorizontal: 2,
-    borderBottomWidth: THIN,
-    borderBottomColor: "#dddddd",
-    alignItems: "center",
+    alignItems: "stretch",
+    borderBottomWidth: 1,
+    borderBottomColor: "#000000",
+    minHeight: 22,
   },
+  
   trLast: {
     borderBottomWidth: 0,
   },
-  td: {
-    fontSize: 8.5,
-    color: "#1a1a1a",
+  
+  tdCell: {
+    paddingVertical: 5,
+    paddingHorizontal: 4,
+    borderRightWidth: 1,
+    borderRightColor: "#000000",
+    justifyContent: "center",
   },
-  tdBold: {
-    fontSize: 8.5,
-    fontFamily: "Helvetica-Bold",
-    color: "#111111",
+  
+  tdText: {
+    fontSize: 9,
+    fontFamily: "Times-Roman",
+    color: "#000000",
+    lineHeight: 1.3,
   },
+  
   tdSub: {
     fontSize: 7.5,
-    color: "#888888",
+    fontFamily: "Times-Italic",
+    color: "#444444",
     marginTop: 1,
   },
 
-  // Column widths
-  cNo:   { width: "5%", textAlign: "center" },
-  cDesc: { width: "43%" },
-  cQty:  { width: "9%", textAlign: "center" },
-  cUnit: { width: "8%", textAlign: "center" },
-  cRate: { width: "15%", textAlign: "right" },
-  cAmt:  { width: "20%", textAlign: "right" },
+  cellLast: {
+    borderRightWidth: 0,
+  },
 
-  /* ── Totals ─────────────────────────────────────────────────────────── */
+  // Exact Column widths
+  cNo:   { width: "6%" },
+  cDesc: { width: "44%" },
+  cQty:  { width: "10%" },
+  cUnit: { width: "10%" },
+  cRate: { width: "15%" },
+  cAmt:  { width: "15%" },
+
+  /* ── Totals Table Section ───────────────────────────────────────────── */
   totalsArea: {
     flexDirection: "row",
     justifyContent: "flex-end",
-    marginBottom: 10,
+    marginBottom: 14,
   },
+  
   totalsBox: {
-    width: "42%",
+    width: "48%",
+    borderWidth: 1,
+    borderColor: "#000000",
   },
+  
   totalsRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    paddingVertical: 3.5,
-    paddingHorizontal: 0,
+    alignItems: "stretch",
+    borderBottomWidth: 1,
+    borderBottomColor: "#000000",
+    minHeight: 20,
   },
-  totalsLabel: {
-    fontSize: 8.5,
-    color: "#555555",
+  
+  totalsRowLast: {
+    borderBottomWidth: 0,
   },
-  totalsValue: {
-    fontSize: 8.5,
-    color: "#1a1a1a",
-    textAlign: "right",
+  
+  totalsLabelCell: {
+    width: "52%",
+    paddingVertical: 4,
+    paddingHorizontal: 6,
+    borderRightWidth: 1,
+    borderRightColor: "#000000",
+    justifyContent: "center",
   },
-  totalDivider: {
-    borderTopWidth: THIN,
-    borderTopColor: LINE,
-    marginTop: 2,
-    paddingTop: 4,
+
+  totalsValueCell: {
+    width: "48%",
+    paddingVertical: 4,
+    paddingHorizontal: 6,
+    justifyContent: "center",
   },
-  grandTotalLabel: {
-    fontSize: 10,
-    fontFamily: "Helvetica-Bold",
-    color: "#111111",
+
+  totalsLabelText: {
+    fontSize: 9,
+    fontFamily: "Times-Roman",
+    color: "#000000",
   },
-  grandTotalValue: {
-    fontSize: 10,
-    fontFamily: "Helvetica-Bold",
-    color: "#111111",
+
+  totalsLabelBoldText: {
+    fontSize: 9.5,
+    fontFamily: "Times-Bold",
+    color: "#000000",
+  },
+  
+  totalsValueText: {
+    fontSize: 9,
+    fontFamily: "Times-Roman",
+    color: "#000000",
     textAlign: "right",
   },
 
-  /* ── Words ──────────────────────────────────────────────────────────── */
-  wordsBar: {
-    borderTopWidth: THIN,
-    borderTopColor: "#cccccc",
-    borderBottomWidth: THIN,
-    borderBottomColor: "#cccccc",
-    paddingVertical: 6,
-    paddingHorizontal: 0,
+  totalsValueBoldText: {
+    fontSize: 9.5,
+    fontFamily: "Times-Bold",
+    color: "#000000",
+    textAlign: "right",
+  },
+
+  /* ── Amount in Words ────────────────────────────────────────────────── */
+  wordsContainer: {
     marginBottom: 16,
   },
-  wordsPrefix: {
-    fontSize: 7.5,
-    color: "#888888",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
+  
+  wordsLabel: {
+    fontSize: 9.5,
+    fontFamily: "Times-Bold",
+    color: "#000000",
+    marginBottom: 2,
+  },
+  
+  wordsText: {
+    fontSize: 9.5,
+    fontFamily: "Times-Italic",
+    color: "#000000",
+  },
+
+  /* ── Terms & Conditions Box ─────────────────────────────────────────── */
+  termsBox: {
+    borderWidth: 1,
+    borderColor: "#000000",
+    padding: 8,
+    marginBottom: 24,
+  },
+  
+  termsTitle: {
+    fontSize: 9,
+    fontFamily: "Times-Bold",
+    color: "#000000",
+    marginBottom: 4,
+  },
+  
+  termLine: {
+    fontSize: 8.5,
+    fontFamily: "Times-Roman",
+    color: "#000000",
+    lineHeight: 1.35,
     marginBottom: 1,
   },
-  wordsText: {
-    fontSize: 8.5,
-    fontFamily: "Helvetica-Bold",
-    color: "#222222",
-  },
 
-  /* ── Notes ──────────────────────────────────────────────────────────── */
-  notesSection: {
-    marginBottom: 30,
-  },
-  notesTitle: {
-    fontSize: 7,
-    fontFamily: "Helvetica-Bold",
-    color: "#888888",
-    textTransform: "uppercase",
-    letterSpacing: 1,
-    marginBottom: 3,
-  },
-  noteLine: {
-    fontSize: 7.5,
-    color: "#666666",
-    lineHeight: 1.45,
-  },
-
-  /* ── Signatures ─────────────────────────────────────────────────────── */
+  /* ── Signatures Section ─────────────────────────────────────────────── */
   sigArea: {
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingHorizontal: 8,
+    paddingHorizontal: 20,
+    marginTop: 20,
+    marginBottom: 10,
   },
+  
   sigCol: {
-    width: "38%",
+    width: "40%",
     alignItems: "center",
   },
+  
+  sigTitle: {
+    fontSize: 9.5,
+    fontFamily: "Times-Bold",
+    color: "#000000",
+    marginBottom: 35,
+  },
+  
   sigLine: {
     width: "100%",
-    borderTopWidth: THIN,
-    borderTopColor: "#999999",
-    marginBottom: 3,
+    borderTopWidth: 1,
+    borderTopColor: "#000000",
+    marginBottom: 4,
   },
-  sigRole: {
-    fontSize: 8,
-    fontFamily: "Helvetica-Bold",
-    color: "#333333",
-  },
-  sigHint: {
-    fontSize: 7,
-    color: "#999999",
-    marginTop: 1,
+  
+  sigSubtext: {
+    fontSize: 8.5,
+    fontFamily: "Times-Roman",
+    color: "#000000",
   },
 
-  /* ── Fixed footer ───────────────────────────────────────────────────── */
+  /* ── Footer ─────────────────────────────────────────────────────────── */
   pageFooter: {
     position: "absolute",
     bottom: 20,
-    left: 40,
-    right: 40,
+    left: 35,
+    right: 35,
+    borderTopWidth: 1,
+    borderTopColor: "#000000",
+    paddingTop: 6,
     flexDirection: "row",
     justifyContent: "space-between",
-    borderTopWidth: THIN,
-    borderTopColor: "#cccccc",
-    paddingTop: 5,
+    alignItems: "flex-start",
   },
-  footerText: {
-    fontSize: 7,
-    color: "#aaaaaa",
+  
+  footerLeft: {
+    fontSize: 7.5,
+    fontFamily: "Times-Roman",
+    color: "#000000",
+  },
+  
+  footerCompany: {
+    fontSize: 7.5,
+    fontFamily: "Times-Bold",
+    color: "#000000",
+    textTransform: "uppercase",
+    marginTop: 1,
+  },
+
+  footerRight: {
+    fontSize: 7.5,
+    fontFamily: "Times-Roman",
+    color: "#000000",
+    textAlign: "right",
   },
 });
 
@@ -348,26 +445,44 @@ function InvoiceDocument({
     <Document>
       <Page size="A4" style={S.page} wrap>
 
-        {/* ── Header ──────────────────────────────────────────────── */}
+        {/* ── Header ─────────────────────────────────────────────── */}
         <View style={S.topBar}>
-          <View>
-            <Text style={S.companyName}>{companyProfile?.name}</Text>
-            {companyProfile?.address && <Text style={S.companyDetail}>{companyProfile.address}</Text>}
-            {companyProfile?.phone && <Text style={S.companyDetail}>Phone: {companyProfile.phone}</Text>}
-            {companyProfile?.panNo && <Text style={S.companyDetail}>PAN: {companyProfile.panNo}</Text>}
-            {companyProfile?.vatNo && <Text style={S.companyDetail}>VAT: {companyProfile.vatNo}</Text>}
+          <View style={S.companySection}>
+            <Text style={S.companyName}>{companyProfile?.name || "Shree Manish Steel Furniture Udhyog Pvt. Ltd."}</Text>
+            {companyProfile?.address && (
+              <Text style={S.companyDetail}>{companyProfile.address}</Text>
+            )}
+            {companyProfile?.phone && (
+              <Text style={S.companyDetail}>Tel: {companyProfile.phone}</Text>
+            )}
+            {companyProfile?.email && (
+              <Text style={S.companyDetail}>Email: {companyProfile.email}</Text>
+            )}
+            {companyProfile?.panNo && (
+              <Text style={S.companyDetail}>PAN: {companyProfile.panNo}</Text>
+            )}
+            {companyProfile?.vatNo && (
+              <Text style={S.companyDetail}>VAT: {companyProfile.vatNo}</Text>
+            )}
           </View>
-          <Text style={S.titleText}>{title}</Text>
+          
+          <View style={S.titleSection}>
+            <Text style={S.titleText}>{title}</Text>
+            <View style={S.titleUnderline} />
+          </View>
         </View>
-        <View style={S.dividerThick} />
 
-        {/* ── Bill-To & Invoice Meta ──────────────────────────────── */}
+        {/* Full-width divider rule under header */}
+        <View style={S.headerRule} />
+
+        {/* ── Bill-To & Invoice Meta Section ─────────────────────── */}
         <View style={S.infoSection}>
           <View style={S.infoCol}>
-            <Text style={S.sectionLabel}>Bill To</Text>
+            <Text style={S.billToLabel}>Bill To :</Text>
             <Text style={S.partyName}>{customer?.name || "—"}</Text>
-            {customer?.address && <Text style={S.infoText}>{customer.address}</Text>}
-            {customer?.phone && <Text style={S.infoText}>Phone: {customer.phone}</Text>}
+            {customer?.address && (
+              <Text style={S.infoText}>{customer.address}</Text>
+            )}
             {customer?.panNo ? (
               <Text style={S.infoText}>PAN: {customer.panNo}</Text>
             ) : customer?.vatNo ? (
@@ -377,37 +492,53 @@ function InvoiceDocument({
 
           <View style={S.metaCol}>
             <View style={S.metaRow}>
-              <Text style={S.metaLabel}>Invoice No</Text>
-              <Text style={S.metaValue}>{invoiceNumber}</Text>
+              <Text style={S.metaLabel}>{isEstimate ? "Estimate No." : "Invoice No."}</Text>
+              <Text style={S.metaColon}>:</Text>
+              <Text style={S.metaValue}>{invoiceNumber || "—"}</Text>
             </View>
             {invoice?.bsDate && (
               <View style={S.metaRow}>
-                <Text style={S.metaLabel}>Miti (BS)</Text>
+                <Text style={S.metaLabel}>M.S. (BS)</Text>
+                <Text style={S.metaColon}>:</Text>
                 <Text style={S.metaValue}>{invoice.bsDate}</Text>
               </View>
             )}
             <View style={S.metaRow}>
-              <Text style={S.metaLabel}>Date</Text>
+              <Text style={S.metaLabel}>Issue Date</Text>
+              <Text style={S.metaColon}>:</Text>
               <Text style={S.metaValue}>{fmtDate(invoice?.issueDate)}</Text>
             </View>
             <View style={S.metaRow}>
-              <Text style={S.metaLabel}>Payment</Text>
+              <Text style={S.metaLabel}>Payment Terms</Text>
+              <Text style={S.metaColon}>:</Text>
               <Text style={S.metaValue}>
-                {isEstimate ? (invoice?.paymentMode || "Cash/Credit") : "Cash/Credit"}
+                {invoice?.paymentMode || "Cash/Credit"}
               </Text>
             </View>
           </View>
         </View>
 
-        {/* ── Line Items Table ────────────────────────────────────── */}
+        {/* ── Line Items Table ───────────────────────────────────── */}
         <View style={S.table}>
           <View style={S.tableHead}>
-            <Text style={[S.th, S.cNo]}>#</Text>
-            <Text style={[S.th, S.cDesc]}>Description</Text>
-            <Text style={[S.th, S.cQty]}>Qty</Text>
-            <Text style={[S.th, S.cUnit]}>Unit</Text>
-            <Text style={[S.th, S.cRate]}>Rate</Text>
-            <Text style={[S.th, S.cAmt]}>Amount</Text>
+            <View style={[S.thCell, S.cNo]}>
+              <Text style={[S.thText, { textAlign: "center" }]}>S.N.</Text>
+            </View>
+            <View style={[S.thCell, S.cDesc]}>
+              <Text style={[S.thText, { textAlign: "left" }]}>DESCRIPTION</Text>
+            </View>
+            <View style={[S.thCell, S.cQty]}>
+              <Text style={[S.thText, { textAlign: "center" }]}>QTY</Text>
+            </View>
+            <View style={[S.thCell, S.cUnit]}>
+              <Text style={[S.thText, { textAlign: "center" }]}>UNIT</Text>
+            </View>
+            <View style={[S.thCell, S.cRate]}>
+              <Text style={[S.thText, { textAlign: "right" }]}>RATE (NPR)</Text>
+            </View>
+            <View style={[S.thCell, S.cAmt, S.cellLast]}>
+              <Text style={[S.thText, { textAlign: "right" }]}>AMOUNT (NPR)</Text>
+            </View>
           </View>
 
           {lineItems.map((item: any, idx: number) => {
@@ -423,85 +554,135 @@ function InvoiceDocument({
             const isLast = idx === lineItems.length - 1;
 
             return (
-              <View style={[S.tr, isLast ? S.trLast : {}]} key={item.id || idx}>
-                <Text style={[S.td, S.cNo]}>{idx + 1}</Text>
-                <View style={S.cDesc}>
-                  <Text style={S.tdBold}>
+              <View 
+                style={[
+                  S.tr, 
+                  isLast ? S.trLast : {}
+                ]} 
+                key={item.id || idx}
+              >
+                <View style={[S.tdCell, S.cNo]}>
+                  <Text style={[S.tdText, { textAlign: "center" }]}>{idx + 1}</Text>
+                </View>
+                <View style={[S.tdCell, S.cDesc]}>
+                  <Text style={S.tdText}>
                     {item.productVariant?.product?.name ?? item.customProductName ?? "Item"}
                   </Text>
                   {item.productVariant?.variantName &&
                    item.productVariant.variantName !== "Default" &&
                    item.productVariant.variantName.toLowerCase() !== "standard" && (
-                    <Text style={S.tdSub}>{item.productVariant.variantName}</Text>
+                    <Text style={S.tdSub}>
+                      Variant: {item.productVariant.variantName}
+                    </Text>
+                  )}
+                  {discAmt > 0 && (
+                    <Text style={S.tdSub}>
+                      Discount: {discountPct > 0 ? `${discountPct}%` : `NPR ${fmt(discAmt)}`}
+                    </Text>
                   )}
                 </View>
-                <Text style={[S.td, S.cQty]}>{qty}</Text>
-                <Text style={[S.td, S.cUnit]}>{unit}</Text>
-                <Text style={[S.td, S.cRate]}>{fmt(unitPrice)}</Text>
-                <Text style={[S.tdBold, S.cAmt]}>{fmt(lineTotal)}</Text>
+                <View style={[S.tdCell, S.cQty]}>
+                  <Text style={[S.tdText, { textAlign: "center" }]}>{qty}</Text>
+                </View>
+                <View style={[S.tdCell, S.cUnit]}>
+                  <Text style={[S.tdText, { textAlign: "center" }]}>{unit}</Text>
+                </View>
+                <View style={[S.tdCell, S.cRate]}>
+                  <Text style={[S.tdText, { textAlign: "right" }]}>{fmt(unitPrice)}</Text>
+                </View>
+                <View style={[S.tdCell, S.cAmt, S.cellLast]}>
+                  <Text style={[S.tdText, { textAlign: "right" }]}>{fmt(lineTotal)}</Text>
+                </View>
               </View>
             );
           })}
         </View>
 
         <View style={{ marginTop: "auto" }}>
-          {/* ── Totals ──────────────────────────────────────────────── */}
+          {/* ── Totals Box ────────────────────────────────────────── */}
           <View style={S.totalsArea}>
             <View style={S.totalsBox}>
               <View style={S.totalsRow}>
-                <Text style={S.totalsLabel}>Subtotal</Text>
-                <Text style={S.totalsValue}>{fmt(subtotal)}</Text>
+                <View style={S.totalsLabelCell}>
+                  <Text style={S.totalsLabelText}>Subtotal</Text>
+                </View>
+                <View style={S.totalsValueCell}>
+                  <Text style={S.totalsValueText}>NPR {fmt(subtotal)}</Text>
+                </View>
               </View>
               {isVat && (
                 <>
                   <View style={S.totalsRow}>
-                    <Text style={S.totalsLabel}>Taxable Amount</Text>
-                    <Text style={S.totalsValue}>{fmt(taxableAmount)}</Text>
+                    <View style={S.totalsLabelCell}>
+                      <Text style={S.totalsLabelText}>Taxable Amount</Text>
+                    </View>
+                    <View style={S.totalsValueCell}>
+                      <Text style={S.totalsValueText}>NPR {fmt(taxableAmount)}</Text>
+                    </View>
                   </View>
                   <View style={S.totalsRow}>
-                    <Text style={S.totalsLabel}>VAT (13%)</Text>
-                    <Text style={S.totalsValue}>{fmt(vatAmount)}</Text>
+                    <View style={S.totalsLabelCell}>
+                      <Text style={S.totalsLabelText}>VAT @ 13%</Text>
+                    </View>
+                    <View style={S.totalsValueCell}>
+                      <Text style={S.totalsValueText}>NPR {fmt(vatAmount)}</Text>
+                    </View>
                   </View>
                 </>
               )}
-              <View style={[S.totalsRow, S.totalDivider]}>
-                <Text style={S.grandTotalLabel}>Total (NPR)</Text>
-                <Text style={S.grandTotalValue}>{fmt(total)}</Text>
+              <View style={[S.totalsRow, S.totalsRowLast]}>
+                <View style={S.totalsLabelCell}>
+                  <Text style={S.totalsLabelBoldText}>Grand Total</Text>
+                </View>
+                <View style={S.totalsValueCell}>
+                  <Text style={S.totalsValueBoldText}>NPR {fmt(total)}</Text>
+                </View>
               </View>
             </View>
           </View>
 
-          {/* ── Amount in Words ─────────────────────────────────────── */}
-          <View style={S.wordsBar}>
-            <Text style={S.wordsPrefix}>In Words</Text>
+          {/* ── Amount in Words ──────────────────────────────────── */}
+          <View style={S.wordsContainer}>
+            <Text style={S.wordsLabel}>Amount in Words:</Text>
             <Text style={S.wordsText}>{toEnglishWords(total)}</Text>
           </View>
 
-          {/* ── Notes ───────────────────────────────────────────────── */}
-          <View style={S.notesSection}>
-            <Text style={S.notesTitle}>Terms & Conditions</Text>
-            <Text style={S.noteLine}>1. Goods once sold will not be taken back.</Text>
-            <Text style={S.noteLine}>2. E. & O.E.</Text>
+          {/* ── Terms & Conditions Box ────────────────────────────── */}
+          <View style={S.termsBox}>
+            <Text style={S.termsTitle}>Terms & Conditions:</Text>
+            <Text style={S.termLine}>• Goods once sold will not be taken back or exchanged.</Text>
+            <Text style={S.termLine}>• Payment is due as per agreed terms.</Text>
+            <Text style={S.termLine}>• E. & O.E. – Errors & Omissions Excepted.</Text>
+            {isEstimate && (
+              <Text style={S.termLine}>• This is an estimate only. Final invoice may vary.</Text>
+            )}
           </View>
 
-          {/* ── Signatures ──────────────────────────────────────────── */}
+          {/* ── Signatures ───────────────────────────────────────── */}
           <View style={S.sigArea}>
             <View style={S.sigCol}>
+              <Text style={S.sigTitle}>Customer's Signature</Text>
               <View style={S.sigLine} />
-              <Text style={S.sigRole}>Customer&apos;s Signature</Text>
+              <Text style={S.sigSubtext}>Date: ___________________</Text>
             </View>
             <View style={S.sigCol}>
+              <Text style={S.sigTitle}>Authorized Signatory</Text>
               <View style={S.sigLine} />
-              <Text style={S.sigRole}>Authorized Signatory</Text>
-              <Text style={S.sigHint}>For {companyProfile?.name}</Text>
+              <Text style={S.sigSubtext}>For {companyProfile?.name || "Shree Manish Steel Furniture Udhyog Pvt. Ltd."}</Text>
             </View>
           </View>
         </View>
 
-        {/* ── Page Footer ─────────────────────────────────────────── */}
+        {/* ── Footer ────────────────────────────────────────────── */}
         <View style={S.pageFooter} fixed>
-          <Text style={S.footerText}>Computer generated invoice</Text>
-          <Text style={S.footerText}>Printed: {fmtDate(new Date())}</Text>
+          <View>
+            <Text style={S.footerLeft}>Computer generated {title.toLowerCase()}.</Text>
+            <Text style={S.footerCompany}>{(companyProfile?.name || "SHREE MANISH STEEL FURNITURE UDHYOG PVT. LTD.").toUpperCase()}</Text>
+          </View>
+          <View>
+            <Text style={S.footerRight}>Printed: {fmtDate(new Date())}</Text>
+            <Text style={S.footerRight}>Page 1 of 1</Text>
+          </View>
         </View>
 
       </Page>
@@ -513,3 +694,5 @@ export async function renderInvoicePdfBuffer(options: RenderInvoiceOptions) {
   const doc = <InvoiceDocument {...options} />;
   return await renderToBuffer(doc);
 }
+
+
