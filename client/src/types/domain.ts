@@ -108,8 +108,10 @@ export type ProductRow = {
   margin: number;
   valuation: number;
   sellingPrice: number;
+  costPrice?: number;
   defaultVariantId: string;
   imageUrls?: string[];
+  isSellable?: boolean;
   // Furniture specific
   height?: number;
   width?: number;

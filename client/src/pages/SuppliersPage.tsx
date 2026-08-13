@@ -149,11 +149,11 @@ export function SuppliersPage() {
 
       {/* New Supplier Sheet */}
       <Sheet open={createSupplierOpen} onOpenChange={setCreateSupplierOpen}>
-        <SheetContent className="sm:max-w-xl overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle>Add New Supplier</SheetTitle>
+        <SheetContent className="sm:max-w-[680px] w-full overflow-y-auto p-0">
+          <SheetHeader className="px-6 pt-6 pb-2 border-b">
+            <SheetTitle className="text-xl font-bold">Add New Supplier</SheetTitle>
           </SheetHeader>
-          <div className="mt-4">
+          <div className="px-6 py-4">
             <CreateSupplierForm onClose={() => setCreateSupplierOpen(false)} />
           </div>
         </SheetContent>

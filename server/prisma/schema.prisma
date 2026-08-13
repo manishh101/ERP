@@ -195,6 +195,7 @@ model Product {
   warrantyMonths    Int              @default(0) @map("warranty_months")
   leadTimeDays      Int              @default(0) @map("lead_time_days")
   isCustomizable    Boolean          @default(false) @map("is_customizable")
+  isSellable        Boolean          @default(true) @map("is_sellable")
   imageUrls         String[]         @default([]) @map("image_urls")
   createdAt         DateTime         @default(now()) @map("created_at")
   updatedAt         DateTime         @updatedAt @map("updated_at")

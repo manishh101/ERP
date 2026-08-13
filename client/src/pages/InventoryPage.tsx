@@ -25,7 +25,7 @@ import {
   useInventoryRecordsQuery,
   useInventoryValuationQuery,
   useLowStockQuery,
-  useProductsQuery,
+  useAllProductsQuery,
 } from "@/hooks/use-queries";
 import { getErrorMessage } from "@/lib/api";
 import { queryClient } from "@/lib/query-client";
@@ -39,7 +39,7 @@ import type {
 import { CreateProductForm } from "@/components/inventory/create-product-form";
 
 // Helper components & types
-const quickFilters = ["All", "Low Stock", "Active", "Discontinued"] as const;
+const quickFilters = ["All", "Sellable Products", "Raw Materials", "Low Stock", "Active", "Discontinued"] as const;
 const adjustmentReasons: StockAdjustmentReason[] = [
   "CORRECTION",
   "DAMAGE",
@@ -90,7 +90,7 @@ const movementColumns: ColumnDef<InventoryMovementRow>[] = [
 export function InventoryPage() {
   const { user } = useAuth();
 
-  const { data, error, isLoading } = useProductsQuery();
+  const { data, error, isLoading } = useAllProductsQuery();
   const inventoryRecords = useInventoryRecordsQuery();
   const inventoryValuation = useInventoryValuationQuery();
   const inventoryMovements = useInventoryMovementsQuery();
@@ -128,8 +128,9 @@ export function InventoryPage() {
           .toLowerCase()
           .includes(normalizedSearch);
       if (!matchesSearch) return false;
-      if (activeFilter === "Low Stock")
-        return lowStockProductIds.has(product.id);
+      if (activeFilter === "Sellable Products") return product.isSellable === true;
+      if (activeFilter === "Raw Materials") return product.isSellable === false;
+      if (activeFilter === "Low Stock") return lowStockProductIds.has(product.id);
       if (activeFilter === "Active" || activeFilter === "Discontinued")
         return product.status === activeFilter;
       return true;

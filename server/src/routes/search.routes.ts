@@ -19,6 +19,8 @@ searchRouter.get(
     const [products, customers, invoices, salesOrders] = await Promise.all([
       prisma.product.findMany({
         where: {
+          tenantId: request.user!.tenantId,
+          isSellable: true,
           OR: [
             {
               name: {

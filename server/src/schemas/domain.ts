@@ -47,6 +47,8 @@ export const listQuerySchema = paginationSchema.extend({
   endDate: z.coerce.date().optional(),
   year: z.string().optional(),
   month: z.string().optional(),
+  // When true (default), only return sellable products; false returns all (raw materials included)
+  sellableOnly: z.coerce.boolean().optional(),
 });
 
 export const productVariantInputSchema = z.object({
@@ -72,6 +74,8 @@ export const productCreateSchema = z.object({
   status: z.nativeEnum(ProductStatus).default(ProductStatus.ACTIVE),
   lowStockThreshold: z.coerce.number().int().min(0).default(5),
   taxRateId: z.string().optional(),
+  // Products created via the UI form are always sellable; PO auto-creation sets this to false
+  isSellable: z.boolean().optional().default(true),
   variants: z.array(productVariantInputSchema).default([]),
 });
 
@@ -119,7 +123,9 @@ export const supplierSchema = z.object({
 });
 
 export const purchaseOrderLineItemSchema = z.object({
-  productVariantId: z.string().min(1),
+  productVariantId: z.string().optional(),
+  productName: z.string().min(1).optional(),
+  sku: z.string().optional(),
   quantity: z.coerce.number().int().min(1),
   unitCost: decimalNumber,
   taxAmount: decimalNumber.default(0),

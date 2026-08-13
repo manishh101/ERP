@@ -69,6 +69,87 @@ purchaseOrdersRouter.get(
   }),
 );
 
+async function resolveLineItemVariants(
+  tenantId: string,
+  lineItems: Array<{
+    productVariantId?: string;
+    productName?: string;
+    sku?: string;
+    quantity: number;
+    unitCost: number;
+    taxAmount: number;
+  }>
+) {
+  const resolved = [];
+  for (const item of lineItems) {
+    let variantId = item.productVariantId;
+
+    if (!variantId && item.productName) {
+      const cleanName = item.productName.trim();
+      
+      const existingProduct = await prisma.product.findFirst({
+        where: {
+          tenantId,
+          name: { equals: cleanName, mode: "insensitive" },
+        },
+        include: { variants: true },
+      });
+
+      if (existingProduct && existingProduct.variants.length > 0) {
+        variantId = existingProduct.variants[0].id;
+      } else {
+        const slug = cleanName
+          .toUpperCase()
+          .replace(/[^A-Z0-9]/g, "")
+          .slice(0, 10) || "MAT";
+        const generatedSku = item.sku?.trim() || `RAW-${slug}-${Date.now().toString().slice(-4)}`;
+
+        const newProduct = await prisma.product.create({
+          data: {
+            tenantId,
+            name: cleanName,
+            sku: generatedSku,
+            category: "Raw Materials",
+            costPrice: item.unitCost,
+            sellingPrice: item.unitCost,
+            status: "ACTIVE",
+            // Procurement-only item — must NOT appear in sales or product catalog
+            isSellable: false,
+            variants: {
+              create: {
+                tenantId,
+                variantName: "Standard",
+                skuVariant: `${generatedSku}-STD`,
+                additionalCost: 0,
+                stockQuantity: 0,
+              },
+            },
+          },
+          include: { variants: true },
+        });
+
+        variantId = newProduct.variants[0].id;
+      }
+    }
+
+    if (!variantId) {
+      throw new ApiError(
+        400,
+        `Line item missing valid product identification: ${item.productName || "Unknown"}`
+      );
+    }
+
+    resolved.push({
+      productVariantId: variantId,
+      quantity: item.quantity,
+      unitCost: item.unitCost,
+      taxAmount: item.taxAmount,
+    });
+  }
+
+  return resolved;
+}
+
 purchaseOrdersRouter.post(
   "/",
   requireRole(["ADMIN", "WAREHOUSE", "ACCOUNTANT"]),
@@ -85,6 +166,8 @@ purchaseOrdersRouter.post(
     });
     if (!supplier) throw new ApiError(404, "Supplier not found");
 
+    const resolvedItems = await resolveLineItemVariants(request.user!.tenantId, body.lineItems);
+
     const purchaseOrder = await prisma.purchaseOrder.create({
       data: {
         tenantId: request.user!.tenantId,
@@ -97,7 +180,7 @@ purchaseOrdersRouter.post(
         notes: body.notes,
         totalAmount,
         lineItems: {
-          create: body.lineItems.map(item => ({
+          create: resolvedItems.map(item => ({
             ...item,
             tenantId: request.user!.tenantId,
           })),
@@ -166,6 +249,10 @@ purchaseOrdersRouter.patch(
     });
     if (!existingPo) throw new ApiError(404, "Purchase order not found");
 
+    const resolvedItems = body.lineItems
+      ? await resolveLineItemVariants(request.user!.tenantId, body.lineItems)
+      : undefined;
+
     const purchaseOrder = await prisma.purchaseOrder.update({
       where: { id: params.id },
       data: {
@@ -176,11 +263,11 @@ purchaseOrdersRouter.patch(
         shippingTerms: body.shippingTerms,
         notes: body.notes,
         totalAmount,
-        ...(body.lineItems
+        ...(resolvedItems
           ? {
               lineItems: {
                 deleteMany: {},
-                create: body.lineItems.map(item => ({
+                create: resolvedItems.map(item => ({
                   ...item,
                   tenantId: request.user!.tenantId,
                 })),

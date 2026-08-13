@@ -46,10 +46,16 @@ productsRouter.get(
       category?: string;
       material?: string;
       status?: string;
+      sellableOnly?: boolean;
     };
+
+    // Default: only show sellable products (company products).
+    // Pass sellableOnly=false to include raw materials / procurement items.
+    const sellableFilter = query.sellableOnly === false ? undefined : true;
 
     const where: any = {
       tenantId: request.user!.tenantId,
+      isSellable: sellableFilter,
       name: query.search
         ? {
             contains: query.search,
@@ -118,6 +124,7 @@ productsRouter.post(
         status: body.status,
         lowStockThreshold: body.lowStockThreshold,
         taxRateId: body.taxRateId,
+        isSellable: body.isSellable ?? true,
         variants: {
           create: body.variants?.map((v) => ({
             ...v,
@@ -206,6 +213,8 @@ productsRouter.patch(
         status: body.status,
         lowStockThreshold: body.lowStockThreshold,
         taxRateId: body.taxRateId ?? undefined,
+        // Allow admin to promote a raw material to a sellable product
+        isSellable: body.isSellable,
       },
       include: { variants: true, taxRate: true },
     });

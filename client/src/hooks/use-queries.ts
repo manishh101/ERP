@@ -71,6 +71,7 @@ type RawProduct = {
   status: string;
   costPrice: number | string;
   sellingPrice: number | string;
+  isSellable: boolean;
   hsCode?: string | null;
   woodType?: string | null;
   finishType?: string | null;
@@ -589,8 +590,10 @@ function mapProduct(product: RawProduct): ProductRow {
     margin,
     valuation: stock * costPrice,
     sellingPrice,
+    costPrice,
     defaultVariantId: product.variants[0]?.id || "",
     imageUrls: product.imageUrls,
+    isSellable: product.isSellable,
     hsCode: product.hsCode ?? undefined,
     woodType: product.woodType ?? undefined,
     finishType: product.finishType ?? undefined,
@@ -1048,12 +1051,37 @@ export function useProductsQuery() {
   const { token } = useAuth();
 
   return useQuery({
-    queryKey: ["products", token],
+    queryKey: ["products", "sellable", token],
     enabled: Boolean(token),
     queryFn: async () => {
       const response = await apiRequest<PaginatedResponse<RawProduct>>("/products", {
         token: token!,
-        query: { pageSize: 100 },
+        // Only fetch sellable (company) products — raw materials are excluded by default
+        query: { pageSize: 500, sellableOnly: true },
+      });
+
+      return {
+        ...response,
+        items: response.items.map(mapProduct),
+      };
+    },
+  });
+}
+
+/**
+ * Fetches ALL products including raw materials / procurement-only items.
+ * Used by the Inventory page which has a dedicated "Raw Materials" tab.
+ */
+export function useAllProductsQuery() {
+  const { token } = useAuth();
+
+  return useQuery({
+    queryKey: ["products", "all", token],
+    enabled: Boolean(token),
+    queryFn: async () => {
+      const response = await apiRequest<PaginatedResponse<RawProduct>>("/products", {
+        token: token!,
+        query: { pageSize: 500, sellableOnly: false },
       });
 
       return {
@@ -1343,7 +1371,9 @@ export type PurchaseOrderCreatePayload = {
   shippingTerms?: string;
   notes?: string;
   lineItems: Array<{
-    productVariantId: string;
+    productVariantId?: string;
+    productName?: string;
+    sku?: string;
     quantity: number;
     unitCost: number;
     taxAmount: number;
@@ -1363,6 +1393,7 @@ export function useCreatePurchaseOrderMutation() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
     },
   });
 }
