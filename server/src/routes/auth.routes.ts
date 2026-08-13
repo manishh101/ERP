@@ -6,7 +6,7 @@ import { prisma, basePrisma } from "../config/prisma";
 import { requireAuth } from "../middleware/auth";
 import { asyncHandler } from "../middleware/async-handler";
 import { validate } from "../middleware/validate";
-import { rateLimit } from "../middleware/rate-limit";
+import rateLimit from "express-rate-limit";
 import { changePasswordSchema, loginSchema, registerSchema } from "../schemas/domain";
 import { ApiError } from "../utils/api-error";
 import { normalizeCurrencyCode } from "../utils/currency";

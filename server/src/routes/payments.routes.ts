@@ -17,6 +17,7 @@ import { getBsDate, getCurrentFiscalYear } from "../shared/fiscal-year.util";
 import { recordPayment } from "../modules/payments/payment.service";
 import { logAudit } from "../services/audit.service";
 import { invalidateCache, CACHE_KEYS } from "../config/redis";
+import { financialMutationLimiter } from "../middleware/rate-limit";
 
 export const paymentsRouter = Router();
 
@@ -86,6 +87,7 @@ paymentsRouter.get(
 
 paymentsRouter.post(
   "/",
+  financialMutationLimiter as any, // FIX #3: Rate limiting to prevent double-submissions and DoS
   requireRole(["ADMIN", "ACCOUNTANT", "SALES"]),
   validate(paymentSchema),
   asyncHandler(async (request, response) => {

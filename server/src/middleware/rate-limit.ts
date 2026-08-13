@@ -1,78 +1,99 @@
-import type { NextFunction, Request, Response } from "express";
-import { ApiError } from "../utils/api-error";
-
-type RateLimitOptions = {
-  windowMs: number;
-  max: number;
-  keyPrefix: string;
-};
-
-type RateLimitState = {
-  count: number;
-  resetAt: number;
-};
-
-const store = new Map<string, RateLimitState>();
+import rateLimit from "express-rate-limit";
 
 /**
- * Periodic cleanup sweep — removes expired entries to prevent memory leak.
- * Runs every 60 seconds.
+ * Rate Limiting Middleware
+ * 
+ * Protects critical financial endpoints from:
+ * 1. Accidental double-submissions (user clicking submit multiple times)
+ * 2. Denial-of-service attacks
+ * 3. Brute-force attempts
+ * 
+ * Strategy: Conservative limits for write operations, generous for read operations
  */
-const CLEANUP_INTERVAL_MS = 60_000;
 
-let cleanupTimerStarted = false;
+/**
+ * Standard rate limiter for financial mutation endpoints
+ * - 10 requests per minute per user
+ * - Suitable for: payments, orders, invoices
+ */
+export const financialMutationLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 10, // 10 requests per window per IP
+  message: {
+    error: "Too many requests. Please wait a moment before trying again.",
+    retryAfter: "60 seconds"
+  },
+  standardHeaders: true, // Return rate limit info in `RateLimit-*` headers
+  legacyHeaders: false, // Disable `X-RateLimit-*` headers
+  // Use user ID + IP for better accuracy (prevents one user affecting another)
+  keyGenerator: (req) => {
+    const userId = (req as any).user?.id || "anonymous";
+    const ip = req.ip || "unknown";
+    return `${userId}-${ip}`;
+  },
+  handler: (req, res) => {
+    const resetTime = (req as any).rateLimit?.resetTime || Date.now() + 60000;
+    const retryAfter = Math.ceil(resetTime / 1000 - Date.now() / 1000);
+    const limit = (req as any).rateLimit?.limit || 10;
+    const remaining = (req as any).rateLimit?.remaining || 0;
+    
+    res.status(429).json({
+      error: "Rate limit exceeded",
+      message: "Too many requests to this endpoint. Please wait before trying again.",
+      retryAfter: Math.max(retryAfter, 0),
+      limit: limit,
+      remaining: remaining
+    });
+  }
+});
 
-function startCleanupTimer() {
-  if (cleanupTimerStarted) return;
-  cleanupTimerStarted = true;
+/**
+ * Strict rate limiter for highly sensitive operations
+ * - 5 requests per minute per user
+ * - Suitable for: user registration, password reset, bulk operations
+ */
+export const strictMutationLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 5,
+  message: {
+    error: "Too many requests to sensitive endpoint. Please wait before trying again.",
+    retryAfter: "60 seconds"
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    const userId = (req as any).user?.id || "anonymous";
+    const ip = req.ip || "unknown";
+    return `${userId}-${ip}`;
+  },
+  handler: (req, res) => {
+    const resetTime = (req as any).rateLimit?.resetTime || Date.now() + 60000;
+    const retryAfter = Math.ceil(resetTime / 1000 - Date.now() / 1000);
+    const limit = (req as any).rateLimit?.limit || 5;
+    
+    res.status(429).json({
+      error: "Rate limit exceeded",
+      message: "This operation is rate-limited for security. Please wait before retrying.",
+      retryAfter: Math.max(retryAfter, 0),
+      limit: limit
+    });
+  }
+});
 
-  const timer = setInterval(() => {
-    const now = Date.now();
-    for (const [key, entry] of store) {
-      if (entry.resetAt <= now) {
-        store.delete(key);
-      }
-    }
-  }, CLEANUP_INTERVAL_MS);
-
-  // Don't prevent Node from shutting down
-  timer.unref();
-}
-
-function getClientKey(request: Request, keyPrefix: string) {
-  const forwarded = request.headers["x-forwarded-for"];
-  const ip = Array.isArray(forwarded)
-    ? forwarded[0]
-    : typeof forwarded === "string"
-      ? forwarded.split(",")[0]?.trim()
-      : request.ip;
-
-  return `${keyPrefix}:${ip || "unknown"}`;
-}
-
-export function rateLimit(options: RateLimitOptions) {
-  // Start cleanup timer on first use
-  startCleanupTimer();
-
-  return (request: Request, _response: Response, next: NextFunction) => {
-    const key = getClientKey(request, options.keyPrefix);
-    const now = Date.now();
-    const entry = store.get(key);
-
-    if (!entry || entry.resetAt <= now) {
-      store.set(key, { count: 1, resetAt: now + options.windowMs });
-      return next();
-    }
-
-    entry.count += 1;
-    store.set(key, entry);
-
-    if (entry.count > options.max) {
-      return next(
-        new ApiError(429, "Too many requests. Please wait before trying again."),
-      );
-    }
-
-    return next();
-  };
-}
+/**
+ * Generous rate limiter for read operations
+ * - 100 requests per minute per user
+ * - Suitable for: list queries, dashboard, reports
+ */
+export const readOperationLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    const userId = (req as any).user?.id || "anonymous";
+    const ip = req.ip || "unknown";
+    return `${userId}-${ip}`;
+  },
+  // Skip error handler to use default for read operations
+});

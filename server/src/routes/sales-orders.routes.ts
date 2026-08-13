@@ -18,6 +18,7 @@ import { getBsDate, getCurrentFiscalYear } from "../shared/fiscal-year.util";
 import { createOrder, confirmOrder, cancelOrder } from "../modules/sales-orders/sales-order.service";
 import { recordPayment } from "../modules/payments/payment.service";
 import { invalidateCache, CACHE_KEYS } from "../config/redis";
+import { financialMutationLimiter } from "../middleware/rate-limit";
 
 export const salesOrdersRouter = Router();
 
@@ -106,6 +107,7 @@ salesOrdersRouter.get(
 
 salesOrdersRouter.post(
   "/",
+  financialMutationLimiter as any, // FIX #3: Rate limiting to prevent rapid order creation and DoS
   requireRole(["ADMIN", "SALES"]),
   validate(salesOrderSchema),
   asyncHandler(async (request, response) => {
@@ -269,6 +271,7 @@ salesOrdersRouter.post(
 
 salesOrdersRouter.post(
   "/:id/deposit",
+  financialMutationLimiter as any, // FIX #3: Rate limiting for deposit payments
   requireRole(["ADMIN", "SALES", "ACCOUNTANT"]),
   validate(idParamSchema, "params"),
   validate(recordDepositSchema),

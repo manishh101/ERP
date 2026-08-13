@@ -165,20 +165,50 @@ export async function confirmOrder(tenantId: string, orderId: string) {
     if (!order) throw new ApiError(404, "Order not found");
     if (order.status !== "QUOTE") throw new ApiError(400, "Only quotes can be confirmed");
 
-    // Stock Reservation Logic
+    // FIX #1: Pre-validate stock availability for all line items before any updates
+    const insufficientStockItems: string[] = [];
+    for (const item of order.lineItems) {
+      if (!item.productVariantId) continue; // Skip custom items without inventory tracking
+      
+      const variant = await tx.productVariant.findUnique({
+        where: { id: item.productVariantId },
+        include: { product: true }
+      });
+
+      if (!variant) {
+        throw new ApiError(404, `Product variant ${item.productVariantId} not found`);
+      }
+
+      // Validate sufficient stock exists before reservation
+      if (variant.stockQuantity < item.quantity) {
+        const productName = `${variant.product.name} / ${variant.variantName}`;
+        insufficientStockItems.push(
+          `${productName} (Required: ${item.quantity}, Available: ${variant.stockQuantity})`
+        );
+      }
+    }
+
+    // If any items have insufficient stock, reject the entire order confirmation
+    if (insufficientStockItems.length > 0) {
+      throw new ApiError(
+        400,
+        `Insufficient stock for the following items:\n${insufficientStockItems.join('\n')}`,
+        { insufficientItems: insufficientStockItems }
+      );
+    }
+
+    // Stock Reservation Logic - all validations passed, safe to proceed
     for (const item of order.lineItems) {
       if (!item.productVariantId) continue;
-      const variant = await tx.productVariant.findUnique({
-        where: { id: item.productVariantId }
-      });
 
-      if (!variant) throw new ApiError(404, `Variant ${item.productVariantId} not found`);
-
-      await tx.productVariant.update({
+      // Update stock quantity and capture the post-update value for accurate balanceAfter
+      const updatedVariant = await tx.productVariant.update({
         where: { id: item.productVariantId },
-        data: { stockQuantity: { decrement: item.quantity } }
+        data: { stockQuantity: { decrement: item.quantity } },
+        select: { stockQuantity: true, variantName: true }
       });
 
+      // Create stock movement log with accurate balanceAfter from the updated record
       await tx.stockMovement.create({
         data: {
           tenantId: order.tenantId,
@@ -186,8 +216,8 @@ export async function confirmOrder(tenantId: string, orderId: string) {
           warehouseId: order.assignedWarehouseId || "system",
           type: "RESERVATION",
           quantity: item.quantity,
-          balanceAfter: variant.stockQuantity - item.quantity,
-          source: `Order ${order.id}`,
+          balanceAfter: updatedVariant.stockQuantity, // FIX: Use actual post-update value
+          source: `Order ${order.id} confirmed`,
         }
       });
     }
@@ -203,40 +233,55 @@ export async function cancelOrder(tenantId: string, orderId: string) {
   return prisma.$transaction(async (tx) => {
     const order = await tx.salesOrder.findFirst({
       where: { id: orderId, tenantId },
-      include: { lineItems: true, taxInvoices: true }
+      include: { lineItems: true, taxInvoices: true, payments: true }
     });
 
     if (!order) throw new ApiError(404, "Order not found");
+    
+    // FIX #2: Prevent cancellation of orders that have received payments
+    // Financial integrity: Cancelling a paid order would reverse AR but not cash, creating GL imbalance
+    const orderPaidAmount = Number(order.paidAmount);
+    if (orderPaidAmount > 0 || order.payments.length > 0) {
+      throw new ApiError(
+        400,
+        `Cannot cancel order ${order.id} with ${order.payments.length} payment(s) totaling Rs. ${orderPaidAmount.toFixed(2)}. ` +
+        `Please issue a refund instead of canceling the order to maintain financial integrity.`,
+        { 
+          paidAmount: orderPaidAmount,
+          paymentCount: order.payments.length,
+          suggestion: "Use refund process to reverse payments before cancellation"
+        }
+      );
+    }
+
     if (order.status === "DELIVERED" || order.status === "CANCELLED") {
       throw new ApiError(400, `Cannot cancel order in status ${order.status}`);
     }
 
+    // Revert stock reservation for confirmed/dispatched orders
     if (order.status === "CONFIRMED" || order.status === "IN_WAREHOUSE" || order.status === "DISPATCHED" || order.status === "OUT_FOR_DELIVERY") {
       // 1. Revert stock reservation
       for (const item of order.lineItems) {
         if (!item.productVariantId) continue;
-        const variant = await tx.productVariant.findUnique({
-          where: { id: item.productVariantId }
+        
+        // Update stock and capture post-update value for accurate balanceAfter
+        const updatedVariant = await tx.productVariant.update({
+          where: { id: item.productVariantId },
+          data: { stockQuantity: { increment: item.quantity } },
+          select: { stockQuantity: true }
         });
 
-        if (variant) {
-          await tx.productVariant.update({
-            where: { id: item.productVariantId },
-            data: { stockQuantity: { increment: item.quantity } }
-          });
-
-          await tx.stockMovement.create({
-            data: {
-              tenantId: order.tenantId,
-              productVariantId: item.productVariantId,
-              warehouseId: order.assignedWarehouseId || "system",
-              type: "RELEASE",
-              quantity: item.quantity,
-              balanceAfter: variant.stockQuantity + item.quantity,
-              source: `Cancelled Order ${order.id}`,
-            }
-          });
-        }
+        await tx.stockMovement.create({
+          data: {
+            tenantId: order.tenantId,
+            productVariantId: item.productVariantId,
+            warehouseId: order.assignedWarehouseId || "system",
+            type: "RELEASE",
+            quantity: item.quantity,
+            balanceAfter: updatedVariant.stockQuantity, // Use actual post-update value
+            source: `Cancelled Order ${order.id}`,
+          }
+        });
       }
     }
 
