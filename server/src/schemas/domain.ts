@@ -103,14 +103,19 @@ export const stockAdjustmentSchema = z.object({
 });
 
 export const supplierSchema = z.object({
-  name: z.string().min(2),
-  contact: z.string().min(2),
-  email: z.string().email().optional(),
-  phone: z.string().optional(),
-  country: z.string().min(2),
-  paymentTerms: z.string().min(2),
-  leadTimeDays: z.coerce.number().int().min(0),
+  name: z.string().min(2, "Supplier name must be at least 2 characters"),
+  contact: z.string().optional().or(z.literal("")),
+  email: z.string().email("Invalid email address").optional().or(z.literal("")),
+  phone: z.string().optional().or(z.literal("")),
+  address: z.string().optional().or(z.literal("")),
+  panNo: z.string().optional().or(z.literal("")),
+  vatNo: z.string().optional().or(z.literal("")),
+  country: z.string().default("Nepal"),
+  paymentTerms: z.string().default("Cash/Credit"),
+  leadTimeDays: z.coerce.number().int().min(0).default(7),
   rating: z.coerce.number().min(0).max(5).optional(),
+  notes: z.string().optional().or(z.literal("")),
+  isActive: z.boolean().default(true),
 });
 
 export const purchaseOrderLineItemSchema = z.object({

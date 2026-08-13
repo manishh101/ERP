@@ -141,8 +141,17 @@ type RawProductHistoryResponse = {
 type RawSupplier = {
   id: string;
   name: string;
+  contact?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  address?: string | null;
+  panNo?: string | null;
+  vatNo?: string | null;
   country: string;
+  paymentTerms?: string | null;
   leadTimeDays: number;
+  notes?: string | null;
+  isActive?: boolean | null;
   purchaseOrders: Array<{
     totalAmount: number | string;
   }>;
@@ -1182,13 +1191,16 @@ export function useProductDetailQuery(productId?: string) {
 
 export type SupplierCreatePayload = {
   name: string;
+  contact?: string;
   email?: string;
   phone?: string;
   address?: string;
+  panNo?: string;
+  vatNo?: string;
   country: string;
-  taxNumber?: string;
+  paymentTerms?: string;
   leadTimeDays: number;
-  isActive: boolean;
+  isActive?: boolean;
   notes?: string;
 };
 
@@ -1269,10 +1281,20 @@ export function useSuppliersQuery() {
           return {
             id: supplier.id,
             name: supplier.name,
+            contact: supplier.contact ?? undefined,
+            phone: supplier.phone ?? undefined,
+            email: supplier.email ?? undefined,
+            address: supplier.address ?? undefined,
+            panNo: supplier.panNo ?? undefined,
+            vatNo: supplier.vatNo ?? undefined,
             country: supplier.country,
+            paymentTerms: supplier.paymentTerms ?? undefined,
             leadTime: `${leadTimeDays} days`,
+            leadTimeDays,
             onTimeRate: metrics ? `${Math.round(toNumber(metrics.onTimeDeliveryRate))}%` : "N/A",
             spend,
+            notes: supplier.notes ?? undefined,
+            isActive: supplier.isActive ?? true,
           };
         }),
       };
@@ -1283,13 +1305,19 @@ export function useSuppliersQuery() {
 export type RawSupplierProfile = {
   id: string;
   name: string;
-  country: string;
+  contact?: string | null;
   email?: string | null;
   phone?: string | null;
   address?: string | null;
+  panNo?: string | null;
+  vatNo?: string | null;
+  country: string;
+  paymentTerms?: string | null;
   leadTimeDays: number;
-  creditLimit: number | string;
-  outstandingBalance: number | string;
+  notes?: string | null;
+  isActive?: boolean | null;
+  creditLimit?: number | string;
+  outstandingBalance?: number | string;
   purchaseOrders: Array<any>;
   supplierInvoices: Array<any>;
 };

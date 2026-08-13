@@ -202,10 +202,20 @@ export type ProductDetailPayload = {
 export type SupplierRow = {
   id: string;
   name: string;
+  contact?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  panNo?: string;
+  vatNo?: string;
   country: string;
-  leadTime: string;
-  onTimeRate: string;
-  spend: number;
+  paymentTerms?: string;
+  leadTime?: string;
+  leadTimeDays?: number;
+  onTimeRate?: string;
+  spend?: number;
+  notes?: string;
+  isActive?: boolean;
 };
 
 export type TaxRateRow = {

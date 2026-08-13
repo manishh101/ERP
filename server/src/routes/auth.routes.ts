@@ -15,10 +15,10 @@ import { signToken } from "../utils/jwt";
 
 export const authRouter = Router();
 
-const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10, keyPrefix: "auth:login" });
-const registerLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 5, keyPrefix: "auth:register" });
-const googleLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10, keyPrefix: "auth:google" });
-const changePasswordLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 5, keyPrefix: "auth:change-password" });
+const loginLimiter: any = rateLimit({ windowMs: 15 * 60 * 1000, max: 10 });
+const registerLimiter: any = rateLimit({ windowMs: 60 * 60 * 1000, max: 5 });
+const googleLimiter: any = rateLimit({ windowMs: 15 * 60 * 1000, max: 10 });
+const changePasswordLimiter: any = rateLimit({ windowMs: 15 * 60 * 1000, max: 5 });
 
 // ---------------------------------------------------------------------------
 // Google ID‑Token verification (industry‑standard)

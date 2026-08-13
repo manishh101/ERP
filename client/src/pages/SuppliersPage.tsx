@@ -24,17 +24,48 @@ import { Eye, ShoppingCart } from "lucide-react";
 const supplierColumns: ColumnDef<SupplierRow>[] = [
   {
     accessorKey: "name",
-    header: "Supplier Name",
+    header: "Supplier / Business Name",
     cell: ({ row }) => (
-      <Link
-        to={`/suppliers/${row.original.id}`}
-        className="font-semibold text-primary hover:underline"
-      >
-        {row.getValue("name")}
-      </Link>
+      <div>
+        <Link
+          to={`/suppliers/${row.original.id}`}
+          className="font-semibold text-primary hover:underline block"
+        >
+          {row.getValue("name")}
+        </Link>
+        {row.original.panNo && (
+          <span className="text-xs text-muted-foreground font-mono">
+            PAN: {row.original.panNo}
+          </span>
+        )}
+      </div>
     ),
   },
-  { accessorKey: "country", header: "Country" },
+  {
+    accessorKey: "contact",
+    header: "Contact Person & Info",
+    cell: ({ row }) => (
+      <div className="text-xs space-y-0.5">
+        <div className="font-medium text-foreground">{row.original.contact || row.original.name}</div>
+        {row.original.phone && (
+          <div className="text-muted-foreground">{row.original.phone}</div>
+        )}
+        {row.original.email && (
+          <div className="text-muted-foreground/80 truncate max-w-[160px]">{row.original.email}</div>
+        )}
+      </div>
+    ),
+  },
+  {
+    accessorKey: "address",
+    header: "Location / Country",
+    cell: ({ row }) => (
+      <div className="text-xs space-y-0.5">
+        <div className="font-medium text-foreground">{row.original.address || "—"}</div>
+        <div className="text-muted-foreground">{row.original.country}</div>
+      </div>
+    ),
+  },
   { accessorKey: "leadTime", header: "Lead Time" },
   {
     accessorKey: "onTimeRate",

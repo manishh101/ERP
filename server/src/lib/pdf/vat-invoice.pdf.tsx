@@ -315,23 +315,6 @@ const S = StyleSheet.create({
     textAlign: "right",
   },
 
-  /* ── Amount in Words ────────────────────────────────────────────────── */
-  wordsContainer: {
-    marginBottom: 16,
-  },
-  
-  wordsLabel: {
-    fontSize: 9.5,
-    fontFamily: "Times-Bold",
-    color: "#000000",
-    marginBottom: 2,
-  },
-  
-  wordsText: {
-    fontSize: 9.5,
-    fontFamily: "Times-Italic",
-    color: "#000000",
-  },
 
   /* ── Terms & Conditions Box ─────────────────────────────────────────── */
   termsBox: {

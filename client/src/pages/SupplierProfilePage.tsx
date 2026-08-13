@@ -186,31 +186,37 @@ export function SupplierProfilePage() {
               General Details
             </CardTitle>
             <CardDescription>
-              Contact information and location.
+              Comprehensive supplier information and commercial profile.
             </CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-4 sm:grid-cols-2">
+          <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Location (Country)
+                Contact Person
               </p>
-              <div className="mt-1 flex items-center gap-2 font-medium">
-                <MapPin className="h-4 w-4 text-muted-foreground" />
-                {supplier.country}
+              <div className="mt-1 font-medium text-foreground">
+                {supplier.contact || supplier.name}
               </div>
             </div>
             <div>
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Email
+                PAN Number
               </p>
-              <div className="mt-1 flex items-center gap-2 font-medium">
-                <Mail className="h-4 w-4 text-muted-foreground" />
-                {supplier.email || "N/A"}
+              <div className="mt-1 font-mono font-medium text-foreground">
+                {supplier.panNo || "N/A"}
               </div>
             </div>
             <div>
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Phone
+                VAT Number
+              </p>
+              <div className="mt-1 font-mono font-medium text-foreground">
+                {supplier.vatNo || "N/A"}
+              </div>
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Phone / Mobile
               </p>
               <div className="mt-1 flex items-center gap-2 font-medium">
                 <Phone className="h-4 w-4 text-muted-foreground" />
@@ -219,12 +225,48 @@ export function SupplierProfilePage() {
             </div>
             <div>
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Lead Time
+                Email Address
+              </p>
+              <div className="mt-1 flex items-center gap-2 font-medium truncate">
+                <Mail className="h-4 w-4 text-muted-foreground shrink-0" />
+                <span className="truncate">{supplier.email || "N/A"}</span>
+              </div>
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Location & Country
               </p>
               <div className="mt-1 flex items-center gap-2 font-medium">
+                <MapPin className="h-4 w-4 text-muted-foreground shrink-0" />
+                <span>{[supplier.address, supplier.country].filter(Boolean).join(", ")}</span>
+              </div>
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Lead Time
+              </p>
+              <div className="mt-1 font-medium text-foreground">
                 {supplier.leadTimeDays} days
               </div>
             </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Payment Terms
+              </p>
+              <div className="mt-1 font-medium text-foreground">
+                {supplier.paymentTerms || "Cash/Credit"}
+              </div>
+            </div>
+            {supplier.notes && (
+              <div className="sm:col-span-2 lg:col-span-3 border-t pt-3 mt-1">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Internal Notes
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground whitespace-pre-line">
+                  {supplier.notes}
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
 

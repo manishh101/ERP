@@ -277,10 +277,15 @@ model Supplier {
   contact          String
   email            String?
   phone            String?
-  country          String
-  paymentTerms     String            @map("payment_terms")
-  leadTimeDays     Int               @map("lead_time_days")
+  address          String?
+  panNo            String?           @map("pan_no")
+  vatNo            String?           @map("vat_no")
+  country          String            @default("Nepal")
+  paymentTerms     String            @default("Cash/Credit") @map("payment_terms")
+  leadTimeDays     Int               @default(7) @map("lead_time_days")
   rating           Decimal?          @db.Decimal(3, 2)
+  notes            String?
+  isActive         Boolean           @default(true) @map("is_active")
   createdAt        DateTime          @default(now()) @map("created_at")
   updatedAt        DateTime          @updatedAt @map("updated_at")
   expenses         Expense[]

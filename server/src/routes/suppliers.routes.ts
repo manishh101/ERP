@@ -62,6 +62,7 @@ suppliersRouter.post(
     const supplier = await prisma.supplier.create({
       data: {
         ...body,
+        contact: body.contact || body.name,
         tenantId: request.user!.tenantId,
       },
     });
