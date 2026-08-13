@@ -152,6 +152,7 @@ const S = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#000000",
     marginBottom: 14,
+    flex: 1,
   },
   
   tableHead: {
@@ -186,8 +187,12 @@ const S = StyleSheet.create({
     minHeight: 22,
   },
   
-  trLast: {
-    borderBottomWidth: 0,
+  trLast: {},
+
+  trEmpty: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "stretch",
   },
   
   tdCell: {
@@ -199,10 +204,9 @@ const S = StyleSheet.create({
   },
   
   tdText: {
-    fontSize: 9,
+    fontSize: 8.5,
     fontFamily: "Times-Roman",
     color: "#000000",
-    lineHeight: 1.3,
   },
   
   tdSub: {
@@ -224,44 +228,64 @@ const S = StyleSheet.create({
   cRate: { width: "15%" },
   cAmt:  { width: "15%" },
 
-  /* ── Totals Table Section ───────────────────────────────────────────── */
-  totalsArea: {
+  /* ── Totals & Words Section (Inside Main Table) ─────────────────────── */
+  totalsFooterRow: {
     flexDirection: "row",
-    justifyContent: "flex-end",
-    marginBottom: 14,
+    alignItems: "stretch",
   },
-  
-  totalsBox: {
-    width: "48%",
-    borderWidth: 1,
-    borderColor: "#000000",
+
+  wordsBox: {
+    width: "60%",
+    borderTopWidth: 1,
+    borderTopColor: "#000000",
+    borderRightWidth: 1,
+    borderRightColor: "#000000",
+    padding: 6,
   },
-  
+
+  wordsLabel: {
+    fontSize: 8.5,
+    fontFamily: "Times-Bold",
+    color: "#000000",
+    marginBottom: 3,
+  },
+
+  wordsText: {
+    fontSize: 8.5,
+    fontFamily: "Times-Italic",
+    color: "#000000",
+    lineHeight: 1.35,
+  },
+
+  totalsBlock: {
+    width: "40%",
+  },
+
   totalsRow: {
     flexDirection: "row",
     alignItems: "stretch",
-    borderBottomWidth: 1,
-    borderBottomColor: "#000000",
-    minHeight: 20,
+    minHeight: 19,
   },
   
-  totalsRowLast: {
-    borderBottomWidth: 0,
-  },
-  
+  totalsRowLast: {},
+
   totalsLabelCell: {
-    width: "52%",
-    paddingVertical: 4,
+    width: "62.5%",
+    paddingVertical: 3,
     paddingHorizontal: 6,
+    borderTopWidth: 1,
+    borderTopColor: "#000000",
     borderRightWidth: 1,
     borderRightColor: "#000000",
     justifyContent: "center",
   },
 
   totalsValueCell: {
-    width: "48%",
-    paddingVertical: 4,
+    width: "37.5%",
+    paddingVertical: 3,
     paddingHorizontal: 6,
+    borderTopWidth: 1,
+    borderTopColor: "#000000",
     justifyContent: "center",
   },
 
@@ -596,12 +620,27 @@ function InvoiceDocument({
               </View>
             );
           })}
-        </View>
 
-        <View style={{ marginTop: "auto" }}>
-          {/* ── Totals Box ────────────────────────────────────────── */}
-          <View style={S.totalsArea}>
-            <View style={S.totalsBox}>
+          {/* Empty Filler Row to draw vertical grid lines continuously down to Totals section */}
+          <View style={S.trEmpty}>
+            <View style={[S.tdCell, S.cNo]} />
+            <View style={[S.tdCell, S.cDesc]} />
+            <View style={[S.tdCell, S.cQty]} />
+            <View style={[S.tdCell, S.cUnit]} />
+            <View style={[S.tdCell, S.cRate]} />
+            <View style={[S.tdCell, S.cAmt, S.cellLast]} />
+          </View>
+
+          {/* ── Totals & Amount in Words Section (Integrated) ─────── */}
+          <View style={S.totalsFooterRow}>
+            {/* Left 60% Box: Amount in Words */}
+            <View style={S.wordsBox}>
+              <Text style={S.wordsLabel}>Amount in Words:</Text>
+              <Text style={S.wordsText}>{toEnglishWords(total)}</Text>
+            </View>
+
+            {/* Right 40% Block: Totals Summary */}
+            <View style={S.totalsBlock}>
               <View style={S.totalsRow}>
                 <View style={S.totalsLabelCell}>
                   <Text style={S.totalsLabelText}>Subtotal</Text>
@@ -640,36 +679,30 @@ function InvoiceDocument({
               </View>
             </View>
           </View>
+        </View>
 
-          {/* ── Amount in Words ──────────────────────────────────── */}
-          <View style={S.wordsContainer}>
-            <Text style={S.wordsLabel}>Amount in Words:</Text>
-            <Text style={S.wordsText}>{toEnglishWords(total)}</Text>
+        {/* ── Terms & Conditions Box ────────────────────────────── */}
+        <View style={S.termsBox}>
+          <Text style={S.termsTitle}>Terms & Conditions:</Text>
+          <Text style={S.termLine}>• Goods once sold will not be taken back or exchanged.</Text>
+          <Text style={S.termLine}>• Payment is due as per agreed terms.</Text>
+          <Text style={S.termLine}>• E. & O.E. – Errors & Omissions Excepted.</Text>
+          {isEstimate && (
+            <Text style={S.termLine}>• This is an estimate only. Final invoice may vary.</Text>
+          )}
+        </View>
+
+        {/* ── Signatures ───────────────────────────────────────── */}
+        <View style={[S.sigArea, { marginTop: "auto" }]}>
+          <View style={S.sigCol}>
+            <Text style={S.sigTitle}>Customer's Signature</Text>
+            <View style={S.sigLine} />
+            <Text style={S.sigSubtext}>Date: ___________________</Text>
           </View>
-
-          {/* ── Terms & Conditions Box ────────────────────────────── */}
-          <View style={S.termsBox}>
-            <Text style={S.termsTitle}>Terms & Conditions:</Text>
-            <Text style={S.termLine}>• Goods once sold will not be taken back or exchanged.</Text>
-            <Text style={S.termLine}>• Payment is due as per agreed terms.</Text>
-            <Text style={S.termLine}>• E. & O.E. – Errors & Omissions Excepted.</Text>
-            {isEstimate && (
-              <Text style={S.termLine}>• This is an estimate only. Final invoice may vary.</Text>
-            )}
-          </View>
-
-          {/* ── Signatures ───────────────────────────────────────── */}
-          <View style={S.sigArea}>
-            <View style={S.sigCol}>
-              <Text style={S.sigTitle}>Customer's Signature</Text>
-              <View style={S.sigLine} />
-              <Text style={S.sigSubtext}>Date: ___________________</Text>
-            </View>
-            <View style={S.sigCol}>
-              <Text style={S.sigTitle}>Authorized Signatory</Text>
-              <View style={S.sigLine} />
-              <Text style={S.sigSubtext}>For {companyProfile?.name || "Shree Manish Steel Furniture Udhyog Pvt. Ltd."}</Text>
-            </View>
+          <View style={S.sigCol}>
+            <Text style={S.sigTitle}>Authorized Signatory</Text>
+            <View style={S.sigLine} />
+            <Text style={S.sigSubtext}>For {companyProfile?.name || "Shree Manish Steel Furniture Udhyog Pvt. Ltd."}</Text>
           </View>
         </View>
 
