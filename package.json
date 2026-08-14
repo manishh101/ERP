@@ -7,11 +7,13 @@
     "server"
   ],
   "scripts": {
-    "dev": "concurrently \"npm run dev --workspace server\" \"npm run dev --workspace client\"",
-    "build": "npm run build --workspace server && npm run build --workspace client",
-    "lint": "npm run lint --workspace server && npm run lint --workspace client",
-    "seed": "npm run seed --workspace server",
-    "start": "npm run start --workspace server & npm run preview --workspace client",
+    "dev": "concurrently \"npm run dev --workspace @myerp/server\" \"npm run dev --workspace @myerp/client\"",
+    "build": "npm run generate --workspace @myerp/server && npm run build --workspace @myerp/server && npm run build --workspace @myerp/client",
+    "build:client": "npm run build --workspace @myerp/client",
+    "build:server": "npm run generate --workspace @myerp/server && npm run build --workspace @myerp/server",
+    "lint": "npm run lint --workspace @myerp/server && npm run lint --workspace @myerp/client",
+    "seed": "npm run seed --workspace @myerp/server",
+    "start": "npm run start --workspace @myerp/server & npm run preview --workspace @myerp/client",
     "docker:build": "docker-compose -f docker-compose.prod.yml build",
     "docker:up": "docker-compose -f docker-compose.prod.yml up -d",
     "docker:down": "docker-compose -f docker-compose.prod.yml down",
