@@ -115,6 +115,7 @@ salesOrdersRouter.post(
     const order = await createOrder({
       tenantId: request.user!.tenantId,
       customerId: body.customerId,
+      status: body.status,
       lineItems: body.lineItems,
       depositAmount: body.depositAmount,
       deliveryDate: body.deliveryDate,
@@ -215,6 +216,13 @@ salesOrdersRouter.patch(
     const curStatus = existingOrder.status as string;
     if ((curStatus === "DISPATCHED" || curStatus === "DELIVERED" || curStatus === "CANCELLED") && body.lineItems) {
       throw new ApiError(400, `Cannot modify line items for a Sales Order in ${existingOrder.status} status.`);
+    }
+
+    // If attempting to move from QUOTE/DRAFT to CONFIRMED via PATCH, route through confirmOrder service for stock reservation & AR debit
+    if (body.status === "CONFIRMED" && (existingOrder.status === "QUOTE" || (existingOrder.status as string) === "DRAFT")) {
+      const confirmed = await confirmOrder(request.user!.tenantId, params.id);
+      response.json(confirmed);
+      return;
     }
 
     const salesOrder = await prisma.salesOrder.update({

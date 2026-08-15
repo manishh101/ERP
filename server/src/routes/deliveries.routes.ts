@@ -288,11 +288,11 @@ deliveriesRouter.post(
         },
       });
 
-      // Reset SO status to IN_WAREHOUSE so it can be re-scheduled
+      // Reset SO status to CONFIRMED so it can be re-scheduled
       await tx.salesOrder.update({
         where: { id: existing.soId },
         data: {
-          status: "IN_WAREHOUSE",
+          status: "CONFIRMED",
         },
       });
 

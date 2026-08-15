@@ -13,6 +13,7 @@ import { reverseJournalEntry } from "../../services/accounting.service";
 export async function createOrder(input: {
   tenantId: string;
   customerId: string;
+  status?: SalesOrderStatus;
   lineItems: Array<{ 
     productVariantId?: string; 
     customProductName?: string;
@@ -57,12 +58,16 @@ export async function createOrder(input: {
     const deposit = input.depositAmount ? Number(input.depositAmount) : 0;
     const balanceDue = orderAmount - deposit;
 
+    const initialStatus: SalesOrderStatus = (input.status === "QUOTE" || (input.status as string) === "DRAFT")
+      ? "QUOTE"
+      : (deposit >= orderAmount ? "PAID" : deposit > 0 ? "DEPOSIT_PAID" : "CONFIRMED");
+
     // 2. Create SalesOrder with correct initial financial state
     const order = await tx.salesOrder.create({
       data: {
         tenantId: input.tenantId,
         customerId: input.customerId,
-        status: deposit >= orderAmount ? "PAID" : deposit > 0 ? "DEPOSIT_PAID" : "CONFIRMED",
+        status: initialStatus,
         orderAmount: orderAmount,
         paidAmount: deposit,
         balanceDue: Math.max(orderAmount - deposit, 0),
@@ -96,16 +101,18 @@ export async function createOrder(input: {
       }
     });
 
-    // 3. Post ArLedger DEBIT for full orderAmount
-    await postDebit(tx, {
-      tenantId: input.tenantId,
-      customerId: input.customerId,
-      salesOrderId: order.id,
-      amount: orderAmount,
-      bsDate: input.bsDate,
-      fiscalYear: input.fiscalYear,
-      narration: `Sales Order ${order.id} confirmed`,
-    });
+    // 3. Post ArLedger DEBIT for full orderAmount only if confirmed/paid right away
+    if (initialStatus !== "QUOTE") {
+      await postDebit(tx, {
+        tenantId: input.tenantId,
+        customerId: input.customerId,
+        salesOrderId: order.id,
+        amount: orderAmount,
+        bsDate: input.bsDate,
+        fiscalYear: input.fiscalYear,
+        narration: `Sales Order ${order.id} confirmed`,
+      });
+    }
 
     // 4. If depositAmount > 0, record the payment inline
     if (deposit > 0) {
@@ -163,7 +170,7 @@ export async function confirmOrder(tenantId: string, orderId: string) {
     });
 
     if (!order) throw new ApiError(404, "Order not found");
-    if (order.status !== "QUOTE") throw new ApiError(400, "Only quotes can be confirmed");
+    if (order.status !== "QUOTE" && (order.status as string) !== "DRAFT") throw new ApiError(400, "Only quotes or draft orders can be confirmed");
 
     // FIX #1: Pre-validate stock availability for all line items before any updates
     const insufficientStockItems: string[] = [];
@@ -221,6 +228,17 @@ export async function confirmOrder(tenantId: string, orderId: string) {
         }
       });
     }
+
+    // Post AR Ledger DEBIT for full orderAmount upon confirmation
+    await postDebit(tx, {
+      tenantId: order.tenantId,
+      customerId: order.customerId,
+      salesOrderId: order.id,
+      amount: Number(order.orderAmount),
+      bsDate: order.bsDate ?? "",
+      fiscalYear: order.fiscalYear ?? "",
+      narration: `Sales Order ${order.id} confirmed`,
+    });
 
     return tx.salesOrder.update({
       where: { id: orderId },
@@ -285,25 +303,27 @@ export async function cancelOrder(tenantId: string, orderId: string) {
       }
     }
 
-    // 2. Revert AR Ledger entry (post CREDIT entry to offset initial DEBIT)
-    const orderAmountNum = Number(order.orderAmount);
-    await postCredit(tx, {
-      tenantId: order.tenantId,
-      customerId: order.customerId,
-      salesOrderId: order.id,
-      amount: orderAmountNum,
-      bsDate: order.bsDate ?? "",
-      fiscalYear: order.fiscalYear ?? "",
-      narration: `Reversal for Cancelled Order ${order.id}`,
-    });
+    // 2. Revert AR Ledger entry & GL entries only if order was previously confirmed (and thus had an AR Debit posted)
+    if (order.status !== "QUOTE" && (order.status as string) !== "DRAFT") {
+      const orderAmountNum = Number(order.orderAmount);
+      await postCredit(tx, {
+        tenantId: order.tenantId,
+        customerId: order.customerId,
+        salesOrderId: order.id,
+        amount: orderAmountNum,
+        bsDate: order.bsDate ?? "",
+        fiscalYear: order.fiscalYear ?? "",
+        narration: `Reversal for Cancelled Order ${order.id}`,
+      });
 
-    // 3. Revert GL journal entries for Sales Order
-    await reverseJournalEntry({
-      tenantId: order.tenantId,
-      sourceType: "sales_order",
-      sourceId: order.id,
-      reason: `Order ${order.id} cancelled`,
-    }, tx);
+      // 3. Revert GL journal entries for Sales Order
+      await reverseJournalEntry({
+        tenantId: order.tenantId,
+        sourceType: "sales_order",
+        sourceId: order.id,
+        reason: `Order ${order.id} cancelled`,
+      }, tx);
+    }
 
     // 4. Cancel and revert GL entries for linked tax invoices
     for (const inv of order.taxInvoices) {

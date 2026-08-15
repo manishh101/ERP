@@ -4,12 +4,14 @@ import {
   useCancelSalesOrderMutation,
   useCreateInvoiceMutation,
   useCreateDeliveryMutation,
+  useConfirmSalesOrderMutation,
+  useUpdateSalesOrderStatusMutation,
 } from "@/hooks/use-queries";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth/auth-provider";
 import { API_BASE_URL, getErrorMessage } from "@/lib/api";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -21,12 +23,19 @@ import {
   Printer,
   Receipt,
   Download,
+  CheckCircle,
+  ShieldCheck,
+  PackageCheck,
+  Clock,
+  Warehouse,
+  DollarSign,
 } from "lucide-react";
 import { formatCurrency, formatDate, toNumber } from "@/lib/utils";
 import { useState } from "react";
 import { RecordDepositModal } from "@/components/sales/record-deposit-modal";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { CreateInvoiceForm } from "@/components/invoicing/create-invoice-form";
+import { NepaliDatePickerInput } from "@/components/ui/nepali-date-picker-input";
 
 export function SalesOrderDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -38,10 +47,14 @@ export function SalesOrderDetailPage() {
   const cancelMutation = useCancelSalesOrderMutation();
   const createInvoiceMutation = useCreateInvoiceMutation();
   const createDeliveryMutation = useCreateDeliveryMutation();
+  const confirmOrderMutation = useConfirmSalesOrderMutation();
+  const updateStatusMutation = useUpdateSalesOrderStatusMutation();
 
   const [depositModalOpen, setDepositModalOpen] = useState(false);
   const [createInvoiceOpen, setCreateInvoiceOpen] = useState(false);
   const [invoiceTypeToCreate, setInvoiceTypeToCreate] = useState<"VAT" | "ESTIMATE">("VAT");
+  const [deliverModalOpen, setDeliverModalOpen] = useState(false);
+  const [deliverDate, setDeliverDate] = useState<string>(new Date().toISOString().split("T")[0]);
 
   if (isLoading) {
     return (
@@ -63,7 +76,8 @@ export function SalesOrderDetailPage() {
   const payments = order.payments ?? [];
   const taxInvoices = order.taxInvoices ?? [];
   const delivery = order.delivery;
-  
+  const rawStatus = order.rawStatus ?? order.status;
+
   const existingVatPan = taxInvoices.find((i: any) => i.invoiceType === "VAT" || i.invoiceType === "PAN");
   const existingEstimate = taxInvoices.find((i: any) => i.invoiceType === "ESTIMATE");
   
@@ -82,6 +96,29 @@ export function SalesOrderDetailPage() {
   const total = computedTotal;
   const paid = computedPaid;
   const balance = computedBalance;
+
+  // OTC Stepper Lifecycle definitions
+  const OTC_STEPS = [
+    { key: "DRAFT", label: "Draft / Quote", icon: Clock },
+    { key: "CONFIRMED", label: "Confirmed", icon: ShieldCheck },
+    { key: "DISPATCHED", label: "Dispatched", icon: Truck },
+    { key: "DELIVERED", label: "Delivered", icon: CheckCircle },
+  ];
+
+  const getStepIndex = (st: string) => {
+    switch (st) {
+      case "QUOTE":
+      case "DRAFT": return 0;
+      case "CONFIRMED":
+      case "IN_WAREHOUSE": return 1;
+      case "OUT_FOR_DELIVERY":
+      case "DISPATCHED": return 2;
+      case "DELIVERED": return 3;
+      default: return 0;
+    }
+  };
+
+  const currentStepIdx = rawStatus === "CANCELLED" ? -1 : getStepIndex(rawStatus);
 
   const statusVariant = (status: string): "destructive" | "success" | "warning" => {
     switch (status) {
@@ -129,6 +166,17 @@ export function SalesOrderDetailPage() {
     );
   };
 
+  const handleStatusChange = (nextStatus: string, label: string) => {
+    if (!id) return;
+    updateStatusMutation.mutate(
+      { id, status: nextStatus },
+      {
+        onSuccess: () => toast.success(`Order advanced to ${label}`),
+        onError: (err) => toast.error("Status update failed", { description: getErrorMessage(err) }),
+      }
+    );
+  };
+
   const handleDownloadPdf = async (invoiceId: string, type: "invoice" | "estimate") => {
     try {
       const baseUrl = API_BASE_URL.replace(/\/$/, "");
@@ -156,7 +204,12 @@ export function SalesOrderDetailPage() {
             </Link>
           </Button>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Order {order.id}</h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl font-bold tracking-tight">Order #{order.id}</h1>
+              <Badge variant={statusVariant(rawStatus)}>
+                {rawStatus.replace(/_/g, " ")}
+              </Badge>
+            </div>
             <p className="text-muted-foreground">{customer?.name}</p>
           </div>
         </div>
@@ -164,6 +217,72 @@ export function SalesOrderDetailPage() {
           <Printer className="mr-2 h-4 w-4" /> Print
         </Button>
       </div>
+
+      {/* Visual Order-to-Cash Stepper */}
+      {rawStatus !== "CANCELLED" ? (
+        <Card className="shadow-xs border-primary/20 bg-muted/20">
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex items-center justify-between relative">
+              {/* Stepper Progress Bar */}
+              <div className="absolute top-1/2 left-0 right-0 h-1 bg-muted-foreground/20 -translate-y-1/2 z-0" />
+              <div
+                className="absolute top-1/2 left-0 h-1 bg-primary -translate-y-1/2 z-0 transition-all duration-300"
+                style={{
+                  width: `${(Math.max(0, currentStepIdx) / (OTC_STEPS.length - 1)) * 100}%`,
+                }}
+              />
+
+              {OTC_STEPS.map((step, idx) => {
+                const Icon = step.icon;
+                const isCompleted = currentStepIdx > idx;
+                const isCurrent = currentStepIdx === idx;
+
+                return (
+                  <div
+                    key={step.key}
+                    className="relative z-10 flex flex-col items-center gap-2 group cursor-pointer"
+                  >
+                    <div
+                      className={`flex h-10 w-10 items-center justify-center rounded-full border-2 text-xs font-bold transition-all shadow-sm ${
+                        isCompleted
+                          ? "bg-primary border-primary text-primary-foreground"
+                          : isCurrent
+                          ? "bg-background border-primary text-primary ring-4 ring-primary/20"
+                          : "bg-background border-muted-foreground/30 text-muted-foreground"
+                      }`}
+                    >
+                      {isCompleted ? <CheckCircle className="h-5 w-5" /> : <Icon className="h-5 w-5" />}
+                    </div>
+                    <span
+                      className={`text-xs font-semibold hidden sm:inline ${
+                        isCurrent
+                          ? "text-primary font-bold"
+                          : isCompleted
+                          ? "text-foreground"
+                          : "text-muted-foreground"
+                      }`}
+                    >
+                      {step.label}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card className="border-destructive/30 bg-destructive/5">
+          <CardContent className="p-4 flex items-center gap-3 text-destructive">
+            <XCircle className="h-5 w-5" />
+            <div>
+              <p className="font-bold text-sm">Order Cancelled</p>
+              <p className="text-xs text-muted-foreground">
+                This Sales Order was voided. Stock allocations have been restored to inventory.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* ─── Left Column (2/3) ─── */}
@@ -381,87 +500,132 @@ export function SalesOrderDetailPage() {
             </CardContent>
           </Card>
 
-          {/* Quick Actions */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Quick Actions</CardTitle>
+          {/* Workflow Action Panel */}
+          <Card className="shadow-xs border-primary/20">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base font-semibold">Workflow Actions</CardTitle>
+              <CardDescription className="text-xs">
+                Advance this order through its fulfillment lifecycle.
+              </CardDescription>
             </CardHeader>
-            <CardContent className="flex flex-col gap-2">
-              {!delivery && order.status !== "CANCELLED" && order.status !== "QUOTE" && (
+            <CardContent className="space-y-2.5">
+              {/* Step 1: Confirm Order */}
+              {(rawStatus === "DRAFT" || rawStatus === "QUOTE") && (
                 <Button
-                  variant="outline"
-                  className="justify-start"
+                  className="w-full justify-start rounded-xl font-semibold bg-emerald-600 hover:bg-emerald-700 text-white"
+                  onClick={() => {
+                    if (!id) return;
+                    confirmOrderMutation.mutate(id, {
+                      onSuccess: () => toast.success("Order confirmed! Stock allocated."),
+                      onError: (err) => toast.error("Confirmation failed", { description: getErrorMessage(err) }),
+                    });
+                  }}
+                  disabled={confirmOrderMutation.isPending}
+                >
+                  <ShieldCheck className="mr-2 h-4 w-4" />
+                  {confirmOrderMutation.isPending ? "Confirming..." : "Confirm Sales Order"}
+                </Button>
+              )}
+
+              {/* Step 2: Schedule Delivery */}
+              {!delivery && rawStatus !== "CANCELLED" && (rawStatus === "CONFIRMED" || rawStatus === "IN_WAREHOUSE") && (
+                <Button
+                  variant="default"
+                  className="w-full justify-start rounded-xl font-semibold bg-primary text-primary-foreground"
                   onClick={handleScheduleDelivery}
                   disabled={createDeliveryMutation.isPending}
                 >
                   <Truck className="mr-2 h-4 w-4" />
-                  {createDeliveryMutation.isPending ? "Scheduling..." : "Schedule Delivery"}
+                  {createDeliveryMutation.isPending ? "Scheduling..." : "Schedule Delivery & Create Challan"}
                 </Button>
               )}
+
+              {/* Delivery Details Badge */}
               {delivery && (
-                <div className="flex flex-col gap-1 rounded-md border p-3 bg-muted/20">
-                  <span className="text-xs font-semibold text-muted-foreground uppercase">Delivery</span>
-                  <div className="text-sm font-medium flex items-center gap-2">
+                <div className="flex flex-col gap-1 rounded-xl border p-3 bg-muted/30">
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                    Delivery Challan Registered
+                  </span>
+                  <div className="text-xs font-medium flex items-center gap-2 text-foreground">
                     <Truck className="h-4 w-4 text-primary" /> {delivery.status?.replace(/_/g, " ")} — {formatDate(delivery.scheduledDate)}
                   </div>
-                  {delivery.vehicle && <span className="text-xs text-muted-foreground ml-6">Vehicle: {delivery.vehicle}</span>}
+                  {delivery.vehicle && <span className="text-[11px] text-muted-foreground ml-6">Vehicle: {delivery.vehicle}</span>}
                 </div>
               )}
 
-              {order.status !== "CANCELLED" && order.status !== "QUOTE" && (
-                <>
+              {/* Step 3: Mark Complete / Delivered */}
+              {rawStatus !== "DELIVERED" && rawStatus !== "CANCELLED" && rawStatus !== "DRAFT" && rawStatus !== "QUOTE" && (
+                <Button
+                  variant={delivery || rawStatus === "DISPATCHED" || rawStatus === "OUT_FOR_DELIVERY" ? "default" : "outline"}
+                  className={`w-full justify-start rounded-xl font-semibold ${
+                    delivery || rawStatus === "DISPATCHED" || rawStatus === "OUT_FOR_DELIVERY"
+                      ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+                      : "border-muted-foreground/30 text-muted-foreground"
+                  }`}
+                  onClick={() => setDeliverModalOpen(true)}
+                  disabled={updateStatusMutation.isPending}
+                >
+                  <CheckCircle className="mr-2 h-4 w-4" />
+                  {updateStatusMutation.isPending ? "Updating..." : "Mark Delivered & Complete"}
+                </Button>
+              )}
+
+              {/* Tax Invoice & Estimate Actions */}
+              {rawStatus !== "CANCELLED" && rawStatus !== "QUOTE" && (
+                <div className="pt-2 border-t space-y-2">
                   {!existingVatPan && (
                     <Button
                       variant="outline"
-                      className="justify-start"
+                      className="w-full justify-start rounded-xl text-xs"
                       onClick={() => handleCreateInvoice("VAT")}
                     >
-                      <FileText className="mr-2 h-4 w-4" />
+                      <FileText className="mr-2 h-4 w-4 text-emerald-600" />
                       Create Tax Invoice
                     </Button>
                   )}
                   {!existingEstimate && (
                     <Button
                       variant="outline"
-                      className="justify-start"
+                      className="w-full justify-start rounded-xl text-xs"
                       onClick={() => handleCreateInvoice("ESTIMATE")}
                     >
-                      <Receipt className="mr-2 h-4 w-4" />
+                      <Receipt className="mr-2 h-4 w-4 text-blue-600" />
                       Create Estimate Bill
                     </Button>
                   )}
-                </>
+                </div>
               )}
 
               {taxInvoices.map((inv: any) => (
-                <div key={inv.id} className="flex flex-col gap-2 rounded-md border p-3 bg-muted/20">
+                <div key={inv.id} className="flex flex-col gap-2 rounded-xl border p-3 bg-muted/20">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-muted-foreground uppercase">{inv.invoiceType} INVOICE</span>
-                    <Badge variant="secondary">{inv.status}</Badge>
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase">{inv.invoiceType} INVOICE</span>
+                    <Badge variant="secondary" className="text-[10px]">{inv.status}</Badge>
                   </div>
                   <Button
                     variant="outline"
-                    className="justify-start w-full bg-background"
+                    size="sm"
+                    className="justify-start w-full bg-background rounded-lg text-xs"
                     onClick={() => handleDownloadPdf(inv.id, inv.invoiceType === "ESTIMATE" ? "estimate" : "invoice")}
                   >
                     {inv.invoiceType === "ESTIMATE" ? (
-                      <><Receipt className="mr-2 h-4 w-4" /> Download Estimate</>
+                      <><Receipt className="mr-2 h-3.5 w-3.5" /> Download Estimate</>
                     ) : (
-                      <><Download className="mr-2 h-4 w-4" /> Download Invoice</>
+                      <><Download className="mr-2 h-3.5 w-3.5" /> Download Invoice</>
                     )}
                   </Button>
                 </div>
               ))}
 
-              {order.status !== "CANCELLED" && (
+              {rawStatus !== "CANCELLED" && rawStatus !== "DELIVERED" && (
                 <Button
-                  variant="outline"
-                  className="justify-start text-destructive hover:bg-destructive/10 hover:text-destructive mt-2"
+                  variant="ghost"
+                  className="w-full justify-start rounded-xl text-destructive hover:bg-destructive/10 text-xs mt-2"
                   onClick={handleVoidOrder}
                   disabled={cancelMutation.isPending}
                 >
                   <XCircle className="mr-2 h-4 w-4" />
-                  {cancelMutation.isPending ? "Voiding..." : "Void Order"}
+                  {cancelMutation.isPending ? "Voiding..." : "Void Sales Order"}
                 </Button>
               )}
             </CardContent>
@@ -485,6 +649,50 @@ export function SalesOrderDetailPage() {
             defaultSoId={id} 
             defaultInvoiceType={invoiceTypeToCreate} 
           />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={deliverModalOpen} onOpenChange={setDeliverModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Mark Sales Order Delivered</DialogTitle>
+            <DialogDescription>
+              Select the official delivery date to log stock deduction and update Order-to-Cash status.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <label className="text-sm font-semibold">Delivery Date</label>
+            <NepaliDatePickerInput
+              value={deliverDate}
+              onChange={(date) => setDeliverDate(date.toISOString().split("T")[0])}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeliverModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (!id) return;
+                updateStatusMutation.mutate(
+                  { id, status: "DELIVERED", deliveryDate: deliverDate },
+                  {
+                    onSuccess: () => {
+                      setDeliverModalOpen(false);
+                      toast.success("Sales order marked as Delivered");
+                    },
+                    onError: (err) =>
+                      toast.error("Delivery update failed", {
+                        description: getErrorMessage(err),
+                      }),
+                  }
+                );
+              }}
+              disabled={updateStatusMutation.isPending}
+            >
+              {updateStatusMutation.isPending ? "Updating..." : "Confirm Delivered"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

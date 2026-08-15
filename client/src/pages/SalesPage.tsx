@@ -99,6 +99,8 @@ export function SalesPage() {
     useConfirmSalesOrderMutation();
   const { mutate: updateStatus, isPending: isUpdating } =
     useUpdateSalesOrderStatusMutation();
+  const [statusTab, setStatusTab] = useState<string>("ALL");
+
   const selectedOrder = data?.items.find((o) => o.id === selectedOrderId);
 
   if (isLoading || customersLoading) {
@@ -122,10 +124,42 @@ export function SalesPage() {
     return null;
   }
 
-  const filteredItems = data.items.filter((item) => {
-    if (typeFilter === "ALL") return true;
-    return item.customerType === typeFilter;
+  const allItems = data.items;
+
+  // KPI Calculations
+  const totalSalesValue = allItems.reduce(
+    (sum, item) => sum + (item.rawStatus !== "CANCELLED" ? toNumber(item.total) : 0),
+    0
+  );
+
+  const pendingDispatchCount = allItems.filter(
+    (item) => item.rawStatus === "CONFIRMED" || item.rawStatus === "IN_WAREHOUSE"
+  ).length;
+
+  const totalOutstandingBalance = allItems.reduce(
+    (sum, item) => sum + (item.rawStatus !== "CANCELLED" ? toNumber(item.balanceDue) : 0),
+    0
+  );
+
+  // Tab Filtering
+  const filteredItems = allItems.filter((item) => {
+    // 1. Customer Type filter
+    if (typeFilter !== "ALL" && item.customerType !== typeFilter) return false;
+    // 2. Status Tab filter
+    if (statusTab === "ALL") return true;
+    if (statusTab === "DRAFT") return item.rawStatus === "DRAFT" || item.rawStatus === "QUOTE";
+    if (statusTab === "CONFIRMED") return item.rawStatus === "CONFIRMED" || item.rawStatus === "IN_WAREHOUSE";
+    if (statusTab === "DISPATCHED") return item.rawStatus === "DISPATCHED" || item.rawStatus === "OUT_FOR_DELIVERY";
+    return item.rawStatus === statusTab;
   });
+
+  const STATUS_TABS = [
+    { id: "ALL", label: "All Orders", count: allItems.length },
+    { id: "DRAFT", label: "Drafts / Quotes", count: allItems.filter(i => i.rawStatus === "DRAFT" || i.rawStatus === "QUOTE").length },
+    { id: "CONFIRMED", label: "Confirmed", count: allItems.filter(i => i.rawStatus === "CONFIRMED" || i.rawStatus === "IN_WAREHOUSE").length },
+    { id: "DISPATCHED", label: "Dispatched", count: allItems.filter(i => i.rawStatus === "DISPATCHED" || i.rawStatus === "OUT_FOR_DELIVERY").length },
+    { id: "DELIVERED", label: "Delivered", count: allItems.filter(i => i.rawStatus === "DELIVERED").length },
+  ];
 
   return (
     <div className="space-y-6">
@@ -150,43 +184,98 @@ export function SalesPage() {
         ]}
       />
 
+      {/* Sales KPI Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card className="border-l-4 border-l-primary shadow-xs">
+          <CardContent className="p-4">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Total Order Portfolio
+            </p>
+            <p className="text-2xl font-bold font-mono text-foreground mt-1">
+              {formatCurrency(totalSalesValue)}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Gross value of active sales orders
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-l-4 border-l-amber-500 shadow-xs">
+          <CardContent className="p-4">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Pending Dispatch
+            </p>
+            <p className="text-2xl font-bold font-mono text-amber-600 dark:text-amber-400 mt-1">
+              {pendingDispatchCount} <span className="text-sm font-normal text-muted-foreground">Orders</span>
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Confirmed & warehouse-ready orders
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-l-4 border-l-destructive shadow-xs">
+          <CardContent className="p-4">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Uncollected AR Balance
+            </p>
+            <p className="text-2xl font-bold font-mono text-destructive mt-1">
+              {formatCurrency(totalOutstandingBalance)}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Remaining receivables balance due
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
       <div className="space-y-6">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-2 rounded-lg border border-border/50 bg-muted/30 p-0.5 w-fit">
-            {(["ALL", "SHOWROOM", "RETAIL"] as const).map((t) => (
-              <button
-                key={t}
-                onClick={() => setTypeFilter(t)}
-                className={`px-4 py-1.5 text-xs font-semibold rounded-md transition-all ${
-                  typeFilter === t
-                    ? "bg-white text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
+        {/* Status Filter Tabs */}
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-3">
+          <div className="flex flex-wrap items-center gap-1.5">
+            {STATUS_TABS.map((tab) => (
+              <Button
+                key={tab.id}
+                variant={statusTab === tab.id ? "default" : "ghost"}
+                size="sm"
+                className="rounded-xl text-xs font-semibold h-8 px-3"
+                onClick={() => setStatusTab(tab.id)}
               >
-                {t === "ALL"
-                  ? "All Orders"
-                  : t === "SHOWROOM"
-                    ? "Showroom Orders"
-                    : "Retail Orders"}
-              </button>
+                {tab.label}
+                <span className="ml-1.5 rounded-full bg-muted-foreground/20 px-1.5 py-0.2 text-[10px]">
+                  {tab.count}
+                </span>
+              </Button>
             ))}
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 rounded-lg border border-border/50 bg-muted/30 p-0.5 w-fit">
+              {(["ALL", "SHOWROOM", "RETAIL"] as const).map((t) => (
+                <button
+                  key={t}
+                  onClick={() => setTypeFilter(t)}
+                  className={`px-3 py-1 text-xs font-semibold rounded-md transition-all ${
+                    typeFilter === t
+                      ? "bg-white text-foreground shadow-sm dark:bg-zinc-800"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {t === "ALL"
+                    ? "All Parties"
+                    : t === "SHOWROOM"
+                      ? "Showroom"
+                      : "Retail"}
+                </button>
+              ))}
+            </div>
+
             <YearMonthFilter
               year={filterYear}
               month={filterMonth}
               onYearChange={(y) => { setFilterYear(y); setFilterMonth(""); }}
               onMonthChange={setFilterMonth}
             />
-            {(filterYear || filterMonth) && (
-              <button
-                onClick={() => { setFilterYear(""); setFilterMonth(""); }}
-                className="text-xs text-muted-foreground underline hover:text-foreground"
-              >
-                Clear filter
-              </button>
-            )}
           </div>
         </div>
 
@@ -200,13 +289,14 @@ export function SalesPage() {
             </div>
             {selectedOrderId && (
               <div className="flex flex-wrap gap-2">
-                {selectedOrder?.rawStatus === "QUOTE" && (
+                {(selectedOrder?.rawStatus === "QUOTE" || selectedOrder?.rawStatus === "DRAFT") && (
                   <Button
                     variant="default"
                     size="sm"
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
                     onClick={() => {
                       confirmOrder(selectedOrderId, {
-                        onSuccess: () => toast.success("Order confirmed"),
+                        onSuccess: () => toast.success("Order confirmed and stock allocated"),
                         onError: (error) =>
                           toast.error("Confirmation failed", {
                             description: getErrorMessage(error),
@@ -218,7 +308,9 @@ export function SalesPage() {
                     {isConfirming ? "Confirming..." : "Confirm Order"}
                   </Button>
                 )}
+
                 {selectedOrder?.rawStatus !== "QUOTE" &&
+                  selectedOrder?.rawStatus !== "DRAFT" &&
                   selectedOrder?.rawStatus !== "CANCELLED" && (
                     <>
                       <Button
@@ -230,7 +322,7 @@ export function SalesPage() {
                         Record Deposit
                       </Button>
 
-                      {selectedOrder?.rawStatus !== "DELIVERED" && (
+                      {(selectedOrder?.rawStatus === "DISPATCHED" || selectedOrder?.rawStatus === "OUT_FOR_DELIVERY") && (
                         <Button
                           variant="default"
                           size="sm"
@@ -248,15 +340,17 @@ export function SalesPage() {
                     </>
                   )}
 
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="text-destructive hover:bg-destructive hover:text-white border-destructive/30 ml-auto"
-                  onClick={() => setConfirmOpen(true)}
-                  disabled={isCancelling}
-                >
-                  {isCancelling ? "Cancelling..." : "Cancel Order"}
-                </Button>
+                {selectedOrder?.rawStatus !== "CANCELLED" && selectedOrder?.rawStatus !== "DELIVERED" && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-destructive hover:bg-destructive hover:text-white border-destructive/30 ml-auto"
+                    onClick={() => setConfirmOpen(true)}
+                    disabled={isCancelling}
+                  >
+                    {isCancelling ? "Cancelling..." : "Cancel Order"}
+                  </Button>
+                )}
               </div>
             )}
           </CardHeader>

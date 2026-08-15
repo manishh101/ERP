@@ -146,12 +146,12 @@ export function CreateSalesOrderForm({ onClose }: CreateSalesOrderFormProps) {
           <div className="space-y-2">
             <label className="text-sm font-semibold">Status</label>
             <select 
-              className="flex h-12 w-full rounded-xl border border-border bg-white px-4 text-sm"
+              className="flex h-12 w-full rounded-xl border border-border bg-white px-4 text-sm font-medium"
               value={formData.status}
               onChange={(e) => setFormData({ ...formData, status: e.target.value })}
             >
-              <option value="QUOTE">QUOTE</option>
-              <option value="CONFIRMED">CONFIRMED</option>
+              <option value="QUOTE">Draft / Quote</option>
+              <option value="CONFIRMED">Confirmed Order</option>
             </select>
           </div>
         </div>

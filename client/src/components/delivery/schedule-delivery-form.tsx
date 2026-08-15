@@ -83,7 +83,7 @@ export function ScheduleDeliveryForm({ onClose }: ScheduleDeliveryFormProps) {
               }}
             >
               <option value="">Select a ready sales order</option>
-              {salesOrders.data?.items.filter(so => so.status !== "QUOTE").map(so => (
+              {salesOrders.data?.items.filter(so => so.rawStatus !== "QUOTE" && so.rawStatus !== "CANCELLED" && so.rawStatus !== "DELIVERED").map(so => (
                 <option key={so.id} value={so.id}>{so.id} - {so.customer}</option>
               ))}
             </select>
