@@ -148,6 +148,8 @@ export const goodsReceiptLineSchema = z.object({
   poLineItemId: z.string().min(1),
   quantityReceived: z.coerce.number().int().min(0),
   discrepancyQty: z.coerce.number().int().min(0).default(0),
+  unitCost: decimalNumber.optional(),
+  taxAmount: decimalNumber.optional(),
 });
 
 export const goodsReceiptSchema = z.object({
@@ -155,6 +157,8 @@ export const goodsReceiptSchema = z.object({
   status: z.nativeEnum(GoodsReceiptStatus).default(GoodsReceiptStatus.RECEIVED),
   notes: z.string().optional(),
   paymentMode: z.string().optional(),
+  supplierInvoiceNo: z.string().optional(),
+  supplierInvoiceDate: optionalDate,
   lines: z.array(goodsReceiptLineSchema).min(1),
 });
 

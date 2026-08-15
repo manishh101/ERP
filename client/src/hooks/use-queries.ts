@@ -2014,10 +2014,14 @@ export function useReceivePurchaseOrderMutation() {
     mutationFn: async (input: {
       id: string;
       notes?: string;
+      supplierInvoiceNo?: string;
+      supplierInvoiceDate?: string;
       lines: Array<{
         poLineItemId: string;
         quantityReceived: number;
         discrepancyQty?: number;
+        unitCost?: number;
+        taxAmount?: number;
       }>;
     }) => {
       const canReceive = user?.role === "ADMIN" || user?.role === "WAREHOUSE";
@@ -2031,6 +2035,8 @@ export function useReceivePurchaseOrderMutation() {
         token,
         body: {
           notes: input.notes,
+          supplierInvoiceNo: input.supplierInvoiceNo,
+          supplierInvoiceDate: input.supplierInvoiceDate,
           lines: input.lines,
         },
       });
@@ -2038,12 +2044,15 @@ export function useReceivePurchaseOrderMutation() {
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["purchase-orders"] }),
-        queryClient.invalidateQueries({ queryKey: ["products"] }),
+        queryClient.invalidateQueries({ queryKey: ["purchase-order"] }),
+        queryClient.invalidateQueries({ queryKey: ["inventory"] }),
         queryClient.invalidateQueries({ queryKey: ["inventory-records"] }),
         queryClient.invalidateQueries({ queryKey: ["inventory-valuation"] }),
         queryClient.invalidateQueries({ queryKey: ["inventory-movements"] }),
         queryClient.invalidateQueries({ queryKey: ["low-stock"] }),
         queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
+        queryClient.invalidateQueries({ queryKey: ["supplier-invoices"] }),
+        queryClient.invalidateQueries({ queryKey: ["products"] }),
       ]);
     },
   });

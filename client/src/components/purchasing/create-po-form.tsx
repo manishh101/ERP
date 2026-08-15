@@ -246,7 +246,7 @@ export function CreatePurchaseOrderForm({ onClose }: CreatePurchaseOrderFormProp
                 </span>
               </h4>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Enter raw materials or items you are buying from this supplier. Subtotal, Tax/VAT, and Line Total calculate automatically.
+                Enter items & quantities to order. Prices & Tax/VAT can be left at Rs. 0 now and filled when logging the Supplier VAT Bill upon goods receipt.
               </p>
             </div>
             <Button 
@@ -313,9 +313,9 @@ export function CreatePurchaseOrderForm({ onClose }: CreatePurchaseOrderFormProp
 
                     {/* Unit Cost */}
                     <div className="md:col-span-2 space-y-1">
-                      <label className="text-[11px] font-semibold text-muted-foreground">Unit Cost (Rs.) *</label>
+                      <label className="text-[11px] font-semibold text-muted-foreground">Unit Cost (Rs.) (Optional)</label>
                       <Input 
-                        placeholder="Unit Cost" 
+                        placeholder="0 (TBD on Bill)" 
                         type="number"
                         step="0.01"
                         className="h-10 rounded-xl text-sm"

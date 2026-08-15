@@ -34,10 +34,12 @@ import {
   ShieldCheck,
   Building2,
   XCircle,
-  TrendingUp
+  TrendingUp,
+  Receipt
 } from "lucide-react";
 import { formatCurrency, formatDate, formatNumber, toNumber } from "@/lib/utils";
 import { StatusBadge } from "@/components/shared/status-badge";
+import { ReceiveGoodsModal } from "@/components/purchasing/receive-goods-modal";
 
 export function PurchaseOrderDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -50,6 +52,7 @@ export function PurchaseOrderDetailPage() {
   const updateStatus = useUpdatePurchaseOrderStatusMutation();
 
   const [matchResult, setMatchResult] = useState<any>(null);
+  const [receiveModalOpen, setReceiveModalOpen] = useState(false);
 
   const canRunMatch =
     user?.role === "ADMIN" ||
@@ -140,28 +143,32 @@ export function PurchaseOrderDetailPage() {
   };
 
   // Status Stepper Progress Logic
-  const getStepState = (stepIndex: number) => {
-    const statuses = ["DRAFT", "APPROVED", "SENT", "RECEIVED", "INVOICED"];
-    let currentIndex = 0;
-    if (rawStatus === "APPROVED") currentIndex = 1;
-    else if (rawStatus === "SENT") currentIndex = 2;
-    else if (rawStatus === "PARTIALLY_RECEIVED" || rawStatus === "RECEIVED") currentIndex = 3;
-    else if (rawStatus === "INVOICED" || rawStatus === "CLOSED") currentIndex = 4;
-    else if (rawStatus === "CANCELLED") currentIndex = -1;
+  const PO_STEPS = [
+    { key: "DRAFT", label: "Draft", icon: Clock },
+    { key: "APPROVED", label: "Approved", icon: ShieldCheck },
+    { key: "SENT", label: "Sent to Supplier", icon: Send },
+    { key: "RECEIVED", label: "Goods Received", icon: Truck },
+  ];
 
-    if (rawStatus === "CANCELLED") return "cancelled";
-    if (stepIndex < currentIndex) return "completed";
-    if (stepIndex === currentIndex) return "active";
-    return "upcoming";
+  const getStepIndex = (status: string) => {
+    switch (status) {
+      case "DRAFT":
+        return 0;
+      case "APPROVED":
+        return 1;
+      case "SENT":
+        return 2;
+      case "PARTIALLY_RECEIVED":
+      case "RECEIVED":
+      case "INVOICED":
+      case "CLOSED":
+        return 3;
+      default:
+        return 0;
+    }
   };
 
-  const steps = [
-    { title: "1. Draft", icon: Clock, desc: "Created" },
-    { title: "2. Approved", icon: ShieldCheck, desc: "Verified" },
-    { title: "3. Sent to Supplier", icon: Send, desc: "Dispatched" },
-    { title: "4. Goods Received", icon: Truck, desc: "Inventory updated" },
-    { title: "5. Invoiced & Closed", icon: FileCheck, desc: "Financial match" },
-  ];
+  const currentStepIdx = getStepIndex(rawStatus);
 
   return (
     <div className="p-6 space-y-6">
@@ -193,52 +200,64 @@ export function PurchaseOrderDetailPage() {
         </div>
       </div>
 
-      {/* Visual PO Lifecycle Stepper */}
-      <Card className="border-primary/20 bg-card shadow-xs">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-semibold flex items-center gap-2">
-            <TrendingUp className="h-4 w-4 text-primary" />
-            Procurement Lifecycle Stepper
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-            {steps.map((step, idx) => {
-              const state = getStepState(idx);
-              const Icon = step.icon;
+      {/* Visual PO Lifecycle Pipeline Stepper */}
+      {rawStatus !== "CANCELLED" ? (
+        <Card className="shadow-xs border-primary/20 bg-muted/20">
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex items-center justify-between relative">
+              {/* Stepper Progress Line */}
+              <div className="absolute top-1/2 left-0 right-0 h-1 bg-muted-foreground/20 -translate-y-1/2 z-0" />
+              <div
+                className="absolute top-1/2 left-0 h-1 bg-primary -translate-y-1/2 z-0 transition-all duration-300"
+                style={{
+                  width: `${(Math.max(0, currentStepIdx) / (PO_STEPS.length - 1)) * 100}%`,
+                }}
+              />
 
-              return (
-                <div
-                  key={step.title}
-                  className={`p-3 rounded-xl border transition-all ${
-                    state === "completed"
-                      ? "bg-emerald-50/60 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-300"
-                      : state === "active"
-                      ? "bg-primary/10 border-primary text-primary shadow-xs"
-                      : state === "cancelled"
-                      ? "bg-destructive/5 border-destructive/30 text-muted-foreground"
-                      : "bg-muted/30 border-border/50 text-muted-foreground"
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <Icon className="h-4 w-4" />
-                    {state === "completed" && <CheckCircle2 className="h-4 w-4 text-emerald-600" />}
-                    {state === "active" && (
-                      <span className="text-[10px] font-bold uppercase tracking-wider bg-primary/20 text-primary px-1.5 py-0.5 rounded-full">
-                        Current
-                      </span>
-                    )}
+              {PO_STEPS.map((step, idx) => {
+                const Icon = step.icon;
+                const isCompleted = currentStepIdx > idx;
+                const isCurrent = currentStepIdx === idx;
+
+                return (
+                  <div
+                    key={step.key}
+                    className="relative z-10 flex flex-col items-center gap-2 group cursor-pointer"
+                  >
+                    <div
+                      className={`flex h-10 w-10 items-center justify-center rounded-full border-2 text-xs font-bold transition-all shadow-sm ${
+                        isCompleted
+                          ? "bg-primary border-primary text-primary-foreground"
+                          : isCurrent
+                          ? "bg-background border-primary text-primary ring-4 ring-primary/20"
+                          : "bg-background border-muted-foreground/30 text-muted-foreground"
+                      }`}
+                    >
+                      {isCompleted ? <CheckCircle2 className="h-5 w-5" /> : <Icon className="h-5 w-5" />}
+                    </div>
+                    <div className="text-center">
+                      <p
+                        className={`text-xs font-semibold ${
+                          isCurrent ? "text-primary font-bold" : isCompleted ? "text-foreground" : "text-muted-foreground"
+                        }`}
+                      >
+                        {step.label}
+                      </p>
+                    </div>
                   </div>
-                  <div className="mt-2">
-                    <p className="text-xs font-bold">{step.title}</p>
-                    <p className="text-[10px] opacity-80 mt-0.5">{step.desc}</p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card className="border-destructive/30 bg-destructive/5 shadow-xs">
+          <CardContent className="p-4 flex items-center gap-3 text-destructive font-medium text-sm">
+            <XCircle className="h-5 w-5" />
+            <span>This Purchase Order has been cancelled.</span>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column: Order Metadata & Line Items */}
@@ -419,10 +438,10 @@ export function PurchaseOrderDetailPage() {
               )}
 
               {/* Mark Sent Action */}
-              {(rawStatus === "DRAFT" || rawStatus === "APPROVED") && (
+              {rawStatus === "APPROVED" && (
                 <Button
                   variant="outline"
-                  className="w-full justify-start rounded-xl border-primary/40 text-primary hover:bg-primary/5"
+                  className="w-full justify-start rounded-xl border-primary/40 text-primary hover:bg-primary/5 font-semibold"
                   onClick={() => handleStatusChange("SENT", "Sent to Supplier")}
                   disabled={updateStatus.isPending}
                 >
@@ -435,14 +454,12 @@ export function PurchaseOrderDetailPage() {
               {pendingLines.length > 0 && rawStatus !== "CANCELLED" && (
                 <Button
                   variant="outline"
-                  className="w-full justify-start rounded-xl border-emerald-500 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
-                  onClick={handleReceiveGoods}
-                  disabled={!canReceive || receivePurchaseOrder.isPending}
+                  className="w-full justify-start rounded-xl border-emerald-500 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 font-semibold"
+                  onClick={() => setReceiveModalOpen(true)}
+                  disabled={!canReceive}
                 >
-                  <CheckCircle className="mr-2 h-4 w-4 text-emerald-600" />
-                  {receivePurchaseOrder.isPending
-                    ? "Receiving..."
-                    : `Receive Remaining Goods (${pendingLines.length} pending items)`}
+                  <Receipt className="mr-2 h-4 w-4 text-emerald-600" />
+                  Receive Goods & Log VAT Bill ({pendingLines.length} pending items)
                 </Button>
               )}
 
@@ -504,6 +521,12 @@ export function PurchaseOrderDetailPage() {
           </Card>
         </div>
       </div>
+
+      <ReceiveGoodsModal
+        open={receiveModalOpen}
+        onOpenChange={setReceiveModalOpen}
+        order={order}
+      />
     </div>
   );
 }

@@ -210,29 +210,15 @@ export function PurchasingPage() {
         label:
           pendingLines.length === 0
             ? "Fully Received"
-            : receivePurchaseOrder.isPending &&
-                receivingPurchaseOrderId === order.id
-              ? "Receiving..."
-              : "Receive Remaining Goods",
-        onClick: async () => {
+            : "Receive Goods & Log VAT Bill",
+        onClick: () => {
           if (!canReceive)
             return toast.error("Insufficient permissions to receive goods.");
           if (pendingLines.length === 0)
             return toast.info("Nothing to receive", {
               description: `${order.id} is already fully received.`,
             });
-          try {
-            await receivePurchaseOrder.mutateAsync({
-              id: order.id,
-              notes: `Receipt captured from the ERP client for ${order.supplier}.`,
-              lines: pendingLines,
-            });
-            toast.success("Goods received", {
-              description: `${formatNumber(pendingLines.reduce((sum, line) => sum + line.quantityReceived, 0))} units were received for ${order.id}.`,
-            });
-          } catch (e) {
-            toast.error("Receipt failed", { description: getErrorMessage(e) });
-          }
+          navigate(`/purchasing/${order.id}`);
         },
       },
     ];

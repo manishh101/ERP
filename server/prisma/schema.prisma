@@ -38,6 +38,7 @@ enum SupplierInvoiceStatus {
 
 enum PurchaseOrderStatus {
   DRAFT
+  APPROVED
   SENT
   PARTIALLY_RECEIVED
   RECEIVED

@@ -364,15 +364,32 @@ purchaseOrdersRouter.post(
           throw new ApiError(404, "Purchase order line item not found");
         }
 
+        // 1. Update received quantity and unit cost / tax amount if provided
         await tx.purchaseOrderLineItem.update({
           where: { id: poLineItem.id },
           data: {
             receivedQuantity: {
               increment: line.quantityReceived,
             },
+            ...(line.unitCost !== undefined ? { unitCost: line.unitCost } : {}),
+            ...(line.taxAmount !== undefined ? { taxAmount: line.taxAmount } : {}),
           },
         });
 
+        // 2. Update catalog product cost price if unit cost was filled
+        if (line.unitCost !== undefined && line.unitCost > 0) {
+          const variant = await tx.productVariant.findUnique({
+            where: { id: poLineItem.productVariantId },
+          });
+          if (variant) {
+            await tx.product.update({
+              where: { id: variant.productId },
+              data: { costPrice: line.unitCost },
+            });
+          }
+        }
+
+        // 3. Update inventory stock
         const inventoryRecord = await tx.inventory.findFirst({
           where: {
             tenantId: request.user!.tenantId,
@@ -435,14 +452,54 @@ purchaseOrdersRouter.post(
       const allReceived = refreshedItems.every((item) => item.receivedQuantity >= item.quantity);
       const someReceived = refreshedItems.some((item) => item.receivedQuantity > 0);
 
+      const recalculatedTotal = refreshedItems.reduce(
+        (sum, item) => sum + item.quantity * Number(item.unitCost) + Number(item.taxAmount),
+        0
+      );
+
       await tx.purchaseOrder.update({
         where: {
           id: purchaseOrder.id,
         },
         data: {
+          totalAmount: recalculatedTotal,
           status: allReceived ? "RECEIVED" : someReceived ? "PARTIALLY_RECEIVED" : purchaseOrder.status,
         },
       });
+
+      // 4. Optionally record Supplier VAT Bill / Supplier Invoice if provided
+      if (body.supplierInvoiceNo?.trim()) {
+        const invoiceSubtotal = refreshedItems.reduce(
+          (sum, item) => sum + item.receivedQuantity * Number(item.unitCost),
+          0
+        );
+        const invoiceTax = refreshedItems.reduce(
+          (sum, item) => sum + Number(item.taxAmount),
+          0
+        );
+        const invoiceTotal = invoiceSubtotal + invoiceTax;
+
+        const parseDate = (d: any) => {
+          if (!d) return new Date();
+          const parsed = new Date(d);
+          return isNaN(parsed.getTime()) ? new Date() : parsed;
+        };
+
+        await tx.supplierInvoice.create({
+          data: {
+            tenantId: request.user!.tenantId,
+            supplierId: purchaseOrder.supplierId,
+            purchaseOrderId: purchaseOrder.id,
+            invoiceNumber: body.supplierInvoiceNo.trim(),
+            issueDate: parseDate(body.supplierInvoiceDate || body.receivedDate),
+            status: "RECEIVED",
+            subtotal: invoiceSubtotal,
+            taxAmount: invoiceTax,
+            totalAmount: invoiceTotal,
+            notes: body.notes || `Supplier VAT Bill for PO #${purchaseOrder.id.slice(0, 8)}`,
+          },
+        });
+      }
 
       return receipt;
     });
