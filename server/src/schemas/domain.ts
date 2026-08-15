@@ -125,9 +125,10 @@ export const supplierSchema = z.object({
 export const purchaseOrderLineItemSchema = z.object({
   productVariantId: z.string().optional(),
   productName: z.string().min(1).optional(),
+  supplierItemName: z.string().optional(),
   sku: z.string().optional(),
   quantity: z.coerce.number().int().min(1),
-  unitCost: decimalNumber,
+  unitCost: decimalNumber.optional(),
   taxAmount: decimalNumber.default(0),
 });
 
@@ -150,6 +151,7 @@ export const goodsReceiptLineSchema = z.object({
   discrepancyQty: z.coerce.number().int().min(0).default(0),
   unitCost: decimalNumber.optional(),
   taxAmount: decimalNumber.optional(),
+  supplierItemName: z.string().optional(),
 });
 
 export const goodsReceiptSchema = z.object({

@@ -354,8 +354,15 @@ export function PurchaseOrderDetailPage() {
                           <TableRow key={li.id} className="hover:bg-muted/20">
                             <TableCell>
                               <p className="font-semibold text-sm">
-                                {li.productVariant?.product?.name || li.productName || "Product"}
+                                {li.supplierItemName || li.productVariant?.product?.name || li.productName || "Product"}
                               </p>
+                              {li.supplierItemName &&
+                                li.productVariant?.product?.name &&
+                                li.supplierItemName !== li.productVariant.product.name && (
+                                  <p className="text-xs text-muted-foreground font-mono">
+                                    Catalog Item: {li.productVariant.product.name}
+                                  </p>
+                                )}
                               {li.productVariant?.variantName &&
                                 li.productVariant.variantName !== "Default" && (
                                   <p className="text-xs text-muted-foreground">
@@ -395,6 +402,52 @@ export function PurchaseOrderDetailPage() {
               )}
             </CardContent>
           </Card>
+
+          {/* Logged Supplier VAT Bills / Invoices */}
+          {order.rawSupplierInvoices && order.rawSupplierInvoices.length > 0 && (
+            <Card className="shadow-xs border-emerald-500/20 bg-emerald-500/5">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-base font-semibold text-emerald-950 dark:text-emerald-200">
+                      Logged Supplier VAT Bills / Invoices
+                    </CardTitle>
+                    <CardDescription className="text-xs">
+                      Official tax bill details recorded from the supplier during goods receipt.
+                    </CardDescription>
+                  </div>
+                  <Badge variant="outline" className="border-emerald-500 text-emerald-700 dark:text-emerald-400">
+                    {order.rawSupplierInvoices.length} Bill(s) Recorded
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="divide-y divide-emerald-500/10 space-y-3">
+                  {order.rawSupplierInvoices.map((inv) => (
+                    <div key={inv.id} className="pt-3 first:pt-0 flex items-center justify-between text-sm">
+                      <div className="space-y-0.5">
+                        <div className="flex items-center space-x-2">
+                          <span className="font-bold text-foreground">Invoice #{inv.invoiceNumber}</span>
+                          <StatusBadge value={inv.status} />
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Bill Date: {formatDate(inv.issueDate)} {inv.notes ? `• ${inv.notes}` : ""}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-bold font-mono text-emerald-700 dark:text-emerald-400">
+                          {formatCurrency(inv.totalAmount)}
+                        </p>
+                        <p className="text-xs text-muted-foreground font-mono">
+                          Subtotal: {formatCurrency(inv.subtotal)} | VAT Tax: {formatCurrency(inv.taxAmount)}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Right Column: Actions & 3-Way Match */}
@@ -450,8 +503,8 @@ export function PurchaseOrderDetailPage() {
                 </Button>
               )}
 
-              {/* Receive Goods Action */}
-              {pendingLines.length > 0 && rawStatus !== "CANCELLED" && (
+              {/* Receive Goods & Log VAT Bill Action */}
+              {rawStatus !== "CANCELLED" && rawStatus !== "DRAFT" && (
                 <Button
                   variant="outline"
                   className="w-full justify-start rounded-xl border-emerald-500 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 font-semibold"
@@ -459,7 +512,9 @@ export function PurchaseOrderDetailPage() {
                   disabled={!canReceive}
                 >
                   <Receipt className="mr-2 h-4 w-4 text-emerald-600" />
-                  Receive Goods & Log VAT Bill ({pendingLines.length} pending items)
+                  {pendingLines.length > 0
+                    ? `Receive Goods & Fill VAT Bill (${pendingLines.length} pending items)`
+                    : `Log / Update Supplier VAT Bill`}
                 </Button>
               )}
 

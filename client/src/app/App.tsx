@@ -26,6 +26,7 @@ import { SalesPage } from "@/pages/SalesPage";
 import { SettingsPage } from "@/pages/SettingsPage";
 import { SuppliersPage } from "@/pages/SuppliersPage";
 import { SupplierProfilePage } from "@/pages/SupplierProfilePage";
+import { SupplierInvoicesPage } from "@/pages/SupplierInvoicesPage";
 import { UsersPage } from "@/pages/UsersPage";
 
 function PageLoader() {
@@ -80,6 +81,7 @@ export function App() {
             <Route path="/sales" element={<SalesPage />} />
             <Route path="/sales/:id" element={<SalesOrderDetailPage />} />
             <Route path="/invoicing" element={<InvoicingPage />} />
+            <Route path="/supplier-invoices" element={<SupplierInvoicesPage />} />
             <Route path="/estimates" element={<EstimateBillsPage />} />
             <Route path="/payments" element={<PaymentsPage />} />
             <Route path="/accounting" element={<AccountingPage />} />

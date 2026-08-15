@@ -74,10 +74,11 @@ async function resolveLineItemVariants(
   lineItems: Array<{
     productVariantId?: string;
     productName?: string;
+    supplierItemName?: string;
     sku?: string;
     quantity: number;
-    unitCost: number;
-    taxAmount: number;
+    unitCost?: number;
+    taxAmount?: number;
   }>
 ) {
   const resolved = [];
@@ -110,8 +111,8 @@ async function resolveLineItemVariants(
             name: cleanName,
             sku: generatedSku,
             category: "Raw Materials",
-            costPrice: item.unitCost,
-            sellingPrice: item.unitCost,
+            costPrice: item.unitCost ?? 0,
+            sellingPrice: item.unitCost ?? 0,
             status: "ACTIVE",
             // Procurement-only item — must NOT appear in sales or product catalog
             isSellable: false,
@@ -141,9 +142,10 @@ async function resolveLineItemVariants(
 
     resolved.push({
       productVariantId: variantId,
+      supplierItemName: item.supplierItemName,
       quantity: item.quantity,
-      unitCost: item.unitCost,
-      taxAmount: item.taxAmount,
+      unitCost: item.unitCost ?? 0,
+      taxAmount: item.taxAmount ?? 0,
     });
   }
 
@@ -157,7 +159,7 @@ purchaseOrdersRouter.post(
   asyncHandler(async (request, response) => {
     const body = request.validated?.body as ReturnType<typeof purchaseOrderSchema.parse>;
     const totalAmount = body.lineItems.reduce(
-      (sum, item) => sum + item.quantity * item.unitCost + item.taxAmount,
+      (sum, item) => sum + item.quantity * (item.unitCost ?? 0) + (item.taxAmount ?? 0),
       0,
     );
 
@@ -241,7 +243,7 @@ purchaseOrdersRouter.patch(
     const body = request.validated?.body as ReturnType<typeof purchaseOrderUpdateSchema.parse>;
 
     const totalAmount = body.lineItems
-      ? body.lineItems.reduce((sum, item) => sum + item.quantity * item.unitCost + item.taxAmount, 0)
+      ? body.lineItems.reduce((sum, item) => sum + item.quantity * (item.unitCost ?? 0) + (item.taxAmount ?? 0), 0)
       : undefined;
 
     const existingPo = await prisma.purchaseOrder.findFirst({
@@ -346,9 +348,11 @@ purchaseOrdersRouter.post(
           status: body.status,
           notes: body.notes,
           lines: {
-            create: body.lines.map(line => ({
-              ...line,
+            create: body.lines.map((line) => ({
               tenantId: request.user!.tenantId,
+              poLineItemId: line.poLineItemId,
+              quantityReceived: line.quantityReceived,
+              discrepancyQty: line.discrepancyQty ?? 0,
             })),
           },
         },
@@ -373,6 +377,7 @@ purchaseOrdersRouter.post(
             },
             ...(line.unitCost !== undefined ? { unitCost: line.unitCost } : {}),
             ...(line.taxAmount !== undefined ? { taxAmount: line.taxAmount } : {}),
+            ...(line.supplierItemName !== undefined && line.supplierItemName.trim() !== "" ? { supplierItemName: line.supplierItemName.trim() } : {}),
           },
         });
 
@@ -485,20 +490,45 @@ purchaseOrdersRouter.post(
           return isNaN(parsed.getTime()) ? new Date() : parsed;
         };
 
-        await tx.supplierInvoice.create({
-          data: {
+        const invoiceNum = body.supplierInvoiceNo.trim();
+        const existingInvoice = await tx.supplierInvoice.findFirst({
+          where: {
             tenantId: request.user!.tenantId,
-            supplierId: purchaseOrder.supplierId,
-            purchaseOrderId: purchaseOrder.id,
-            invoiceNumber: body.supplierInvoiceNo.trim(),
-            issueDate: parseDate(body.supplierInvoiceDate || body.receivedDate),
-            status: "RECEIVED",
-            subtotal: invoiceSubtotal,
-            taxAmount: invoiceTax,
-            totalAmount: invoiceTotal,
-            notes: body.notes || `Supplier VAT Bill for PO #${purchaseOrder.id.slice(0, 8)}`,
+            OR: [
+              { invoiceNumber: invoiceNum },
+              { purchaseOrderId: purchaseOrder.id },
+            ],
           },
         });
+
+        if (existingInvoice) {
+          await tx.supplierInvoice.update({
+            where: { id: existingInvoice.id },
+            data: {
+              invoiceNumber: invoiceNum,
+              issueDate: parseDate(body.supplierInvoiceDate || body.receivedDate),
+              subtotal: invoiceSubtotal,
+              taxAmount: invoiceTax,
+              totalAmount: invoiceTotal,
+              notes: body.notes || `Supplier VAT Bill for PO #${purchaseOrder.id.slice(0, 8)}`,
+            },
+          });
+        } else {
+          await tx.supplierInvoice.create({
+            data: {
+              tenantId: request.user!.tenantId,
+              supplierId: purchaseOrder.supplierId,
+              purchaseOrderId: purchaseOrder.id,
+              invoiceNumber: invoiceNum,
+              issueDate: parseDate(body.supplierInvoiceDate || body.receivedDate),
+              status: "RECEIVED",
+              subtotal: invoiceSubtotal,
+              taxAmount: invoiceTax,
+              totalAmount: invoiceTotal,
+              notes: body.notes || `Supplier VAT Bill for PO #${purchaseOrder.id.slice(0, 8)}`,
+            },
+          });
+        }
       }
 
       return receipt;

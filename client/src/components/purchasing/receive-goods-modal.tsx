@@ -26,6 +26,7 @@ type ReceiveGoodsModalProps = {
 type ReceiveLineState = {
   poLineItemId: string;
   productName: string;
+  supplierItemName: string;
   orderedQty: number;
   previouslyReceivedQty: number;
   pendingQty: number;
@@ -45,13 +46,16 @@ export function ReceiveGoodsModal({ open, onOpenChange, order }: ReceiveGoodsMod
 
   useEffect(() => {
     if (order && order.lineItems) {
+      const hasPending = order.lineItems.some((item: any) => (item.quantity || 0) > (item.receivedQuantity || 0));
       const initialLines: ReceiveLineState[] = order.lineItems
         .map((item: any) => {
           const ordered = item.quantity || 0;
           const prev = item.receivedQuantity || 0;
           const pending = Math.max(0, ordered - prev);
+          const defaultQty = hasPending ? pending : ordered;
           const currentUnitCost = Number(item.unitCost) || 0;
           const currentTax = Number(item.taxAmount) || 0;
+          const nameFromBill = item.supplierItemName || item.productVariant?.product?.name || item.productVariant?.variantName || "Item";
 
           let initialTaxMode: "EXEMPT_0" | "VAT_13" | "CUSTOM" = "EXEMPT_0";
           if (currentTax > 0 && currentUnitCost > 0) {
@@ -66,16 +70,17 @@ export function ReceiveGoodsModal({ open, onOpenChange, order }: ReceiveGoodsMod
           return {
             poLineItemId: item.id,
             productName: item.productVariant?.product?.name || item.productVariant?.variantName || "Item",
+            supplierItemName: nameFromBill,
             orderedQty: ordered,
             previouslyReceivedQty: prev,
             pendingQty: pending,
-            quantityReceived: String(pending),
+            quantityReceived: String(defaultQty),
             unitCost: currentUnitCost > 0 ? String(currentUnitCost) : "0",
             taxMode: initialTaxMode,
             taxAmount: currentTax > 0 ? String(currentTax) : "0",
           };
         })
-        .filter((line: ReceiveLineState) => line.pendingQty > 0);
+        .filter((line: ReceiveLineState) => (hasPending ? line.pendingQty > 0 : true));
 
       setLines(initialLines);
       setSupplierInvoiceNo("");
@@ -118,6 +123,7 @@ export function ReceiveGoodsModal({ open, onOpenChange, order }: ReceiveGoodsMod
         quantityReceived: Number(l.quantityReceived) || 0,
         unitCost: Number(l.unitCost) || 0,
         taxAmount: Number(l.taxAmount) || 0,
+        supplierItemName: l.supplierItemName.trim() || undefined,
       }))
       .filter((l) => l.quantityReceived > 0);
 
@@ -197,7 +203,7 @@ export function ReceiveGoodsModal({ open, onOpenChange, order }: ReceiveGoodsMod
             <div className="bg-muted/60 p-2.5 text-xs font-bold border-b flex justify-between items-center">
               <span>Items Being Received</span>
               <span className="text-muted-foreground font-normal">
-                Fill Unit Cost & Tax/VAT from Supplier Bill
+                Fill Item Name, Unit Cost & Tax/VAT as per Supplier Bill
               </span>
             </div>
 
@@ -215,16 +221,26 @@ export function ReceiveGoodsModal({ open, onOpenChange, order }: ReceiveGoodsMod
 
                   return (
                     <div key={line.poLineItemId} className="p-3 bg-card space-y-2 text-xs">
-                      <div className="flex items-center justify-between">
-                        <div className="font-bold text-foreground text-sm flex items-center gap-2">
-                          {line.productName}
-                          <Badge variant="outline" className="text-[10px] font-normal">
-                            Pending: {line.pendingQty} units
-                          </Badge>
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div className="flex-1 space-y-1">
+                          <div className="flex items-center justify-between">
+                            <label className="text-[11px] font-semibold text-foreground flex items-center gap-1.5">
+                              <span>Item Name as per Supplier Bill</span>
+                              <Badge variant="outline" className="text-[10px] font-normal">
+                                Pending: {line.pendingQty} units
+                              </Badge>
+                            </label>
+                          </div>
+                          <Input
+                            placeholder="e.g. Tata MS Sheet 2mm"
+                            className="h-8 text-xs font-medium rounded-lg"
+                            value={line.supplierItemName}
+                            onChange={(e) => updateLine(idx, { supplierItemName: e.target.value })}
+                          />
                         </div>
-                        <span className="font-mono text-xs font-bold text-primary">
+                        <div className="text-right font-mono text-xs font-bold text-primary min-w-[120px] self-end pb-1">
                           Line Total: {formatCurrency(lineTotal)}
-                        </span>
+                        </div>
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center pt-1">

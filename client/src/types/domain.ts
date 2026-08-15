@@ -130,6 +130,9 @@ export type PurchaseOrderLineRow = {
   id: string;
   quantity: number;
   receivedQuantity: number;
+  unitCost?: number;
+  taxAmount?: number;
+  supplierItemName?: string;
   product: string;
   variant: string;
 };
@@ -147,6 +150,16 @@ export type PurchaseOrderRow = {
   totalAmount: number;
   receipts: number;
   supplierInvoices: number;
+  rawSupplierInvoices?: Array<{
+    id: string;
+    invoiceNumber: string;
+    issueDate: string;
+    subtotal: number;
+    taxAmount: number;
+    totalAmount: number;
+    status: string;
+    notes?: string;
+  }>;
   pendingQuantity: number;
   lineItems: PurchaseOrderLineRow[];
 };
@@ -219,6 +232,23 @@ export type SupplierRow = {
   spend?: number;
   notes?: string;
   isActive?: boolean;
+};
+
+export type SupplierInvoiceRow = {
+  id: string;
+  invoiceNumber: string;
+  issueDate: string;
+  dueDate?: string | null;
+  supplier: string;
+  supplierId: string;
+  purchaseOrderId?: string | null;
+  status: string;
+  subtotal: number;
+  taxAmount: number;
+  totalAmount: number;
+  amountPaid: number;
+  balance: number;
+  notes?: string;
 };
 
 export type TaxRateRow = {

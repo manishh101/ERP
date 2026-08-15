@@ -7,6 +7,7 @@ const labelMap: Record<string, string> = {
   sales: "Sales & Dispatch",
   delivery: "Challans",
   invoicing: "VAT/PAN Bills",
+  "supplier-invoices": "Supplier Invoice",
   estimates: "Estimate Bills",
   accounting: "Finance",
   ledger: "Ledger (Khata)",

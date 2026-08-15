@@ -22,6 +22,7 @@ import type {
   SettingsPayload,
   StockAdjustmentReason,
   SupplierRow,
+  SupplierInvoiceRow,
   SalesOrderRow,
   UserRole,
   UserRow,
@@ -187,6 +188,9 @@ type RawPurchaseOrder = {
     id: string;
     quantity: number | string;
     receivedQuantity: number | string;
+    unitCost?: number | string;
+    taxAmount?: number | string;
+    supplierItemName?: string | null;
     productVariant: {
       variantName: string;
       product: {
@@ -914,7 +918,10 @@ function mapPurchaseOrder(order: RawPurchaseOrder): PurchaseOrderRow {
     id: lineItem.id,
     quantity: toNumber(lineItem.quantity),
     receivedQuantity: toNumber(lineItem.receivedQuantity),
-    product: lineItem.productVariant.product.name,
+    unitCost: lineItem.unitCost !== undefined ? toNumber(lineItem.unitCost) : 0,
+    taxAmount: lineItem.taxAmount !== undefined ? toNumber(lineItem.taxAmount) : 0,
+    supplierItemName: lineItem.supplierItemName || undefined,
+    product: lineItem.supplierItemName || lineItem.productVariant.product.name,
     variant: lineItem.productVariant.variantName,
   }));
 
@@ -931,6 +938,16 @@ function mapPurchaseOrder(order: RawPurchaseOrder): PurchaseOrderRow {
     totalAmount: toNumber(order.totalAmount),
     receipts: order.goodsReceipts?.length ?? 0,
     supplierInvoices: order.supplierInvoices?.length ?? 0,
+    rawSupplierInvoices: (order.supplierInvoices || []).map((inv: any) => ({
+      id: inv.id,
+      invoiceNumber: inv.invoiceNumber,
+      issueDate: inv.issueDate,
+      subtotal: toNumber(inv.subtotal),
+      taxAmount: toNumber(inv.taxAmount),
+      totalAmount: toNumber(inv.totalAmount),
+      status: formatEnumLabel(inv.status),
+      notes: inv.notes || undefined,
+    })),
     pendingQuantity: lineItems.reduce(
       (sum, lineItem) => sum + Math.max(lineItem.quantity - lineItem.receivedQuantity, 0),
       0,
@@ -1861,6 +1878,40 @@ export function useTaxInvoicesQuery() {
   });
 }
 
+export function useSupplierInvoicesQuery() {
+  const { token } = useAuth();
+
+  return useQuery({
+    queryKey: ["supplier-invoices", token],
+    enabled: Boolean(token),
+    queryFn: async () => {
+      const response = await apiRequest<{ items: Array<any>; total: number }>("/suppliers/invoices", {
+        token: token!,
+      });
+
+      return {
+        total: response.total,
+        items: response.items.map<SupplierInvoiceRow>((inv: any) => ({
+          id: inv.id,
+          invoiceNumber: inv.invoiceNumber,
+          issueDate: inv.issueDate,
+          dueDate: inv.dueDate,
+          supplier: inv.supplier?.name || "Supplier",
+          supplierId: inv.supplierId,
+          purchaseOrderId: inv.purchaseOrderId,
+          status: formatEnumLabel(inv.status),
+          subtotal: toNumber(inv.subtotal),
+          taxAmount: toNumber(inv.taxAmount),
+          totalAmount: toNumber(inv.totalAmount),
+          amountPaid: toNumber(inv.amountPaid),
+          balance: toNumber(inv.totalAmount) - toNumber(inv.amountPaid),
+          notes: inv.notes,
+        })),
+      };
+    },
+  });
+}
+
 export function useEstimateBillsQuery() {
   const { token } = useAuth();
 
@@ -2022,6 +2073,7 @@ export function useReceivePurchaseOrderMutation() {
         discrepancyQty?: number;
         unitCost?: number;
         taxAmount?: number;
+        supplierItemName?: string;
       }>;
     }) => {
       const canReceive = user?.role === "ADMIN" || user?.role === "WAREHOUSE";

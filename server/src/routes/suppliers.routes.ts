@@ -78,6 +78,25 @@ suppliersRouter.get(
   }),
 );
 
+suppliersRouter.get(
+  "/invoices",
+  requireRole(["ADMIN", "ACCOUNTANT", "WAREHOUSE"]),
+  asyncHandler(async (request, response) => {
+    const tenantId = request.user!.tenantId;
+    const invoices = await prisma.supplierInvoice.findMany({
+      where: { tenantId },
+      include: {
+        supplier: true,
+        purchaseOrder: true,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+    response.json({ items: invoices, total: invoices.length });
+  }),
+);
+
 suppliersRouter.post(
   "/invoices",
   requireRole(["ADMIN", "ACCOUNTANT"]),

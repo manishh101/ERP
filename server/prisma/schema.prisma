@@ -328,6 +328,7 @@ model PurchaseOrderLineItem {
   tenant           Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   poId             String             @map("po_id")
   productVariantId String             @map("product_variant_id")
+  supplierItemName String?            @map("supplier_item_name")
   quantity         Int
   receivedQuantity Int                @default(0) @map("received_quantity")
   unitCost         Decimal            @map("unit_cost") @db.Decimal(14, 2)
