@@ -30,6 +30,31 @@ function startOfCurrentFiscalYear() {
   return new NepaliDate(bsYear, 3, 1).getDateObject();
 }
 
+function currentFiscalYearStartBsYear() {
+  const nd = new NepaliDate(new Date());
+  return nd.getMonth() >= 3 ? nd.getYear() : nd.getYear() - 1;
+}
+
+function dashboardFiscalMonths() {
+  const startYear = currentFiscalYearStartBsYear();
+  const monthIndexes = [3, 4, 5, 6, 7, 8, 9, 10, 11, 0, 1, 2];
+
+  return monthIndexes.map((monthIndex, index) => {
+    const year = index < 9 ? startYear : startYear + 1;
+    const nd = new NepaliDate(year, monthIndex, 1);
+
+    return {
+      key: `${year}-${String(monthIndex).padStart(2, "0")}`,
+      month: nd.format("MMMM"),
+    };
+  });
+}
+
+function dashboardMonthKey(date: Date) {
+  const nd = new NepaliDate(date);
+  return `${nd.getYear()}-${String(nd.getMonth()).padStart(2, "0")}`;
+}
+
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("en-IN", {
     style: "currency",
@@ -269,10 +294,7 @@ export async function getShowroomAnalytics(tenantId: string, customerId: string)
 export async function getDashboardSummary(tenantId: string) {
   const monthStart = startOfCurrentMonth();
 
-  // #16 Fix: Bound the "all orders" query to last 12 months instead of loading
-  // every order ever created into memory. This prevents OOM as the DB grows.
-  const twelveMonthsAgo = new Date();
-  twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
+  const fiscalYearStart = startOfCurrentFiscalYear();
 
   const [
     monthOrders,
@@ -330,7 +352,7 @@ export async function getDashboardSummary(tenantId: string) {
     prisma.salesOrder.findMany({
       where: {
         tenantId,
-        orderDate: { gte: twelveMonthsAgo },
+        orderDate: { gte: fiscalYearStart },
         status: { not: "CANCELLED" },
       },
       include: {
@@ -379,18 +401,11 @@ export async function getDashboardSummary(tenantId: string) {
     },
   });
 
-  const revenueVsCogs = Array.from({ length: 12 }).map((_, index) => {
-    const nd = new NepaliDate();
-    let m = nd.getMonth() - (11 - index);
-    let y = nd.getYear();
-    while (m < 0) {
-      m += 12;
-      y -= 1;
-    }
-    const bucketNd = new NepaliDate(y, m, 1);
-    const label = bucketNd.format("MMMM");
-    return { month: label, revenue: 0, cogs: 0 };
-  });
+  const revenueVsCogs = dashboardFiscalMonths().map((item) => ({
+    ...item,
+    revenue: 0,
+    cogs: 0,
+  }));
 
   const cashFlowSeries = Array.from({ length: 6 }).map((_, index) => {
     const nd = new NepaliDate();
@@ -412,9 +427,7 @@ export async function getDashboardSummary(tenantId: string) {
 
   recentSalesOrdersForCharts.forEach((order) => {
     const isMtd = order.orderDate >= monthStart;
-    const bucket = revenueVsCogs.find(
-      (item) => item.month === new NepaliDate(order.orderDate).format("MMMM")
-    );
+    const bucket = revenueVsCogs.find((item) => item.key === dashboardMonthKey(order.orderDate));
     order.lineItems.forEach((lineItem) => {
       // Apply discounts to revenue (Fix #7)
       const lineGross = lineItem.quantity * toNumber(lineItem.unitPrice);

@@ -35,6 +35,26 @@ const views: Array<{ id: DashboardView; label: string; icon: typeof ShoppingCart
   { id: "operations", label: "Operations", icon: Truck },
 ];
 
+const FISCAL_MONTH_INDEXES = [3, 4, 5, 6, 7, 8, 9, 10, 11, 0, 1, 2] as const;
+
+function getCurrentFiscalStartYear() {
+  const now = new NepaliDate();
+  return now.getMonth() >= 3 ? now.getYear() : now.getYear() - 1;
+}
+
+function getFiscalYearMonths() {
+  const startYear = getCurrentFiscalStartYear();
+
+  return FISCAL_MONTH_INDEXES.map((monthIndex, index) => {
+    const year = index < 9 ? startYear : startYear + 1;
+    return {
+      key: `${year}-${String(monthIndex).padStart(2, "0")}`,
+      label: `${getNepaliMonthName(monthIndex)} ${year}`,
+    };
+  });
+}
+
+
 function RecentSalesOrdersCard({ rows }: { rows: any[] }) {
   return (
     <Card className="h-full border-border/70 bg-card shadow-sm">
@@ -225,27 +245,7 @@ export function DashboardPage() {
 
   const orders = salesOrdersData?.items ?? [];
 
-  const availableMonths = useMemo(() => {
-    const months = [];
-    const now = new NepaliDate();
-    let currentM = now.getMonth();
-    let currentY = now.getYear();
-
-    for (let i = 0; i < 12; i++) {
-      let m = currentM - i;
-      let y = currentY;
-      while (m < 0) {
-        m += 12;
-        y -= 1;
-      }
-      months.push({
-        key: `${y}-${String(m).padStart(2, "0")}`,
-        label: `${getNepaliMonthName(m)} ${y}`,
-      });
-    }
-
-    return months;
-  }, []);
+  const availableMonths = useMemo(() => getFiscalYearMonths(), []);
 
   const active12MonthsOrders = useMemo(() => {
     const monthKeys = new Set(availableMonths.map((m) => m.key));
@@ -279,7 +279,7 @@ export function DashboardPage() {
   }, [active12MonthsOrders, selectedMonth]);
 
   const selectedMonthLabel = useMemo(() => {
-    if (selectedMonth === "ALL") return "Last 12 BS months";
+    if (selectedMonth === "ALL") return "Current fiscal year";
     return availableMonths.find((month) => month.key === selectedMonth)?.label ?? "Selected month";
   }, [availableMonths, selectedMonth]);
 
@@ -394,7 +394,7 @@ export function DashboardPage() {
             value={selectedMonth}
             onChange={(event) => setSelectedMonth(event.target.value)}
           >
-            <option value="ALL">All Active Months</option>
+            <option value="ALL">Full Fiscal Year</option>
             {availableMonths.map((month) => (
               <option key={month.key} value={month.key}>
                 {month.label}
