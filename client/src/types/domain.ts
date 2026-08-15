@@ -139,6 +139,7 @@ export type PurchaseOrderRow = {
   supplierId: string;
   supplier: string;
   status: string;
+  rawStatus: string;
   orderDate: string;
   expectedDelivery: string | null;
   shippingTerms?: string;

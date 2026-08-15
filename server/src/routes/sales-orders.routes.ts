@@ -212,6 +212,11 @@ salesOrdersRouter.patch(
     });
     if (!existingOrder) throw new ApiError(404, "Order not found");
 
+    const curStatus = existingOrder.status as string;
+    if ((curStatus === "DISPATCHED" || curStatus === "DELIVERED" || curStatus === "CANCELLED") && body.lineItems) {
+      throw new ApiError(400, `Cannot modify line items for a Sales Order in ${existingOrder.status} status.`);
+    }
+
     const salesOrder = await prisma.salesOrder.update({
       where: { id: params.id },
       data: {

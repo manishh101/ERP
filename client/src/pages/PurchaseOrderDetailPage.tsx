@@ -1,14 +1,16 @@
+import { useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import {
   usePurchaseOrderQuery,
   usePurchaseOrderMatchMutation,
   useReceivePurchaseOrderMutation,
+  useUpdatePurchaseOrderStatusMutation,
 } from "@/hooks/use-queries";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth/auth-provider";
 import { getErrorMessage } from "@/lib/api";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -19,10 +21,23 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ArrowLeft, CheckCircle, PackageSearch, Printer } from "lucide-react";
+import { 
+  ArrowLeft, 
+  CheckCircle, 
+  PackageSearch, 
+  Printer, 
+  Send, 
+  CheckCircle2, 
+  Clock, 
+  Truck, 
+  FileCheck, 
+  ShieldCheck,
+  Building2,
+  XCircle,
+  TrendingUp
+} from "lucide-react";
 import { formatCurrency, formatDate, formatNumber, toNumber } from "@/lib/utils";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { useState } from "react";
 
 export function PurchaseOrderDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -32,6 +47,7 @@ export function PurchaseOrderDetailPage() {
 
   const matchPurchaseOrder = usePurchaseOrderMatchMutation();
   const receivePurchaseOrder = useReceivePurchaseOrderMutation();
+  const updateStatus = useUpdatePurchaseOrderStatusMutation();
 
   const [matchResult, setMatchResult] = useState<any>(null);
 
@@ -40,6 +56,7 @@ export function PurchaseOrderDetailPage() {
     user?.role === "ACCOUNTANT" ||
     user?.role === "WAREHOUSE";
   const canReceive = user?.role === "ADMIN" || user?.role === "WAREHOUSE";
+  const canApprove = user?.role === "ADMIN" || user?.role === "ACCOUNTANT";
 
   if (isLoading) {
     return (
@@ -54,7 +71,7 @@ export function PurchaseOrderDetailPage() {
   }
 
   if (!order)
-    return <div className="p-8 text-destructive">Purchase order not found.</div>;
+    return <div className="p-8 text-destructive font-medium">Purchase order not found.</div>;
 
   const lineItems = order.lineItems ?? [];
   const pendingLines = lineItems
@@ -68,17 +85,32 @@ export function PurchaseOrderDetailPage() {
     }))
     .filter((lineItem: any) => lineItem.quantityReceived > 0);
 
+  const rawStatus = (order.rawStatus || order.status).toUpperCase();
+
+  // Helper to change status
+  const handleStatusChange = async (newStatus: string, label: string) => {
+    if (!id) return;
+    try {
+      await updateStatus.mutateAsync({ id, status: newStatus });
+      toast.success(`Purchase Order ${label}`, {
+        description: `Status updated to ${newStatus}.`,
+      });
+    } catch (e) {
+      toast.error("Status update failed", { description: getErrorMessage(e) });
+    }
+  };
+
   const handleRunMatch = async () => {
     if (!id) return;
     try {
       const summary = await matchPurchaseOrder.mutateAsync({ id });
       setMatchResult(summary);
       toast.success(
-        summary.isMatched ? "3-way match passed" : "3-way match flagged",
+        summary.isMatched ? "3-Way Match Verified" : "3-Way Match Flagged",
         {
           description: summary.isMatched
-            ? `Matched across PO, receipts, and invoices.`
-            : `Value mismatch detected.`,
+            ? `PO Amount, Goods Received, and Supplier Invoice match perfectly.`
+            : `Variance detected between PO, Receipts, or Invoices.`,
         },
       );
     } catch (e) {
@@ -91,7 +123,7 @@ export function PurchaseOrderDetailPage() {
     try {
       await receivePurchaseOrder.mutateAsync({
         id,
-        notes: `Receipt captured for ${order.supplier}.`,
+        notes: `Receipt recorded for ${order.supplier}.`,
         lines: pendingLines,
       });
       toast.success("Goods received", {
@@ -100,82 +132,195 @@ export function PurchaseOrderDetailPage() {
             (sum: number, line: any) => sum + line.quantityReceived,
             0,
           ),
-        )} units were received.`,
+        )} units successfully logged to inventory.`,
       });
     } catch (e) {
       toast.error("Receipt failed", { description: getErrorMessage(e) });
     }
   };
 
+  // Status Stepper Progress Logic
+  const getStepState = (stepIndex: number) => {
+    const statuses = ["DRAFT", "APPROVED", "SENT", "RECEIVED", "INVOICED"];
+    let currentIndex = 0;
+    if (rawStatus === "APPROVED") currentIndex = 1;
+    else if (rawStatus === "SENT") currentIndex = 2;
+    else if (rawStatus === "PARTIALLY_RECEIVED" || rawStatus === "RECEIVED") currentIndex = 3;
+    else if (rawStatus === "INVOICED" || rawStatus === "CLOSED") currentIndex = 4;
+    else if (rawStatus === "CANCELLED") currentIndex = -1;
+
+    if (rawStatus === "CANCELLED") return "cancelled";
+    if (stepIndex < currentIndex) return "completed";
+    if (stepIndex === currentIndex) return "active";
+    return "upcoming";
+  };
+
+  const steps = [
+    { title: "1. Draft", icon: Clock, desc: "Created" },
+    { title: "2. Approved", icon: ShieldCheck, desc: "Verified" },
+    { title: "3. Sent to Supplier", icon: Send, desc: "Dispatched" },
+    { title: "4. Goods Received", icon: Truck, desc: "Inventory updated" },
+    { title: "5. Invoiced & Closed", icon: FileCheck, desc: "Financial match" },
+  ];
+
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
+      {/* Top Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" asChild>
+          <Button variant="ghost" size="icon" className="rounded-xl" asChild>
             <Link to="/purchasing">
               <ArrowLeft className="h-5 w-5" />
             </Link>
           </Button>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">
-              Purchase Order {order.id}
-            </h1>
-            <p className="text-muted-foreground">{order.supplier}</p>
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl font-bold tracking-tight font-mono">
+                PO-{order.id.slice(0, 8)}
+              </h1>
+              <StatusBadge value={order.status} />
+            </div>
+            <p className="text-sm text-muted-foreground flex items-center gap-1.5 mt-0.5">
+              <Building2 className="h-3.5 w-3.5" />
+              {order.supplier}
+            </p>
           </div>
         </div>
-        <Button variant="outline" onClick={() => window.print()}>
-          <Printer className="mr-2 h-4 w-4" /> Print
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" className="rounded-xl" onClick={() => window.print()}>
+            <Printer className="mr-2 h-4 w-4" /> Print PO
+          </Button>
+        </div>
       </div>
 
+      {/* Visual PO Lifecycle Stepper */}
+      <Card className="border-primary/20 bg-card shadow-xs">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-semibold flex items-center gap-2">
+            <TrendingUp className="h-4 w-4 text-primary" />
+            Procurement Lifecycle Stepper
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            {steps.map((step, idx) => {
+              const state = getStepState(idx);
+              const Icon = step.icon;
+
+              return (
+                <div
+                  key={step.title}
+                  className={`p-3 rounded-xl border transition-all ${
+                    state === "completed"
+                      ? "bg-emerald-50/60 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-300"
+                      : state === "active"
+                      ? "bg-primary/10 border-primary text-primary shadow-xs"
+                      : state === "cancelled"
+                      ? "bg-destructive/5 border-destructive/30 text-muted-foreground"
+                      : "bg-muted/30 border-border/50 text-muted-foreground"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <Icon className="h-4 w-4" />
+                    {state === "completed" && <CheckCircle2 className="h-4 w-4 text-emerald-600" />}
+                    {state === "active" && (
+                      <span className="text-[10px] font-bold uppercase tracking-wider bg-primary/20 text-primary px-1.5 py-0.5 rounded-full">
+                        Current
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-2">
+                    <p className="text-xs font-bold">{step.title}</p>
+                    <p className="text-[10px] opacity-80 mt-0.5">{step.desc}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left Column: Order Metadata & Line Items */}
         <div className="lg:col-span-2 space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Order Information</CardTitle>
+          <Card className="shadow-xs">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base font-semibold">Order Meta Information</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm bg-muted/20 p-4 rounded-xl border border-border/40">
                 <div>
-                  <p className="text-muted-foreground">Status</p>
-                  <StatusBadge value={order.status} />
+                  <p className="text-xs text-muted-foreground font-medium">Status</p>
+                  <div className="mt-1">
+                    <StatusBadge value={order.status} />
+                  </div>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">Order Date</p>
-                  <p className="font-medium">{formatDate(order.orderDate)}</p>
+                  <p className="text-xs text-muted-foreground font-medium">Order Date</p>
+                  <p className="font-semibold text-foreground mt-1">{formatDate(order.orderDate)}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">Expected Delivery</p>
-                  <p className="font-medium">
-                    {order.expectedDelivery
-                      ? formatDate(order.expectedDelivery)
-                      : "—"}
+                  <p className="text-xs text-muted-foreground font-medium">Expected Delivery</p>
+                  <p className="font-semibold text-foreground mt-1">
+                    {order.expectedDelivery ? formatDate(order.expectedDelivery) : "—"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground font-medium">Total Amount</p>
+                  <p className="font-bold text-primary text-base mt-0.5">
+                    {formatCurrency(toNumber(order.totalAmount))}
                   </p>
                 </div>
               </div>
+
+              {(order.shippingTerms || order.notes) && (
+                <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                  {order.shippingTerms && (
+                    <div className="p-3 bg-muted/40 rounded-xl border">
+                      <span className="font-bold block text-muted-foreground">Shipping / Delivery Terms</span>
+                      <p className="mt-1 font-medium">{order.shippingTerms}</p>
+                    </div>
+                  )}
+                  {order.notes && (
+                    <div className="p-3 bg-muted/40 rounded-xl border">
+                      <span className="font-bold block text-muted-foreground">Internal Notes</span>
+                      <p className="mt-1 font-medium">{order.notes}</p>
+                    </div>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Line Items</CardTitle>
+          {/* Line Items Table */}
+          <Card className="shadow-xs">
+            <CardHeader className="pb-3 flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-base font-semibold">Purchased Items</CardTitle>
+                <CardDescription className="text-xs">
+                  Items ordered from supplier with received & pending inventory tracking.
+                </CardDescription>
+              </div>
+              <Badge variant="outline" className="font-mono text-xs">
+                {lineItems.length} {lineItems.length === 1 ? "Item" : "Items"}
+              </Badge>
             </CardHeader>
             <CardContent>
               {lineItems.length === 0 ? (
-                <p className="text-muted-foreground text-sm italic">
-                  No line items.
+                <p className="text-muted-foreground text-sm italic p-4 text-center">
+                  No line items attached to this purchase order.
                 </p>
               ) : (
                 <div className="rounded-xl border overflow-hidden">
                   <Table>
-                    <TableHeader>
+                    <TableHeader className="bg-muted/50">
                       <TableRow>
-                        <TableHead>Product</TableHead>
+                        <TableHead>Product / Material</TableHead>
                         <TableHead className="text-right">Qty Ordered</TableHead>
                         <TableHead className="text-right">Received</TableHead>
                         <TableHead className="text-right">Unit Cost</TableHead>
-                        <TableHead className="text-right">Tax</TableHead>
-                        <TableHead className="text-right">Total</TableHead>
+                        <TableHead className="text-right">Tax/VAT</TableHead>
+                        <TableHead className="text-right">Line Total</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -187,39 +332,41 @@ export function PurchaseOrderDetailPage() {
                         const lineTotal = qty * cost + tax;
 
                         return (
-                          <TableRow key={li.id}>
+                          <TableRow key={li.id} className="hover:bg-muted/20">
                             <TableCell>
-                              <p className="font-medium">
-                                {li.productVariant?.product?.name || "Product"}
+                              <p className="font-semibold text-sm">
+                                {li.productVariant?.product?.name || li.productName || "Product"}
                               </p>
                               {li.productVariant?.variantName &&
                                 li.productVariant.variantName !== "Default" && (
                                   <p className="text-xs text-muted-foreground">
-                                    {li.productVariant.variantName}
+                                    Variant: {li.productVariant.variantName}
                                   </p>
                                 )}
                             </TableCell>
-                            <TableCell className="text-right">{qty}</TableCell>
-                            <TableCell className="text-right text-emerald-600 font-medium">
-                              {received}
+                            <TableCell className="text-right font-medium">{qty}</TableCell>
+                            <TableCell className="text-right font-semibold">
+                              <span className={received >= qty ? "text-emerald-600" : received > 0 ? "text-amber-600" : "text-muted-foreground"}>
+                                {received} / {qty}
+                              </span>
                             </TableCell>
-                            <TableCell className="text-right">
+                            <TableCell className="text-right font-mono text-xs">
                               {formatCurrency(cost)}
                             </TableCell>
-                            <TableCell className="text-right">
+                            <TableCell className="text-right font-mono text-xs">
                               {formatCurrency(tax)}
                             </TableCell>
-                            <TableCell className="text-right font-semibold">
+                            <TableCell className="text-right font-semibold font-mono text-sm">
                               {formatCurrency(lineTotal)}
                             </TableCell>
                           </TableRow>
                         );
                       })}
                       <TableRow className="bg-muted/40 font-bold border-t-2">
-                        <TableCell colSpan={5} className="text-right">
-                          Order Total
+                        <TableCell colSpan={5} className="text-right text-sm">
+                          Grand PO Amount:
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="text-right text-primary text-base font-bold font-mono">
                           {formatCurrency(toNumber(order.totalAmount))}
                         </TableCell>
                       </TableRow>
@@ -231,61 +378,124 @@ export function PurchaseOrderDetailPage() {
           </Card>
         </div>
 
+        {/* Right Column: Actions & 3-Way Match */}
         <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Supplier</CardTitle>
+          {/* Supplier Card */}
+          <Card className="shadow-xs">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base font-semibold">Supplier Information</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2 text-sm">
-              <p className="font-semibold text-lg">{order.supplier}</p>
-              <Button variant="link" className="p-0 h-auto" asChild>
+            <CardContent className="space-y-3 text-sm">
+              <div>
+                <p className="font-bold text-lg text-foreground">{order.supplier}</p>
+              </div>
+              <Button variant="outline" size="sm" className="rounded-xl w-full" asChild>
                 <Link to={`/suppliers/${order.supplierId}`}>
-                  View Supplier Profile
+                  View Supplier Details & Ledger
                 </Link>
               </Button>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Quick Actions</CardTitle>
+          {/* Workflow Action Panel */}
+          <Card className="shadow-xs border-primary/20">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base font-semibold">Order Actions & Status</CardTitle>
+              <CardDescription className="text-xs">
+                Advance this PO through its procurement workflow steps.
+              </CardDescription>
             </CardHeader>
-            <CardContent className="flex flex-col gap-2">
-              {pendingLines.length > 0 && (
+            <CardContent className="space-y-2.5">
+              {/* Approval Action */}
+              {rawStatus === "DRAFT" && (
+                <Button
+                  className="w-full justify-start rounded-xl font-semibold bg-emerald-600 hover:bg-emerald-700 text-white"
+                  onClick={() => handleStatusChange("APPROVED", "Approved")}
+                  disabled={!canApprove || updateStatus.isPending}
+                >
+                  <ShieldCheck className="mr-2 h-4 w-4" />
+                  {updateStatus.isPending ? "Updating..." : "Approve Purchase Order"}
+                </Button>
+              )}
+
+              {/* Mark Sent Action */}
+              {(rawStatus === "DRAFT" || rawStatus === "APPROVED") && (
                 <Button
                   variant="outline"
-                  className="justify-start"
+                  className="w-full justify-start rounded-xl border-primary/40 text-primary hover:bg-primary/5"
+                  onClick={() => handleStatusChange("SENT", "Sent to Supplier")}
+                  disabled={updateStatus.isPending}
+                >
+                  <Send className="mr-2 h-4 w-4" />
+                  {updateStatus.isPending ? "Updating..." : "Mark as Sent to Supplier"}
+                </Button>
+              )}
+
+              {/* Receive Goods Action */}
+              {pendingLines.length > 0 && rawStatus !== "CANCELLED" && (
+                <Button
+                  variant="outline"
+                  className="w-full justify-start rounded-xl border-emerald-500 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
                   onClick={handleReceiveGoods}
                   disabled={!canReceive || receivePurchaseOrder.isPending}
                 >
                   <CheckCircle className="mr-2 h-4 w-4 text-emerald-600" />
                   {receivePurchaseOrder.isPending
                     ? "Receiving..."
-                    : "Receive Remaining Goods"}
+                    : `Receive Remaining Goods (${pendingLines.length} pending items)`}
                 </Button>
               )}
 
+              {/* Run 3-Way Match Action */}
               <Button
                 variant="outline"
-                className="justify-start"
+                className="w-full justify-start rounded-xl"
                 onClick={handleRunMatch}
                 disabled={!canRunMatch || matchPurchaseOrder.isPending}
               >
                 <PackageSearch className="mr-2 h-4 w-4 text-blue-600" />
-                {matchPurchaseOrder.isPending ? "Matching..." : "Run 3-way Match"}
+                {matchPurchaseOrder.isPending ? "Verifying..." : "Run 3-Way Match Verification"}
               </Button>
 
+              {/* Cancel Action */}
+              {rawStatus !== "CANCELLED" && rawStatus !== "CLOSED" && (
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start rounded-xl text-destructive hover:bg-destructive/10"
+                  onClick={() => handleStatusChange("CANCELLED", "Cancelled")}
+                  disabled={updateStatus.isPending}
+                >
+                  <XCircle className="mr-2 h-4 w-4" />
+                  Cancel Order
+                </Button>
+              )}
+
+              {/* 3-Way Match Output Display */}
               {matchResult && (
-                <div className="mt-4 p-3 bg-muted rounded-md text-sm">
-                  <p className="font-semibold mb-1">Match Result</p>
-                  <StatusBadge
-                    value={
-                      matchResult.isMatched ? "Matched" : "Variance Detected"
-                    }
-                  />
+                <div className="mt-4 p-4 bg-muted/40 rounded-xl border space-y-2 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-foreground">3-Way Match Status</span>
+                    <Badge variant={matchResult.isMatched ? "default" : "destructive"}>
+                      {matchResult.isMatched ? "MATCHED" : "FLAGGED"}
+                    </Badge>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 pt-2 border-t text-[11px]">
+                    <div>
+                      <span className="text-muted-foreground block">PO Value</span>
+                      <strong className="text-foreground">{formatCurrency(matchResult.poValue)}</strong>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground block">Received</span>
+                      <strong className="text-foreground">{formatCurrency(matchResult.receivedValue)}</strong>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground block">Invoiced</span>
+                      <strong className="text-foreground">{formatCurrency(matchResult.invoicedValue)}</strong>
+                    </div>
+                  </div>
                   {!matchResult.isMatched && (
-                    <p className="mt-2 text-xs text-muted-foreground">
-                      Review receipts and invoices to resolve discrepancies.
+                    <p className="text-[11px] text-destructive pt-1">
+                      Variance detected between agreed PO amount and logged receipts/supplier invoices.
                     </p>
                   )}
                 </div>
@@ -297,3 +507,4 @@ export function PurchaseOrderDetailPage() {
     </div>
   );
 }
+

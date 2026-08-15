@@ -923,6 +923,7 @@ function mapPurchaseOrder(order: RawPurchaseOrder): PurchaseOrderRow {
     supplierId: order.supplierId,
     supplier: order.supplier.name,
     status: formatEnumLabel(order.status),
+    rawStatus: order.status,
     orderDate: order.orderDate,
     expectedDelivery: order.expectedDelivery ?? null,
     shippingTerms: order.shippingTerms ?? undefined,
@@ -1428,6 +1429,24 @@ export function usePurchaseOrderQuery(id?: string) {
         token: token!,
       });
       return mapPurchaseOrder(response);
+    },
+  });
+}
+
+export function useUpdatePurchaseOrderStatusMutation() {
+  const { token } = useAuth();
+  return useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+      return apiRequest<RawPurchaseOrder>(`/purchase-orders/${id}`, {
+        method: "PATCH",
+        token: token!,
+        body: { status },
+      });
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["purchase-order", variables.id] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
     },
   });
 }

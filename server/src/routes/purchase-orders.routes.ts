@@ -249,6 +249,10 @@ purchaseOrdersRouter.patch(
     });
     if (!existingPo) throw new ApiError(404, "Purchase order not found");
 
+    if (((existingPo.status as string) === "RECEIVED" || (existingPo.status as string) === "CLOSED") && body.lineItems) {
+      throw new ApiError(400, `Cannot modify line items for a Purchase Order in ${existingPo.status} status.`);
+    }
+
     const resolvedItems = body.lineItems
       ? await resolveLineItemVariants(request.user!.tenantId, body.lineItems)
       : undefined;
@@ -303,6 +307,14 @@ purchaseOrdersRouter.post(
 
     if (!purchaseOrder) {
       throw new ApiError(404, "Purchase order not found");
+    }
+
+    const currentStatus = purchaseOrder.status as string;
+    if (currentStatus === "DRAFT" || currentStatus === "CANCELLED" || currentStatus === "CLOSED") {
+      throw new ApiError(
+        400,
+        `Cannot receive goods for a Purchase Order in ${purchaseOrder.status} status. Please approve and send the purchase order first.`
+      );
     }
 
     const targetWarehouse =
