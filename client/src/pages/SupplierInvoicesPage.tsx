@@ -1,7 +1,7 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import type { ColumnDef } from "@tanstack/react-table";
-import { AlertTriangle, Download, Eye, FileText, Link2, ShoppingCart, Trash2, Upload, Wallet } from "lucide-react";
+import { AlertTriangle, CalendarDays, CheckCircle2, Clock3, CreditCard, Download, Eye, FileCheck2, FileText, Link2, Paperclip, ReceiptText, ShoppingCart, Trash2, Upload, Wallet } from "lucide-react";
 import { toast } from "sonner";
 
 import { CreateSupplierInvoiceForm } from "@/components/purchasing/create-supplier-invoice-form";
@@ -46,6 +46,7 @@ export function SupplierInvoicesPage() {
   const [paymentInvoice, setPaymentInvoice] = useState<SupplierInvoiceRow | null>(null);
 
   const datedItems = useYearMonthFilteredRows(data?.items ?? [], (invoice) => invoice.issueDate, filterYear, filterMonth);
+  const activeInvoice = useMemo(() => selectedInvoice ? data?.items.find((invoice) => invoice.id === selectedInvoice.id) ?? selectedInvoice : null, [data?.items, selectedInvoice]);
   const metrics = useMemo(() => ({
     open: datedItems.filter(isOpen),
     overdue: datedItems.filter(isOverdue),
@@ -108,7 +109,7 @@ export function SupplierInvoicesPage() {
 
     <Sheet open={createOpen} onOpenChange={setCreateOpen}><SheetContent className="sm:max-w-2xl overflow-y-auto p-0"><SheetHeader><SheetTitle>New supplier invoice</SheetTitle><SheetDescription>Record a direct supplier bill or link it to an existing purchase order.</SheetDescription></SheetHeader><CreateSupplierInvoiceForm onClose={() => setCreateOpen(false)} /></SheetContent></Sheet>
 
-    <Sheet open={Boolean(selectedInvoice)} onOpenChange={(open) => !open && setSelectedInvoice(null)}><SheetContent className="sm:max-w-xl overflow-y-auto">{selectedInvoice && <InvoiceDetail invoice={selectedInvoice} onPayment={() => { setSelectedInvoice(null); setPaymentInvoice(selectedInvoice); }} onPurchaseOrder={() => navigate(`/purchasing/${selectedInvoice.purchaseOrderId}`)} onUpload={async (file) => { try { await uploadAttachment.mutateAsync({ invoiceId: selectedInvoice.id, file }); toast.success("Invoice document saved privately"); } catch (error) { toast.error("Document could not be uploaded", { description: getErrorMessage(error) }); } }} onOpenDocument={async (attachment) => { try { const baseUrl = API_BASE_URL.replace(/\/$/, ""); const response = await fetch(`${baseUrl}/suppliers/invoices/${selectedInvoice.id}/attachments/${attachment.id}/download`, { headers: { Authorization: `Bearer ${token}` } }); if (!response.ok) throw new Error("Document could not be opened"); const objectUrl = URL.createObjectURL(await response.blob()); window.open(objectUrl, "_blank", "noopener,noreferrer"); window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000); } catch (error) { toast.error("Document could not be opened", { description: getErrorMessage(error) }); } }} onDeleteDocument={async (attachment) => { try { await deleteAttachment.mutateAsync({ invoiceId: selectedInvoice.id, attachmentId: attachment.id }); toast.success("Invoice document removed"); } catch (error) { toast.error("Document could not be removed", { description: getErrorMessage(error) }); } }} />}</SheetContent></Sheet>
+    <Sheet open={Boolean(activeInvoice)} onOpenChange={(open) => !open && setSelectedInvoice(null)}><SheetContent className="flex flex-col gap-0 overflow-y-auto p-0 sm:max-w-2xl">{activeInvoice && <InvoiceDetail invoice={activeInvoice} onPayment={() => { setSelectedInvoice(null); setPaymentInvoice(activeInvoice); }} onPurchaseOrder={() => navigate(`/purchasing/${activeInvoice.purchaseOrderId}`)} onUpload={async (file) => { try { await uploadAttachment.mutateAsync({ invoiceId: activeInvoice.id, file }); toast.success("Invoice document saved privately"); } catch (error) { toast.error("Document could not be uploaded", { description: getErrorMessage(error) }); } }} onOpenDocument={async (attachment) => { try { const baseUrl = API_BASE_URL.replace(/\/$/, ""); const response = await fetch(`${baseUrl}/suppliers/invoices/${activeInvoice.id}/attachments/${attachment.id}/download`, { headers: { Authorization: `Bearer ${token}` } }); if (!response.ok) throw new Error("Document could not be opened"); const objectUrl = URL.createObjectURL(await response.blob()); window.open(objectUrl, "_blank", "noopener,noreferrer"); window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000); } catch (error) { toast.error("Document could not be opened", { description: getErrorMessage(error) }); } }} onDeleteDocument={async (attachment) => { try { await deleteAttachment.mutateAsync({ invoiceId: activeInvoice.id, attachmentId: attachment.id }); toast.success("Invoice document removed"); } catch (error) { toast.error("Document could not be removed", { description: getErrorMessage(error) }); } }} />}</SheetContent></Sheet>
     <Dialog open={Boolean(paymentInvoice)} onOpenChange={(open) => !open && setPaymentInvoice(null)}><DialogContent className="sm:max-w-md">{paymentInvoice && <PaymentForm invoice={paymentInvoice} onClose={() => setPaymentInvoice(null)} />}</DialogContent></Dialog>
   </div>;
 }
@@ -119,23 +120,88 @@ function Metric({ label, value, detail, tone = "default" }: { label: string; val
 }
 
 function InvoiceDetail({ invoice, onPayment, onPurchaseOrder, onUpload, onOpenDocument, onDeleteDocument }: { invoice: SupplierInvoiceRow; onPayment: () => void; onPurchaseOrder: () => void; onUpload: (file: File) => Promise<void>; onOpenDocument: (attachment: SupplierInvoiceAttachment) => Promise<void>; onDeleteDocument: (attachment: SupplierInvoiceAttachment) => Promise<void> }) {
-  return <><SheetHeader><div className="flex items-start justify-between gap-4 pr-8"><div><p className="mb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Supplier invoice detail</p><SheetTitle>{invoice.invoiceNumber}</SheetTitle><SheetDescription>{invoice.supplier}</SheetDescription></div><StatusBadge value={invoice.status} /></div></SheetHeader><div className="space-y-6 p-6 pt-2">
-    {isOverdue(invoice) && <div className="flex gap-3 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />This bill is overdue. Confirm payment status or contact the supplier.</div>}
-    <div className="grid gap-3 rounded-md border bg-muted/30 p-4 sm:grid-cols-2"><Detail label="Bill date" value={formatDate(invoice.issueDate)} /><Detail label="Due date" value={invoice.dueDate ? formatDate(invoice.dueDate) : "Not set"} /><Detail label="Taxable amount" value={formatCurrency(invoice.subtotal)} /><Detail label="VAT amount" value={formatCurrency(invoice.taxAmount)} /><Detail label="Bill total" value={formatCurrency(invoice.totalAmount)} strong /><Detail label="Paid so far" value={formatCurrency(invoice.amountPaid)} /><Detail label="Balance due" value={formatCurrency(invoice.balance)} strong /></div>
-    <DocumentSection invoice={invoice} onUpload={onUpload} onOpen={onOpenDocument} onDelete={onDeleteDocument} />
-    <div className="space-y-2"><p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Purchase order</p>{invoice.purchaseOrderId ? <Button variant="outline" className="w-full justify-between" onClick={onPurchaseOrder}><span className="flex items-center gap-2"><Link2 className="h-4 w-4" />PO #{invoice.purchaseOrderId.slice(0, 8)}</span><Eye className="h-4 w-4" /></Button> : <p className="text-sm text-muted-foreground">Direct supplier bill with no purchase-order link.</p>}</div>
-    {invoice.notes && <div><p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Notes</p><p className="mt-2 rounded-md border bg-muted/20 p-3 text-sm">{invoice.notes}</p></div>}
-    {isOpen(invoice) && <Button className="w-full" onClick={onPayment}><Wallet className="mr-2 h-4 w-4" />Record payment</Button>}
-  </div></>;
+  const paidPercent = invoice.totalAmount > 0 ? Math.min(100, Math.round((invoice.amountPaid / invoice.totalAmount) * 100)) : 0;
+  const balanceSettled = invoice.balance <= 0.005;
+  const dueCopy = invoice.dueDate ? formatDate(invoice.dueDate) : "No due date";
+
+  return <div className="flex min-h-full flex-col">
+    <SheetHeader className="border-b bg-muted/20 px-6 py-5">
+      <div className="flex items-start justify-between gap-4 pr-8">
+        <div className="min-w-0">
+          <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground"><ReceiptText className="h-3.5 w-3.5" />Supplier bill</p>
+          <SheetTitle className="truncate text-2xl">{invoice.invoiceNumber}</SheetTitle>
+          <SheetDescription className="mt-1 truncate text-base">{invoice.supplier}</SheetDescription>
+        </div>
+        <StatusBadge value={invoice.status} />
+      </div>
+    </SheetHeader>
+
+    <div className="flex-1 space-y-5 p-6">
+      {isOverdue(invoice) && <div className="flex gap-3 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /><span>This bill is overdue. Confirm payment status or contact the supplier.</span></div>}
+
+      <div className="rounded-md border bg-background p-4 shadow-xs">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Balance due</p>
+            <p className={`mt-1 font-mono text-3xl font-bold tabular-nums ${balanceSettled ? "text-emerald-600 dark:text-emerald-400" : "text-foreground"}`}>{formatCurrency(invoice.balance)}</p>
+          </div>
+          <div className="flex items-center gap-2 rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
+            {balanceSettled ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> : <Clock3 className="h-3.5 w-3.5" />}
+            {balanceSettled ? "Fully paid" : `${paidPercent}% paid`}
+          </div>
+        </div>
+        <div className="mt-4 h-2 overflow-hidden rounded-full bg-muted">
+          <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${paidPercent}%` }} />
+        </div>
+        <div className="mt-3 grid gap-3 text-sm sm:grid-cols-3">
+          <AmountLine icon={<ReceiptText className="h-4 w-4" />} label="Bill total" value={formatCurrency(invoice.totalAmount)} />
+          <AmountLine icon={<CreditCard className="h-4 w-4" />} label="Paid so far" value={formatCurrency(invoice.amountPaid)} />
+          <AmountLine icon={<CalendarDays className="h-4 w-4" />} label="Due" value={dueCopy} />
+        </div>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Detail label="Bill date" value={formatDate(invoice.issueDate)} />
+        <Detail label="Taxable amount" value={formatCurrency(invoice.subtotal)} />
+        <Detail label="VAT amount" value={formatCurrency(invoice.taxAmount)} />
+        <Detail label="Document count" value={`${invoice.attachments.length} attached`} />
+      </div>
+
+      <DocumentSection invoice={invoice} onUpload={onUpload} onOpen={onOpenDocument} onDelete={onDeleteDocument} />
+
+      <section className="space-y-3">
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Purchase order</p>
+        {invoice.purchaseOrderId ? <Button variant="outline" className="h-11 w-full justify-between rounded-md" onClick={onPurchaseOrder}><span className="flex min-w-0 items-center gap-2"><Link2 className="h-4 w-4 shrink-0" /><span className="truncate font-mono text-xs">PO #{invoice.purchaseOrderId.slice(0, 8)}</span></span><Eye className="h-4 w-4 shrink-0" /></Button> : <div className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">Direct supplier bill with no purchase-order link.</div>}
+      </section>
+
+      {invoice.notes && <section><p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Notes</p><p className="mt-2 rounded-md border bg-muted/20 p-3 text-sm leading-relaxed">{invoice.notes}</p></section>}
+    </div>
+
+    {isOpen(invoice) && <div className="sticky bottom-0 border-t bg-background/95 p-4 backdrop-blur"><Button className="w-full" onClick={onPayment}><Wallet className="mr-2 h-4 w-4" />Record payment</Button></div>}
+  </div>;
 }
 
 function DocumentSection({ invoice, onUpload, onOpen, onDelete }: { invoice: SupplierInvoiceRow; onUpload: (file: File) => Promise<void>; onOpen: (attachment: SupplierInvoiceAttachment) => Promise<void>; onDelete: (attachment: SupplierInvoiceAttachment) => Promise<void> }) {
-  return <div className="space-y-3"><div className="flex items-center justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Invoice documents</p><p className="mt-1 text-xs text-muted-foreground">Private PDF or image archive</p></div><label className="inline-flex h-8 cursor-pointer items-center justify-center rounded-full border border-border bg-white/80 px-3 text-xs font-semibold hover:bg-secondary"><Upload className="mr-1.5 h-3.5 w-3.5" />Upload<input className="sr-only" type="file" accept="application/pdf,image/jpeg,image/png,image/webp" onChange={async (event) => { const file = event.target.files?.[0]; if (file) await onUpload(file); event.currentTarget.value = ""; }} /></label></div>{invoice.attachments.length === 0 ? <div className="rounded-md border border-dashed p-4 text-center text-sm text-muted-foreground"><FileText className="mx-auto mb-2 h-5 w-5" />No bill document attached yet.</div> : <div className="space-y-2">{invoice.attachments.map((attachment) => <div key={attachment.id} className="flex items-center gap-3 rounded-md border p-3"><FileText className="h-5 w-5 shrink-0 text-primary" /><div className="min-w-0 flex-1"><p className="truncate text-sm font-medium">{attachment.fileName}</p><p className="mt-0.5 text-xs text-muted-foreground">{formatFileSize(attachment.sizeBytes)} · Added {formatDate(attachment.createdAt)}</p></div><Button variant="ghost" size="icon" className="h-8 w-8" title="Open document" onClick={() => void onOpen(attachment)}><Download className="h-4 w-4" /></Button><Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" title="Remove document" onClick={() => void onDelete(attachment)}><Trash2 className="h-4 w-4" /></Button></div>)}</div>}</div>;
+  return <section className="space-y-3 rounded-md border bg-background p-4">
+    <div className="flex items-center justify-between gap-3">
+      <div>
+        <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground"><Paperclip className="h-3.5 w-3.5" />Invoice documents</p>
+        <p className="mt-1 text-xs text-muted-foreground">Private PDF or image archive</p>
+      </div>
+      <label className="inline-flex h-9 cursor-pointer items-center justify-center rounded-md border border-border bg-background px-3 text-xs font-semibold hover:bg-secondary">
+        <Upload className="mr-1.5 h-3.5 w-3.5" />Upload
+        <input className="sr-only" type="file" accept="application/pdf,image/jpeg,image/png,image/webp" onChange={async (event) => { const file = event.target.files?.[0]; if (file) await onUpload(file); event.currentTarget.value = ""; }} />
+      </label>
+    </div>
+    {invoice.attachments.length === 0 ? <div className="rounded-md border border-dashed bg-muted/20 p-5 text-center text-sm text-muted-foreground"><FileCheck2 className="mx-auto mb-2 h-6 w-6" /><p>No bill document attached yet.</p></div> : <div className="space-y-2">{invoice.attachments.map((attachment) => <div key={attachment.id} className="flex items-center gap-3 rounded-md border bg-muted/20 p-3"><FileText className="h-5 w-5 shrink-0 text-primary" /><div className="min-w-0 flex-1"><p className="truncate text-sm font-medium">{attachment.fileName}</p><p className="mt-0.5 text-xs text-muted-foreground">{formatFileSize(attachment.sizeBytes)} · Added {formatDate(attachment.createdAt)}</p></div><Button variant="ghost" size="icon" className="h-8 w-8" title="Open document" onClick={() => void onOpen(attachment)}><Download className="h-4 w-4" /></Button><Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" title="Remove document" onClick={() => void onDelete(attachment)}><Trash2 className="h-4 w-4" /></Button></div>)}</div>}
+  </section>;
 }
 
 function formatFileSize(sizeBytes: number) { return sizeBytes < 1024 * 1024 ? `${Math.max(1, Math.round(sizeBytes / 1024))} KB` : `${(sizeBytes / (1024 * 1024)).toFixed(1)} MB`; }
 
-function Detail({ label, value, strong }: { label: string; value: string; strong?: boolean }) { return <div><p className="text-xs text-muted-foreground">{label}</p><p className={strong ? "mt-1 font-semibold tabular-nums" : "mt-1 tabular-nums"}>{value}</p></div>; }
+function AmountLine({ icon, label, value }: { icon: ReactNode; label: string; value: string }) { return <div className="flex items-start gap-2 rounded-md bg-muted/40 p-3"><span className="mt-0.5 text-muted-foreground">{icon}</span><div className="min-w-0"><p className="text-xs text-muted-foreground">{label}</p><p className="mt-0.5 truncate font-semibold tabular-nums">{value}</p></div></div>; }
+
+function Detail({ label, value }: { label: string; value: string }) { return <div className="rounded-md border bg-muted/20 p-3"><p className="text-xs text-muted-foreground">{label}</p><p className="mt-1 font-medium tabular-nums">{value}</p></div>; }
 
 function PaymentForm({ invoice, onClose }: { invoice: SupplierInvoiceRow; onClose: () => void }) {
   const recordPayment = useRecordPaymentMutation();
