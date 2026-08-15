@@ -13,6 +13,7 @@ import { RecordPaymentForm } from "@/components/invoicing/record-payment-form";
 import { useAuth } from "@/components/auth/auth-provider";
 import { API_BASE_URL } from "@/lib/api";
 import { Download } from "lucide-react";
+import { YearMonthFilter, useYearMonthFilteredRows } from "@/components/shared/year-month-filter";
 import type { TaxInvoiceRow } from "@/types/domain";
 
 export function InvoicingPage() {
@@ -20,6 +21,8 @@ export function InvoicingPage() {
   const { token } = useAuth();
   const [createInvoiceOpen, setCreateInvoiceOpen] = useState(false);
   const [recordPaymentOpen, setRecordPaymentOpen] = useState(false);
+  const [filterYear, setFilterYear] = useState("");
+  const [filterMonth, setFilterMonth] = useState("");
 
   const handleDownloadPdf = async (invoiceId: string, type: "invoice" | "estimate" = "invoice") => {
     try {
@@ -77,6 +80,13 @@ export function InvoicingPage() {
     },
   ];
 
+  const filteredItems = useYearMonthFilteredRows(
+    data?.items ?? [],
+    (invoice) => invoice.bsDate,
+    filterYear,
+    filterMonth,
+  );
+
   const rowActions = (row: TaxInvoiceRow): DropdownAction<TaxInvoiceRow>[] => [
     {
       label: "Download Tax Invoice",
@@ -130,6 +140,23 @@ export function InvoicingPage() {
       {createInvoiceOpen ? <CreateInvoiceForm onClose={() => setCreateInvoiceOpen(false)} /> : null}
       {recordPaymentOpen ? <RecordPaymentForm onClose={() => setRecordPaymentOpen(false)} /> : null}
 
+      <div className="flex items-center gap-3 flex-wrap">
+        <YearMonthFilter
+          year={filterYear}
+          month={filterMonth}
+          onYearChange={(y) => { setFilterYear(y); setFilterMonth(""); }}
+          onMonthChange={setFilterMonth}
+        />
+        {(filterYear || filterMonth) && (
+          <button
+            onClick={() => { setFilterYear(""); setFilterMonth(""); }}
+            className="text-xs text-muted-foreground underline hover:text-foreground"
+          >
+            Clear filter
+          </button>
+        )}
+      </div>
+
       <Card>
         <CardHeader>
           <div>
@@ -139,7 +166,7 @@ export function InvoicingPage() {
         </CardHeader>
         <CardContent>
           <DataTable
-            data={data.items}
+            data={filteredItems}
             columns={columns}
             actions={rowActions}
             searchPlaceholder="Search bills..."

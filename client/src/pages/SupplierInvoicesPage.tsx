@@ -1,10 +1,11 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Eye, ShoppingCart } from "lucide-react";
 
 import { DataTable, type DropdownAction } from "@/components/shared/data-table";
 import { PageHeader } from "@/components/shared/page-header";
+import { YearMonthFilter, useYearMonthFilteredRows } from "@/components/shared/year-month-filter";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -16,6 +17,8 @@ import type { SupplierInvoiceRow } from "@/types/domain";
 export function SupplierInvoicesPage() {
   const navigate = useNavigate();
   const { data, error, isLoading } = useSupplierInvoicesQuery();
+  const [filterYear, setFilterYear] = useState("");
+  const [filterMonth, setFilterMonth] = useState("");
 
   const columns: ColumnDef<SupplierInvoiceRow, unknown>[] = useMemo(
     () => [
@@ -70,6 +73,13 @@ export function SupplierInvoicesPage() {
     [],
   );
 
+  const filteredItems = useYearMonthFilteredRows(
+    data?.items ?? [],
+    (invoice) => invoice.issueDate,
+    filterYear,
+    filterMonth,
+  );
+
   const rowActions = (invoice: SupplierInvoiceRow): DropdownAction<SupplierInvoiceRow>[] => {
     const actions: DropdownAction<SupplierInvoiceRow>[] = [];
 
@@ -122,6 +132,23 @@ export function SupplierInvoicesPage() {
         ]}
       />
 
+      <div className="flex items-center gap-3 flex-wrap">
+        <YearMonthFilter
+          year={filterYear}
+          month={filterMonth}
+          onYearChange={(y) => { setFilterYear(y); setFilterMonth(""); }}
+          onMonthChange={setFilterMonth}
+        />
+        {(filterYear || filterMonth) && (
+          <button
+            onClick={() => { setFilterYear(""); setFilterMonth(""); }}
+            className="text-xs text-muted-foreground underline hover:text-foreground"
+          >
+            Clear filter
+          </button>
+        )}
+      </div>
+
       <Card>
         <CardHeader>
           <CardTitle>Supplier Bill Register</CardTitle>
@@ -131,7 +158,7 @@ export function SupplierInvoicesPage() {
         </CardHeader>
         <CardContent>
           <DataTable
-            data={data.items}
+            data={filteredItems}
             columns={columns}
             actions={rowActions}
             onRowClick={(row) => {

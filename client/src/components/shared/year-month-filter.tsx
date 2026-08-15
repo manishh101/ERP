@@ -1,3 +1,5 @@
+import { useMemo } from "react";
+import NepaliDate from "nepali-datetime";
 import { CalendarDays, ChevronDown } from "lucide-react";
 
 const NEPALI_YEARS = ["2079", "2080", "2081", "2082", "2083", "2084", "2085"];
@@ -68,5 +70,58 @@ export function YearMonthFilter({ year, month, onYearChange, onMonthChange }: Pr
         </div>
       )}
     </div>
+  );
+}
+
+
+type DateLike = string | Date | null | undefined;
+
+function toNepaliYearMonth(value: DateLike) {
+  if (!value) return null;
+
+  if (typeof value === "string") {
+    const bsMatch = value.match(/^(\d{4})-(\d{1,2})/);
+    const maybeBsYear = bsMatch ? Number(bsMatch[1]) : 0;
+
+    if (bsMatch && maybeBsYear >= 2060) {
+      return {
+        year: bsMatch[1],
+        month: bsMatch[2].padStart(2, "0"),
+      };
+    }
+  }
+
+  const date = typeof value === "string" ? new Date(value) : value;
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return null;
+
+  try {
+    const bsDate = new NepaliDate(date);
+    return {
+      year: String(bsDate.getYear()),
+      month: String(bsDate.getMonth() + 1).padStart(2, "0"),
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function matchesYearMonth(value: DateLike, year: string, month: string) {
+  if (!year) return true;
+
+  const parts = toNepaliYearMonth(value);
+  if (!parts) return false;
+
+  return parts.year === year && (!month || parts.month === month);
+}
+
+export function useYearMonthFilteredRows<T>(
+  rows: T[],
+  getDate: (row: T) => DateLike,
+  year: string,
+  month: string,
+) {
+  return useMemo(
+    () => rows.filter((row) => matchesYearMonth(getDate(row), year, month)),
+    [rows, getDate, year, month],
   );
 }

@@ -3,6 +3,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { useAuth } from "@/components/auth/auth-provider";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/page-header";
+import { YearMonthFilter, useYearMonthFilteredRows } from "@/components/shared/year-month-filter";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { DataTable, type DropdownAction } from "@/components/shared/data-table";
 import {
@@ -53,6 +54,8 @@ export function PurchasingPage() {
   >({});
   const [createPoOpen, setCreatePoOpen] = useState(false);
   const [selectedStatusTab, setSelectedStatusTab] = useState<string>("ALL");
+  const [filterYear, setFilterYear] = useState("");
+  const [filterMonth, setFilterMonth] = useState("");
 
   const canRunMatch =
     user?.role === "ADMIN" ||
@@ -62,7 +65,14 @@ export function PurchasingPage() {
   const matchingPurchaseOrderId = matchPurchaseOrder.variables?.id ?? null;
   const receivingPurchaseOrderId = receivePurchaseOrder.variables?.id ?? null;
 
-  const items = purchaseOrders?.items || [];
+  const allItems = purchaseOrders?.items || [];
+  const dateFilteredItems = useYearMonthFilteredRows(
+    allItems,
+    (order) => order.orderDate,
+    filterYear,
+    filterMonth,
+  );
+  const items = dateFilteredItems;
 
   // Summary KPI Calculations
   const totalPOValue = useMemo(() => items.reduce((sum, po) => sum + po.totalAmount, 0), [items]);
@@ -293,19 +303,28 @@ export function PurchasingPage() {
             </CardDescription>
           </div>
 
-          {/* Tabbed Filter */}
-          <div className="flex flex-wrap gap-1 bg-muted/40 p-1 rounded-xl border border-border/40 text-xs">
-            {["ALL", "DRAFT", "APPROVED", "SENT", "RECEIVED"].map((tab) => (
-              <Button
-                key={tab}
-                variant={selectedStatusTab === tab ? "default" : "ghost"}
-                size="sm"
-                className="rounded-lg h-8 text-xs font-semibold px-3"
-                onClick={() => setSelectedStatusTab(tab)}
-              >
-                {tab === "ALL" ? "All Orders" : tab}
-              </Button>
-            ))}
+          <div className="flex flex-wrap items-center gap-3 justify-end">
+            <YearMonthFilter
+              year={filterYear}
+              month={filterMonth}
+              onYearChange={(y) => { setFilterYear(y); setFilterMonth(""); }}
+              onMonthChange={setFilterMonth}
+            />
+
+            {/* Tabbed Filter */}
+            <div className="flex flex-wrap gap-1 bg-muted/40 p-1 rounded-xl border border-border/40 text-xs">
+              {["ALL", "DRAFT", "APPROVED", "SENT", "RECEIVED"].map((tab) => (
+                <Button
+                  key={tab}
+                  variant={selectedStatusTab === tab ? "default" : "ghost"}
+                  size="sm"
+                  className="rounded-lg h-8 text-xs font-semibold px-3"
+                  onClick={() => setSelectedStatusTab(tab)}
+                >
+                  {tab === "ALL" ? "All Orders" : tab}
+                </Button>
+              ))}
+            </div>
           </div>
         </CardHeader>
         <CardContent>

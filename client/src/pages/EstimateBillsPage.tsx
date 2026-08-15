@@ -12,12 +12,15 @@ import { CreateInvoiceForm } from "@/components/invoicing/create-invoice-form";
 import { useAuth } from "@/components/auth/auth-provider";
 import { API_BASE_URL } from "@/lib/api";
 import { Download } from "lucide-react";
+import { YearMonthFilter, useYearMonthFilteredRows } from "@/components/shared/year-month-filter";
 import type { TaxInvoiceRow } from "@/types/domain";
 
 export function EstimateBillsPage() {
   const { data, error, isLoading } = useEstimateBillsQuery();
   const { token } = useAuth();
   const [createEstimateOpen, setCreateEstimateOpen] = useState(false);
+  const [filterYear, setFilterYear] = useState("");
+  const [filterMonth, setFilterMonth] = useState("");
 
   const handleDownloadPdf = async (invoiceId: string) => {
     try {
@@ -62,6 +65,13 @@ export function EstimateBillsPage() {
       ),
     },
   ];
+
+  const filteredItems = useYearMonthFilteredRows(
+    data?.items ?? [],
+    (invoice) => invoice.bsDate,
+    filterYear,
+    filterMonth,
+  );
 
   const rowActions = (row: TaxInvoiceRow): DropdownAction<TaxInvoiceRow>[] => [
     {
@@ -109,6 +119,23 @@ export function EstimateBillsPage() {
         />
       ) : null}
 
+      <div className="flex items-center gap-3 flex-wrap">
+        <YearMonthFilter
+          year={filterYear}
+          month={filterMonth}
+          onYearChange={(y) => { setFilterYear(y); setFilterMonth(""); }}
+          onMonthChange={setFilterMonth}
+        />
+        {(filterYear || filterMonth) && (
+          <button
+            onClick={() => { setFilterYear(""); setFilterMonth(""); }}
+            className="text-xs text-muted-foreground underline hover:text-foreground"
+          >
+            Clear filter
+          </button>
+        )}
+      </div>
+
       <Card>
         <CardHeader>
           <div>
@@ -118,7 +145,7 @@ export function EstimateBillsPage() {
         </CardHeader>
         <CardContent>
           <DataTable
-            data={data.items}
+            data={filteredItems}
             columns={columns}
             actions={rowActions}
             searchPlaceholder="Search estimates..."
