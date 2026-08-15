@@ -1,4 +1,12 @@
-import { Banknote, ArrowDownToLine, Truck, Building2 } from "lucide-react";
+import {
+  ArrowDownToLine,
+  Banknote,
+  ClipboardList,
+  PackageCheck,
+  TrendingDown,
+  TrendingUp,
+  Truck,
+} from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Tooltip,
@@ -9,60 +17,65 @@ import {
 import { cn } from "@/lib/utils";
 import type { Kpi } from "@/types/domain";
 
-const kpiIcons = [Banknote, ArrowDownToLine, Truck, Building2];
+const kpiIcons = [Banknote, ArrowDownToLine, ClipboardList, Truck, TrendingUp, PackageCheck];
 
 export function KpiGrid({ items }: { items: Kpi[] }) {
   return (
-    <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
       {items.map((item, index) => {
         const Icon = kpiIcons[index % kpiIcons.length];
+        const ToneIcon = item.tone === "negative" ? TrendingDown : item.tone === "positive" ? TrendingUp : Icon;
         const content = (
-          <Card
-            className="overflow-hidden bg-white/50 backdrop-blur-md border-white/20 shadow-sm hover:-translate-y-1 hover:shadow-lg transition-all duration-300 group"
-          >
-            <CardContent className="p-5 relative">
-              {/* Decorative icon */}
-              <div className="absolute top-4 right-4 opacity-[0.07] group-hover:opacity-[0.12] transition-opacity">
-                <Icon className="h-14 w-14" strokeWidth={1.5} />
-              </div>
-
-              <div className="flex items-center gap-2 mb-3 relative z-10">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
-                  <Icon className="h-4 w-4 text-primary" />
+          <Card className="group h-full overflow-hidden border-border/70 bg-card shadow-sm transition hover:border-primary/25 hover:shadow-md">
+            <CardContent className="p-5">
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                    {item.label}
+                  </p>
+                  <p className="mt-3 break-words text-2xl font-bold leading-tight tracking-tight text-foreground tabular-nums xl:text-[1.7rem]">
+                    {item.value}
+                  </p>
                 </div>
-                <p className="text-[11px] uppercase tracking-[0.15em] font-semibold text-muted-foreground">
-                  {item.label}
-                </p>
-              </div>
-
-              <div className="flex items-end justify-between gap-4 relative z-10">
-                <p className="font-display text-2xl xl:text-3xl font-bold bg-gradient-to-br from-foreground to-foreground/60 bg-clip-text text-transparent tabular-nums">
-                  {item.value}
-                </p>
-                <span
+                <div
                   className={cn(
-                    "rounded-full px-2.5 py-0.5 text-[10px] font-bold shadow-sm backdrop-blur-md border",
-                    item.tone === "positive" && "bg-green-100 text-green-800 border-green-200",
-                    item.tone === "neutral" && "bg-stone-100 text-stone-700 border-stone-200",
-                    item.tone === "negative" && "bg-red-100 text-red-800 border-red-200",
+                    "flex h-10 w-10 shrink-0 items-center justify-center rounded-md border",
+                    item.tone === "positive" && "border-emerald-200 bg-emerald-50 text-emerald-700",
+                    item.tone === "neutral" && "border-sky-200 bg-sky-50 text-sky-700",
+                    item.tone === "negative" && "border-red-200 bg-red-50 text-red-700",
                   )}
                 >
-                  {item.change}
+                  <Icon className="h-5 w-5" />
+                </div>
+              </div>
+
+              <div className="mt-4 flex items-center justify-between gap-3 border-t border-border/60 pt-3">
+                <span
+                  className={cn(
+                    "inline-flex min-w-0 items-center gap-1.5 rounded-md px-2 py-1 text-xs font-semibold",
+                    item.tone === "positive" && "bg-emerald-50 text-emerald-700",
+                    item.tone === "neutral" && "bg-muted text-muted-foreground",
+                    item.tone === "negative" && "bg-red-50 text-red-700",
+                  )}
+                >
+                  <ToneIcon className="h-3.5 w-3.5 shrink-0" />
+                  <span className="truncate">{item.change}</span>
                 </span>
+                {item.tooltip && (
+                  <span className="hidden text-xs text-muted-foreground sm:block">Details on hover</span>
+                )}
               </div>
             </CardContent>
           </Card>
         );
 
         return (
-          <div key={item.label}>
+          <div key={item.label} className="min-w-0">
             {item.tooltip ? (
               <TooltipProvider>
                 <Tooltip>
-                  <TooltipTrigger asChild>
-                    {content}
-                  </TooltipTrigger>
-                  <TooltipContent side="top" className="bg-foreground text-background text-xs px-3 py-2 border-none">
+                  <TooltipTrigger asChild>{content}</TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-xs text-xs">
                     <p>{item.tooltip}</p>
                   </TooltipContent>
                 </Tooltip>

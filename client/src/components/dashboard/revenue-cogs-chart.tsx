@@ -16,48 +16,46 @@ export function RevenueCogsChart({
 }: {
   data: Array<{ month: string; revenue: number; cogs: number }>;
 }) {
+  const hasData = data.some((item) => item.revenue > 0 || item.cogs > 0);
+
   return (
-    <Card className="h-full bg-white/50 backdrop-blur-sm border-white/20 shadow-sm hover:shadow-md transition-shadow">
-      <CardHeader>
+    <Card className="h-full border-border/70 bg-card shadow-sm">
+      <CardHeader className="pb-3">
         <div>
-          <CardTitle>Revenue vs Collections</CardTitle>
-          <CardDescription>Monthly revenue billed and payments collected — 6 month lookback.</CardDescription>
+          <CardTitle className="text-lg">Revenue vs COGS</CardTitle>
+          <CardDescription>Monthly billing and cost of goods sold.</CardDescription>
         </div>
       </CardHeader>
       <CardContent>
         <div className="h-80">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-              <defs>
-                <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.9}/>
-                  <stop offset="95%" stopColor="#6d28d9" stopOpacity={0.9}/>
-                </linearGradient>
-                <linearGradient id="colorCollections" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#34d399" stopOpacity={0.85}/>
-                  <stop offset="95%" stopColor="#059669" stopOpacity={0.85}/>
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" opacity={0.5} />
-              <XAxis dataKey="month" tickLine={false} axisLine={false} tick={{fill: '#64748b', fontSize: 12}} dy={10} />
-              <YAxis tickFormatter={(value) => `${Math.round(value / 1000)}k`} tickLine={false} axisLine={false} tick={{fill: '#64748b', fontSize: 12}} />
-              <Tooltip
-                formatter={(value: number, name: string) => [
-                  formatCurrency(Number(value)),
-                  name === "revenue" ? "Revenue" : "Collections",
-                ]}
-                contentStyle={{ borderRadius: '12px', border: '1px solid rgba(255,255,255,0.4)', background: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(8px)', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                cursor={{ fill: 'rgba(0,0,0,0.02)' }}
-              />
-              <Legend
-                iconType="circle"
-                wrapperStyle={{ paddingTop: '20px', fontSize: '12px' }}
-                formatter={(value: string) => (value === "revenue" ? "Revenue" : "Collections")}
-              />
-              <Bar dataKey="revenue" fill="url(#colorRev)" radius={[6, 6, 0, 0]} maxBarSize={40} />
-              <Bar dataKey="cogs" fill="url(#colorCollections)" radius={[6, 6, 0, 0]} maxBarSize={40} />
-            </BarChart>
-          </ResponsiveContainer>
+          {hasData ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={data} margin={{ top: 12, right: 12, left: -16, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="#e2e8f0" />
+                <XAxis dataKey="month" tickLine={false} axisLine={false} tick={{ fill: "#64748b", fontSize: 12 }} dy={10} />
+                <YAxis tickFormatter={(value) => `${Math.round(value / 1000)}k`} tickLine={false} axisLine={false} tick={{ fill: "#64748b", fontSize: 12 }} />
+                <Tooltip
+                  formatter={(value: number, name: string) => [
+                    formatCurrency(Number(value)),
+                    name === "revenue" ? "Revenue" : "COGS",
+                  ]}
+                  contentStyle={{ borderRadius: 8, border: "1px solid #dbe3ef", background: "white", boxShadow: "0 10px 24px rgb(15 23 42 / 0.08)" }}
+                  cursor={{ fill: "rgba(15, 23, 42, 0.04)" }}
+                />
+                <Legend
+                  iconType="square"
+                  wrapperStyle={{ paddingTop: 18, fontSize: 12 }}
+                  formatter={(value: string) => (value === "revenue" ? "Revenue" : "COGS")}
+                />
+                <Bar dataKey="revenue" fill="#2563eb" radius={[4, 4, 0, 0]} maxBarSize={36} />
+                <Bar dataKey="cogs" fill="#f59e0b" radius={[4, 4, 0, 0]} maxBarSize={36} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-border bg-muted/20 text-sm text-muted-foreground">
+              No revenue data for this period.
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>

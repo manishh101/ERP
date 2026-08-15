@@ -1,8 +1,8 @@
 import {
-  CartesianGrid,
-  Legend,
   Area,
   AreaChart,
+  CartesianGrid,
+  Legend,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -16,43 +16,50 @@ export function CashFlowChart({
 }: {
   data: Array<{ month: string; inflow: number; outflow: number }>;
 }) {
+  const hasData = data.some((item) => item.inflow > 0 || item.outflow > 0);
+
   return (
-    <Card className="h-full bg-white/50 backdrop-blur-sm border-white/20 shadow-sm hover:shadow-md transition-shadow">
-      <CardHeader>
+    <Card className="h-full border-border/70 bg-card shadow-sm">
+      <CardHeader className="pb-3">
         <div>
-          <CardTitle>Cash Flow Trend</CardTitle>
+          <CardTitle className="text-lg">Cash Flow Trend</CardTitle>
           <CardDescription>Operating inflow and outflow over time.</CardDescription>
         </div>
       </CardHeader>
       <CardContent>
-        <div className="h-72">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-              <defs>
-                <linearGradient id="colorIn" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
-                  <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                </linearGradient>
-                <linearGradient id="colorOut" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.3}/>
-                  <stop offset="95%" stopColor="#f43f5e" stopOpacity={0}/>
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" opacity={0.5} />
-              <XAxis dataKey="month" tickLine={false} axisLine={false} tick={{fill: '#64748b', fontSize: 12}} dy={10} />
-              <YAxis tickFormatter={(value) => `NPR ${Math.round(value / 1000)}k`} tickLine={false} axisLine={false} tick={{fill: '#64748b', fontSize: 12}} />
-              <Tooltip 
-                formatter={(value) => formatCurrency(Number(value))}
-                contentStyle={{ borderRadius: '12px', border: '1px solid rgba(255,255,255,0.4)', background: 'rgba(255,255,255,0.9)', backdropFilter: 'blur(8px)', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-              />
-              <Legend iconType="circle" wrapperStyle={{ paddingTop: '10px', fontSize: '12px' }} />
-              <Area type="monotone" dataKey="inflow" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorIn)" />
-              <Area type="monotone" dataKey="outflow" stroke="#f43f5e" strokeWidth={3} fillOpacity={1} fill="url(#colorOut)" />
-            </AreaChart>
-          </ResponsiveContainer>
+        <div className="h-80">
+          {hasData ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={data} margin={{ top: 12, right: 12, left: -16, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="cashIn" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#059669" stopOpacity={0.22} />
+                    <stop offset="95%" stopColor="#059669" stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="cashOut" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#dc2626" stopOpacity={0.18} />
+                    <stop offset="95%" stopColor="#dc2626" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="#e2e8f0" />
+                <XAxis dataKey="month" tickLine={false} axisLine={false} tick={{ fill: "#64748b", fontSize: 12 }} dy={10} />
+                <YAxis tickFormatter={(value) => `${Math.round(value / 1000)}k`} tickLine={false} axisLine={false} tick={{ fill: "#64748b", fontSize: 12 }} />
+                <Tooltip
+                  formatter={(value) => formatCurrency(Number(value))}
+                  contentStyle={{ borderRadius: 8, border: "1px solid #dbe3ef", background: "white", boxShadow: "0 10px 24px rgb(15 23 42 / 0.08)" }}
+                />
+                <Legend iconType="square" wrapperStyle={{ paddingTop: 14, fontSize: 12 }} />
+                <Area type="monotone" dataKey="inflow" stroke="#059669" strokeWidth={2.5} fillOpacity={1} fill="url(#cashIn)" />
+                <Area type="monotone" dataKey="outflow" stroke="#dc2626" strokeWidth={2.5} fillOpacity={1} fill="url(#cashOut)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-border bg-muted/20 text-sm text-muted-foreground">
+              No cash flow data for this period.
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>
   );
 }
-
