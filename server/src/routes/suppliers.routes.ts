@@ -1,4 +1,7 @@
 import { Router } from "express";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
 import { prisma } from "../config/prisma";
 import { requireAuth, requireRole } from "../middleware/auth";
 import { asyncHandler } from "../middleware/async-handler";
@@ -11,6 +14,19 @@ import { toNumber } from "../utils/number";
 import { ApiError } from "../utils/api-error";
 
 export const suppliersRouter = Router();
+
+const invoiceDocumentUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (_request, file, callback) => {
+    if (/^(application\/pdf|image\/(jpeg|png|webp))$/.test(file.mimetype)) callback(null, true);
+    else callback(new Error("Only PDF, JPEG, PNG, and WebP invoice files are allowed."));
+  },
+});
+
+function getPrivateInvoiceDocumentPath(storageKey: string) {
+  return path.join(process.cwd(), "private-uploads", "supplier-invoices", storageKey);
+}
 
 suppliersRouter.use(requireAuth);
 
@@ -88,6 +104,7 @@ suppliersRouter.get(
       include: {
         supplier: true,
         purchaseOrder: true,
+        attachments: { orderBy: { createdAt: "desc" } },
       },
       orderBy: {
         createdAt: "desc",
@@ -142,6 +159,79 @@ suppliersRouter.post(
     });
 
     response.status(201).json(invoice);
+  }),
+);
+
+suppliersRouter.post(
+  "/invoices/:id/attachments",
+  requireRole(["ADMIN", "ACCOUNTANT", "WAREHOUSE"]),
+  validate(idParamSchema, "params"),
+  invoiceDocumentUpload.single("document") as any,
+  asyncHandler(async (request, response) => {
+    const { id } = request.validated?.params as { id: string };
+    const file = (request as any).file as Express.Multer.File | undefined;
+    if (!file) throw new ApiError(400, "Choose an invoice PDF or image to upload.");
+
+    const invoice = await prisma.supplierInvoice.findFirst({
+      where: { id, tenantId: request.user!.tenantId },
+      select: { id: true },
+    });
+    if (!invoice) throw new ApiError(404, "Supplier invoice not found");
+
+    const extension = path.extname(file.originalname) || (file.mimetype === "application/pdf" ? ".pdf" : "");
+    const storageKey = `${Date.now()}-${Math.round(Math.random() * 1e6)}${extension}`;
+    const filePath = getPrivateInvoiceDocumentPath(storageKey);
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
+    fs.writeFileSync(filePath, file.buffer, { flag: "wx" });
+
+    const attachment = await prisma.supplierInvoiceAttachment.create({
+      data: {
+        tenantId: request.user!.tenantId,
+        supplierInvoiceId: id,
+        fileName: path.basename(file.originalname),
+        storageKey,
+        mimeType: file.mimetype,
+        sizeBytes: file.size,
+      },
+    });
+    response.status(201).json(attachment);
+  }),
+);
+
+suppliersRouter.get(
+  "/invoices/:id/attachments/:attachmentId/download",
+  requireRole(["ADMIN", "ACCOUNTANT", "WAREHOUSE"]),
+  validate(idParamSchema, "params"),
+  asyncHandler(async (request, response) => {
+    const { id, attachmentId } = request.params;
+    const attachment = await prisma.supplierInvoiceAttachment.findFirst({
+      where: { id: attachmentId, supplierInvoiceId: id, tenantId: request.user!.tenantId },
+    });
+    if (!attachment) throw new ApiError(404, "Invoice document not found");
+
+    const filePath = getPrivateInvoiceDocumentPath(attachment.storageKey);
+    if (!fs.existsSync(filePath)) throw new ApiError(404, "Stored invoice document is unavailable");
+    response.type(attachment.mimeType);
+    response.setHeader("Content-Disposition", `inline; filename="${attachment.fileName.replace(/[\r\n"]/g, "")}"`);
+    response.sendFile(filePath);
+  }),
+);
+
+suppliersRouter.delete(
+  "/invoices/:id/attachments/:attachmentId",
+  requireRole(["ADMIN", "ACCOUNTANT", "WAREHOUSE"]),
+  validate(idParamSchema, "params"),
+  asyncHandler(async (request, response) => {
+    const { id, attachmentId } = request.params;
+    const attachment = await prisma.supplierInvoiceAttachment.findFirst({
+      where: { id: attachmentId, supplierInvoiceId: id, tenantId: request.user!.tenantId },
+    });
+    if (!attachment) throw new ApiError(404, "Invoice document not found");
+
+    const filePath = getPrivateInvoiceDocumentPath(attachment.storageKey);
+    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    await prisma.supplierInvoiceAttachment.delete({ where: { id: attachment.id } });
+    response.status(204).send();
   }),
 );
 

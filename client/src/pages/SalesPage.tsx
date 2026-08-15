@@ -186,7 +186,7 @@ export function SalesPage() {
 
       {/* Sales KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="border-l-4 border-l-primary shadow-xs">
+        <Card className="shadow-xs">
           <CardContent className="p-4">
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Total Order Portfolio
@@ -200,7 +200,7 @@ export function SalesPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-amber-500 shadow-xs">
+        <Card className="shadow-xs">
           <CardContent className="p-4">
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Pending Dispatch
@@ -214,7 +214,7 @@ export function SalesPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-destructive shadow-xs">
+        <Card className="shadow-xs">
           <CardContent className="p-4">
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Uncollected AR Balance

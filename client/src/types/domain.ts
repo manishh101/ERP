@@ -234,6 +234,14 @@ export type SupplierRow = {
   isActive?: boolean;
 };
 
+export type SupplierInvoiceAttachment = {
+  id: string;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  createdAt: string;
+};
+
 export type SupplierInvoiceRow = {
   id: string;
   invoiceNumber: string;
@@ -249,6 +257,7 @@ export type SupplierInvoiceRow = {
   amountPaid: number;
   balance: number;
   notes?: string;
+  attachments: SupplierInvoiceAttachment[];
 };
 
 export type TaxRateRow = {

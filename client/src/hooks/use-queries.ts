@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/components/auth/auth-provider";
-import { apiRequest } from "@/lib/api";
+import { API_BASE_URL, apiRequest } from "@/lib/api";
 import { queryClient } from "@/lib/query-client";
 import { formatCurrency, formatEnumLabel, formatNumber, toNumber } from "@/lib/utils";
 import type {
@@ -23,6 +23,7 @@ import type {
   StockAdjustmentReason,
   SupplierRow,
   SupplierInvoiceRow,
+  SupplierInvoiceAttachment,
   SalesOrderRow,
   UserRole,
   UserRow,
@@ -1832,6 +1833,7 @@ export function useRecordPaymentMutation() {
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["ar-ledger"] });
       queryClient.invalidateQueries({ queryKey: ["payments"] });
+      queryClient.invalidateQueries({ queryKey: ["supplier-invoices"] });
       queryClient.invalidateQueries({ queryKey: ["customers"] });
       queryClient.invalidateQueries({ queryKey: ["customer"] });
     },
@@ -1906,9 +1908,85 @@ export function useSupplierInvoicesQuery() {
           amountPaid: toNumber(inv.amountPaid),
           balance: toNumber(inv.totalAmount) - toNumber(inv.amountPaid),
           notes: inv.notes,
+          attachments: (inv.attachments ?? []).map((attachment: any): SupplierInvoiceAttachment => ({
+            id: attachment.id,
+            fileName: attachment.fileName,
+            mimeType: attachment.mimeType,
+            sizeBytes: attachment.sizeBytes,
+            createdAt: attachment.createdAt,
+          })),
         })),
       };
     },
+  });
+}
+
+export type SupplierInvoiceCreatePayload = {
+  supplierId: string;
+  purchaseOrderId?: string;
+  invoiceNumber: string;
+  issueDate: string;
+  dueDate?: string;
+  subtotal: number;
+  taxAmount: number;
+  totalAmount: number;
+  notes?: string;
+};
+
+export function useCreateSupplierInvoiceMutation() {
+  const { token } = useAuth();
+
+  return useMutation({
+    mutationFn: async (payload: SupplierInvoiceCreatePayload) =>
+      apiRequest<any>("/suppliers/invoices", {
+        method: "POST",
+        token: token!,
+        body: {
+          ...payload,
+          status: "RECEIVED",
+          amountPaid: 0,
+        },
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["supplier-invoices"] });
+      queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["suppliers"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+  });
+}
+
+export function useUploadSupplierInvoiceAttachmentMutation() {
+  const { token } = useAuth();
+
+  return useMutation({
+    mutationFn: async ({ invoiceId, file }: { invoiceId: string; file: File }) => {
+      const formData = new FormData();
+      formData.append("document", file);
+      const baseUrl = API_BASE_URL.replace(/\/$/, "");
+      const response = await fetch(`${baseUrl}/suppliers/invoices/${invoiceId}/attachments`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(payload?.message ?? "Invoice document upload failed");
+      return payload as SupplierInvoiceAttachment;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["supplier-invoices"] }),
+  });
+}
+
+export function useDeleteSupplierInvoiceAttachmentMutation() {
+  const { token } = useAuth();
+
+  return useMutation({
+    mutationFn: async ({ invoiceId, attachmentId }: { invoiceId: string; attachmentId: string }) =>
+      apiRequest<void>(`/suppliers/invoices/${invoiceId}/attachments/${attachmentId}`, {
+        method: "DELETE",
+        token: token!,
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["supplier-invoices"] }),
   });
 }
 

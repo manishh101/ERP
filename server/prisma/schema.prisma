@@ -143,6 +143,7 @@ model Tenant {
   goodsReceipts        GoodsReceipt[]
   goodsReceiptLines    GoodsReceiptLine[]
   supplierInvoices     SupplierInvoice[]
+  supplierInvoiceAttachments SupplierInvoiceAttachment[]
   customers            Customer[]
   salesOrders          SalesOrder[]
   soLineItems          SalesOrderLineItem[]
@@ -396,10 +397,27 @@ model SupplierInvoice {
   supplier        Supplier              @relation(fields: [supplierId], references: [id], onDelete: Restrict)
   purchaseOrder   PurchaseOrder?        @relation(fields: [purchaseOrderId], references: [id], onDelete: SetNull)
   payments        Payment[]
+  attachments     SupplierInvoiceAttachment[]
 
   @@unique([invoiceNumber, tenantId])
   @@index([supplierId, status])
   @@map("supplier_invoices")
+}
+
+model SupplierInvoiceAttachment {
+  id                String          @id @default(cuid())
+  tenantId          String          @map("tenant_id")
+  supplierInvoiceId String          @map("supplier_invoice_id")
+  fileName          String          @map("file_name")
+  storageKey        String          @map("storage_key")
+  mimeType          String          @map("mime_type")
+  sizeBytes         Int             @map("size_bytes")
+  createdAt         DateTime        @default(now()) @map("created_at")
+  tenant            Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  supplierInvoice   SupplierInvoice @relation(fields: [supplierInvoiceId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, supplierInvoiceId])
+  @@map("supplier_invoice_attachments")
 }
 
 model Customer {
