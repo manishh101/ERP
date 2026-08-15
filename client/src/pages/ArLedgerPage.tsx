@@ -74,20 +74,22 @@ export default function ArLedgerPage() {
             <option key={c.id} value={c.id}>{c.name}</option>
           ))}
         </select>
-        <YearMonthFilter
-          year={filterYear}
-          month={filterMonth}
-          onYearChange={(y) => { setFilterYear(y); setFilterMonth(""); }}
-          onMonthChange={setFilterMonth}
-        />
-        {(filterYear || filterMonth) && (
-          <button
-            onClick={() => { setFilterYear(""); setFilterMonth(""); }}
-            className="text-xs text-muted-foreground underline hover:text-foreground"
-          >
-            Clear filter
-          </button>
-        )}
+        <div className="ml-auto flex items-center justify-end gap-3 flex-wrap">
+          <YearMonthFilter
+            year={filterYear}
+            month={filterMonth}
+            onYearChange={(y) => { setFilterYear(y); setFilterMonth(""); }}
+            onMonthChange={setFilterMonth}
+          />
+          {(filterYear || filterMonth) && (
+            <button
+              onClick={() => { setFilterYear(""); setFilterMonth(""); }}
+              className="text-xs text-muted-foreground underline hover:text-foreground"
+            >
+              Clear filter
+            </button>
+          )}
+        </div>
       </div>
 
       {selectedCustomerId && (

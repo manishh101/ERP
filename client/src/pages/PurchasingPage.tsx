@@ -304,13 +304,6 @@ export function PurchasingPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3 justify-end">
-            <YearMonthFilter
-              year={filterYear}
-              month={filterMonth}
-              onYearChange={(y) => { setFilterYear(y); setFilterMonth(""); }}
-              onMonthChange={setFilterMonth}
-            />
-
             {/* Tabbed Filter */}
             <div className="flex flex-wrap gap-1 bg-muted/40 p-1 rounded-xl border border-border/40 text-xs">
               {["ALL", "DRAFT", "APPROVED", "SENT", "RECEIVED"].map((tab) => (
@@ -325,6 +318,13 @@ export function PurchasingPage() {
                 </Button>
               ))}
             </div>
+
+            <YearMonthFilter
+              year={filterYear}
+              month={filterMonth}
+              onYearChange={(y) => { setFilterYear(y); setFilterMonth(""); }}
+              onMonthChange={setFilterMonth}
+            />
           </div>
         </CardHeader>
         <CardContent>

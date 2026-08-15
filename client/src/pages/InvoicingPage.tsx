@@ -140,7 +140,7 @@ export function InvoicingPage() {
       {createInvoiceOpen ? <CreateInvoiceForm onClose={() => setCreateInvoiceOpen(false)} /> : null}
       {recordPaymentOpen ? <RecordPaymentForm onClose={() => setRecordPaymentOpen(false)} /> : null}
 
-      <div className="flex items-center gap-3 flex-wrap">
+      <div className="flex items-center justify-end gap-3 flex-wrap">
         <YearMonthFilter
           year={filterYear}
           month={filterMonth}
