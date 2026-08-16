@@ -4,11 +4,8 @@ import NepaliDate from "nepali-datetime";
 import {
   AlertTriangle,
   ArrowRight,
-  BarChart3,
   CalendarDays,
   CheckCircle2,
-  CircleDollarSign,
-  ShieldAlert,
   ShoppingCart,
   Truck,
   WalletCards,
@@ -75,36 +72,21 @@ function PrimaryMetric({
   label,
   value,
   detail,
-  icon: Icon,
   tone = "neutral",
 }: {
   label: string;
   value: string;
   detail: string;
-  icon: typeof CircleDollarSign;
   tone?: Tone;
 }) {
   return (
     <Card className="border-border/70 bg-card shadow-sm">
       <CardContent className="p-4">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{label}</p>
-            <p className="mt-2 break-words text-2xl font-semibold leading-none tracking-tight text-foreground tabular-nums">
-              {value}
-            </p>
-          </div>
-          <span
-            className={cn(
-              "flex h-9 w-9 shrink-0 items-center justify-center rounded-md",
-              tone === "good" && "bg-emerald-50 text-emerald-700",
-              tone === "warn" && "bg-amber-50 text-amber-700",
-              tone === "danger" && "bg-red-50 text-red-700",
-              tone === "neutral" && "bg-sky-50 text-sky-700",
-            )}
-          >
-            <Icon className="h-4 w-4" />
-          </span>
+        <div className="min-w-0">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{label}</p>
+          <p className="mt-2 break-words text-2xl font-semibold leading-none tracking-tight text-foreground tabular-nums">
+            {value}
+          </p>
         </div>
         <p className="mt-3 truncate border-t border-border/60 pt-3 text-xs text-muted-foreground">{detail}</p>
       </CardContent>
@@ -409,27 +391,23 @@ export function DashboardPage() {
           label="Revenue"
           value={formatCurrency(orderMetrics.revenue)}
           detail={`Showroom ${formatCurrency(orderMetrics.showroomRevenue)} | Retail ${formatCurrency(orderMetrics.retailRevenue)}`}
-          icon={BarChart3}
         />
         <PrimaryMetric
           label="Collection"
           value={`${orderMetrics.collectionRate}%`}
           detail={`${formatCurrency(orderMetrics.collected)} received`}
-          icon={CircleDollarSign}
           tone={orderMetrics.collectionRate >= 80 ? "good" : "warn"}
         />
         <PrimaryMetric
           label="Open Balance"
           value={formatCurrency(totalOutstanding)}
           detail={criticalOutstanding > 0 ? `${formatCurrency(criticalOutstanding)} over 90 days` : "No critical AR bucket"}
-          icon={ShieldAlert}
           tone={criticalOutstanding > 0 ? "danger" : totalOutstanding > 0 ? "warn" : "good"}
         />
         <PrimaryMetric
           label="Orders Delivered"
           value={`${orderMetrics.deliveryRate}%`}
           detail={`${formatNumber(orderMetrics.delivered)} of ${formatNumber(filteredOrders.length)} orders complete`}
-          icon={Truck}
           tone={orderMetrics.deliveryRate >= 70 ? "good" : "neutral"}
         />
       </div>
