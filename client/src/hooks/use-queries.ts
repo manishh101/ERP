@@ -362,18 +362,66 @@ type RawSearchPayload = {
     id: string;
     name: string;
     sku: string;
+    category?: string | null;
+    material?: string | null;
+    sellingPrice?: number | string;
+    variants?: Array<{ variantName: string; skuVariant: string }>;
   }>;
   customers: Array<{
     id: string;
     name: string;
     email?: string | null;
+    phone?: string | null;
+    type?: string | null;
+    outstandingBalance?: number | string;
+  }>;
+  suppliers?: Array<{
+    id: string;
+    name: string;
+    contact?: string | null;
+    email?: string | null;
+    phone?: string | null;
+    country?: string | null;
   }>;
   invoices: Array<{
     id: string;
     invoiceNumber: string;
+    status?: string | null;
+    invoiceAmount?: number | string;
+    bsDate?: string | null;
+    salesOrder?: { id: string; customer?: { name: string } | null } | null;
+  }>;
+  supplierInvoices?: Array<{
+    id: string;
+    invoiceNumber: string;
+    status?: string | null;
+    totalAmount?: number | string;
+    supplier?: { id: string; name: string } | null;
+    purchaseOrder?: { id: string } | null;
   }>;
   salesOrders: Array<{
     id: string;
+    status?: string | null;
+    orderAmount?: number | string;
+    balanceDue?: number | string;
+    bsDate?: string | null;
+    customer?: { id: string; name: string } | null;
+  }>;
+  purchaseOrders?: Array<{
+    id: string;
+    status?: string | null;
+    totalAmount?: number | string;
+    supplier?: { id: string; name: string } | null;
+  }>;
+  payments?: Array<{
+    id: string;
+    amount?: number | string;
+    method?: string | null;
+    reference?: string | null;
+    bsDate?: string | null;
+    salesOrder?: { id: string; customer?: { name: string } | null } | null;
+    purchaseOrder?: { id: string; supplier?: { name: string } | null } | null;
+    supplierInvoice?: { invoiceNumber: string; supplier?: { name: string } | null } | null;
   }>;
 };
 
@@ -825,31 +873,122 @@ function mapPayment(data: RawPayment): PaymentRow {
   };
 }
 
-function mapSearchResults(payload: RawSearchPayload): SearchResult[] {
-  return [
-    ...payload.products.map((product) => ({
-      type: "Product",
-      label: product.name,
-      href: `/inventory/products/${product.id}`,
-      meta: product.sku,
-    })),
+function scoreSearchResult(result: SearchResult, search: string) {
+  const query = search.toLowerCase();
+  const label = result.label.toLowerCase();
+  const meta = result.meta?.toLowerCase() ?? "";
+  const keywords = (result.keywords ?? []).join(" ").toLowerCase();
+  const corpus = `${label} ${meta} ${result.description ?? ""} ${keywords}`.toLowerCase();
+
+  if (label === query || meta === query) return 100;
+  if (label.startsWith(query) || meta.startsWith(query)) return 80;
+  if (label.includes(query) || meta.includes(query)) return 60;
+  if (keywords.includes(query)) return 45;
+  if (corpus.includes(query)) return 25;
+  return 0;
+}
+
+function compactId(id: string) {
+  return id.length > 12 ? id.slice(0, 8) : id;
+}
+
+function mapSearchResults(payload: RawSearchPayload, search: string): SearchResult[] {
+  const results: SearchResult[] = [
+    ...payload.products.map((product) => {
+      const variants = product.variants?.map((variant) => variant.variantName).filter(Boolean) ?? [];
+      return {
+        type: "Product",
+        label: product.name,
+        href: `/inventory/products/${product.id}`,
+        meta: product.sku,
+        description: [product.category, product.material, formatCurrency(toNumber(product.sellingPrice))]
+          .filter(Boolean)
+          .join(" · "),
+        keywords: [product.id, product.name, product.sku, product.category ?? "", product.material ?? "", ...variants],
+      };
+    }),
     ...payload.customers.map((customer) => ({
       type: "Customer",
       label: customer.name,
-      href: "/sales",
-      meta: customer.email ?? undefined,
+      href: `/parties/${customer.id}`,
+      meta: customer.phone || customer.email || formatEnumLabel(customer.type),
+      description: `Outstanding ${formatCurrency(toNumber(customer.outstandingBalance))}`,
+      keywords: [customer.id, customer.name, customer.email ?? "", customer.phone ?? "", customer.type ?? ""],
+    })),
+    ...(payload.suppliers ?? []).map((supplier) => ({
+      type: "Supplier",
+      label: supplier.name,
+      href: `/suppliers/${supplier.id}`,
+      meta: supplier.phone || supplier.email || supplier.contact || undefined,
+      description: [supplier.country, supplier.contact].filter(Boolean).join(" · "),
+      keywords: [supplier.id, supplier.name, supplier.contact ?? "", supplier.email ?? "", supplier.phone ?? ""],
     })),
     ...payload.invoices.map((invoice) => ({
       type: "Invoice",
       label: invoice.invoiceNumber,
       href: "/invoicing",
+      meta: formatCurrency(toNumber(invoice.invoiceAmount)),
+      description: [formatEnumLabel(invoice.status), invoice.salesOrder?.customer?.name, invoice.bsDate]
+        .filter(Boolean)
+        .join(" · "),
+      keywords: [invoice.id, invoice.invoiceNumber, invoice.status ?? "", invoice.bsDate ?? "", invoice.salesOrder?.id ?? "", invoice.salesOrder?.customer?.name ?? ""],
+    })),
+    ...(payload.supplierInvoices ?? []).map((invoice) => ({
+      type: "Supplier Bill",
+      label: invoice.invoiceNumber,
+      href: "/supplier-invoices",
+      meta: formatCurrency(toNumber(invoice.totalAmount)),
+      description: [formatEnumLabel(invoice.status), invoice.supplier?.name, invoice.purchaseOrder?.id ? `PO-${compactId(invoice.purchaseOrder.id)}` : ""]
+        .filter(Boolean)
+        .join(" · "),
+      keywords: [invoice.id, invoice.invoiceNumber, invoice.status ?? "", invoice.supplier?.name ?? "", invoice.purchaseOrder?.id ?? ""],
     })),
     ...payload.salesOrders.map((order) => ({
-      type: "Order",
-      label: order.id,
-      href: "/sales",
+      type: "Sales Order",
+      label: `SO-${compactId(order.id)}`,
+      href: `/sales/${order.id}`,
+      meta: formatCurrency(toNumber(order.orderAmount)),
+      description: [formatEnumLabel(order.status), order.customer?.name, order.bsDate]
+        .filter(Boolean)
+        .join(" · "),
+      keywords: [order.id, order.status ?? "", order.customer?.name ?? "", order.bsDate ?? ""],
     })),
-  ].slice(0, 10);
+    ...(payload.purchaseOrders ?? []).map((order) => ({
+      type: "Purchase Order",
+      label: `PO-${compactId(order.id)}`,
+      href: `/purchasing/${order.id}`,
+      meta: formatCurrency(toNumber(order.totalAmount)),
+      description: [formatEnumLabel(order.status), order.supplier?.name].filter(Boolean).join(" · "),
+      keywords: [order.id, order.status ?? "", order.supplier?.name ?? ""],
+    })),
+    ...(payload.payments ?? []).map((payment) => {
+      const relatedParty =
+        payment.salesOrder?.customer?.name ??
+        payment.purchaseOrder?.supplier?.name ??
+        payment.supplierInvoice?.supplier?.name;
+      const relatedDocument =
+        payment.salesOrder?.id ? `SO-${compactId(payment.salesOrder.id)}` :
+        payment.purchaseOrder?.id ? `PO-${compactId(payment.purchaseOrder.id)}` :
+        payment.supplierInvoice?.invoiceNumber;
+
+      return {
+        type: "Payment",
+        label: payment.reference || `Payment ${compactId(payment.id)}`,
+        href: "/payments",
+        meta: formatCurrency(toNumber(payment.amount)),
+        description: [formatEnumLabel(payment.method), relatedParty, relatedDocument, payment.bsDate]
+          .filter(Boolean)
+          .join(" · "),
+        keywords: [payment.id, payment.reference ?? "", payment.method ?? "", payment.bsDate ?? "", relatedParty ?? "", relatedDocument ?? ""],
+      };
+    }),
+  ];
+
+  return results
+    .map((result, index) => ({ result, score: scoreSearchResult(result, search), index }))
+    .sort((left, right) => right.score - left.score || left.index - right.index)
+    .map(({ result }) => result)
+    .slice(0, 24);
 }
 
 function mapUsers(payload: PaginatedResponse<RawUser>) {
@@ -2608,6 +2747,7 @@ export function useSearchQuery(search: string) {
           token: token!,
           query: { q: normalizedSearch },
         }),
+        normalizedSearch,
       ),
   });
 }

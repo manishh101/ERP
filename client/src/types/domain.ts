@@ -437,6 +437,8 @@ export type SearchResult = {
   label: string;
   href: string;
   meta?: string;
+  description?: string;
+  keywords?: string[];
 };
 
 export type UserRow = {

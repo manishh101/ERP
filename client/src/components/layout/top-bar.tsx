@@ -53,20 +53,22 @@ export function TopBar({
       <Button
         variant="outline"
         size="sm"
-        className="hidden gap-2 text-muted-foreground sm:flex"
+        className="hidden h-9 w-[220px] justify-start gap-2 rounded-full border-border/70 bg-card px-3 text-muted-foreground shadow-xs transition-colors hover:bg-muted/60 hover:text-foreground sm:flex lg:w-[280px]"
         onClick={onSearchOpen}
+        aria-label="Open global search"
       >
-        <Search className="h-3.5 w-3.5" />
-        <span className="text-xs">Search...</span>
-        <kbd className="pointer-events-none ml-2 hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] text-muted-foreground sm:inline-flex">
-          ⌘K
+        <Search className="h-3.5 w-3.5 shrink-0" />
+        <span className="min-w-0 flex-1 truncate text-left text-xs font-medium">Search ERP...</span>
+        <kbd className="pointer-events-none hidden h-5 select-none items-center rounded border bg-muted px-1.5 font-mono text-[10px] text-muted-foreground md:inline-flex">
+          Ctrl K
         </kbd>
       </Button>
 
       {/* Mobile search */}
       <button
-        className="rounded-md p-1.5 text-muted-foreground hover:text-foreground sm:hidden"
+        className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:hidden"
         onClick={onSearchOpen}
+        aria-label="Open global search"
       >
         <Search className="h-4 w-4" />
       </button>
