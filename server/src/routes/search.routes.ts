@@ -1,3 +1,10 @@
+import {
+  InvoiceStatus,
+  PaymentMethod,
+  PurchaseOrderStatus,
+  SalesOrderStatus,
+  SupplierInvoiceStatus,
+} from "@prisma/client";
 import { Router } from "express";
 import { prisma } from "../config/prisma";
 import { requireAuth } from "../middleware/auth";
@@ -16,10 +23,20 @@ searchRouter.get(
     const query = request.validated?.query as { q: string };
     const search = query.q.trim();
     const tenantId = request.user!.tenantId;
+    const documentSearch = search.replace(/^(po|so|payment|pay)[-\s#:]+/i, "").trim();
+    const idSearches = Array.from(new Set([search, documentSearch].filter(Boolean)));
+    const normalizedEnumSearch = search.toUpperCase().replace(/[\s-]+/g, "_");
     const contains = (value: string) => ({
       contains: value,
       mode: "insensitive" as const,
     });
+    const enumMatch = <T extends Record<string, string>>(source: T): T[keyof T] | undefined =>
+      Object.values(source).find((value) => value === normalizedEnumSearch) as T[keyof T] | undefined;
+    const invoiceStatus = enumMatch(InvoiceStatus) as InvoiceStatus | undefined;
+    const paymentMethod = enumMatch(PaymentMethod) as PaymentMethod | undefined;
+    const purchaseOrderStatus = enumMatch(PurchaseOrderStatus) as PurchaseOrderStatus | undefined;
+    const salesOrderStatus = enumMatch(SalesOrderStatus) as SalesOrderStatus | undefined;
+    const supplierInvoiceStatus = enumMatch(SupplierInvoiceStatus) as SupplierInvoiceStatus | undefined;
 
     const [
       products,
@@ -81,10 +98,11 @@ searchRouter.get(
         where: {
           tenantId,
           OR: [
-            { id: contains(search) },
+            ...idSearches.map((term) => ({ id: contains(term) })),
+            ...(invoiceStatus ? [{ status: invoiceStatus }] : []),
             { invoiceNumber: contains(search) },
             { bsDate: contains(search) },
-            { salesOrder: { id: contains(search) } },
+            ...idSearches.map((term) => ({ salesOrder: { id: contains(term) } })),
             { salesOrder: { customer: { name: contains(search) } } },
           ],
         },
@@ -96,10 +114,11 @@ searchRouter.get(
         where: {
           tenantId,
           OR: [
-            { id: contains(search) },
+            ...idSearches.map((term) => ({ id: contains(term) })),
+            ...(supplierInvoiceStatus ? [{ status: supplierInvoiceStatus }] : []),
             { invoiceNumber: contains(search) },
             { supplier: { name: contains(search) } },
-            { purchaseOrder: { id: contains(search) } },
+            ...idSearches.map((term) => ({ purchaseOrder: { id: contains(term) } })),
             { notes: contains(search) },
           ],
         },
@@ -111,7 +130,8 @@ searchRouter.get(
         where: {
           tenantId,
           OR: [
-            { id: contains(search) },
+            ...idSearches.map((term) => ({ id: contains(term) })),
+            ...(salesOrderStatus ? [{ status: salesOrderStatus }] : []),
             { bsDate: contains(search) },
             { customer: { name: contains(search) } },
             { notes: contains(search) },
@@ -129,7 +149,8 @@ searchRouter.get(
         where: {
           tenantId,
           OR: [
-            { id: contains(search) },
+            ...idSearches.map((term) => ({ id: contains(term) })),
+            ...(purchaseOrderStatus ? [{ status: purchaseOrderStatus }] : []),
             { supplier: { name: contains(search) } },
             { supplier: { phone: contains(search) } },
             { supplier: { email: contains(search) } },
@@ -149,13 +170,14 @@ searchRouter.get(
         where: {
           tenantId,
           OR: [
-            { id: contains(search) },
+            ...idSearches.map((term) => ({ id: contains(term) })),
+            ...(paymentMethod ? [{ method: paymentMethod }] : []),
             { reference: contains(search) },
             { note: contains(search) },
             { bsDate: contains(search) },
-            { salesOrder: { id: contains(search) } },
+            ...idSearches.map((term) => ({ salesOrder: { id: contains(term) } })),
             { salesOrder: { customer: { name: contains(search) } } },
-            { purchaseOrder: { id: contains(search) } },
+            ...idSearches.map((term) => ({ purchaseOrder: { id: contains(term) } })),
             { purchaseOrder: { supplier: { name: contains(search) } } },
             { supplierInvoice: { invoiceNumber: contains(search) } },
           ],
