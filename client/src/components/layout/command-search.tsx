@@ -27,7 +27,8 @@ import { useSearchQuery } from "@/hooks/use-queries";
 import type { SearchResult } from "@/types/domain";
 
 const RECENT_SEARCH_KEY = "myerp:recent-global-search-results";
-const MIN_SEARCH_LENGTH = 2;
+const MIN_SEARCH_LENGTH = 3;
+const SEARCH_DEBOUNCE_MS = 300;
 
 const quickLinks: SearchResult[] = [
   { type: "Workspace", label: "Dashboard", href: "/", meta: "Overview" },
@@ -97,6 +98,17 @@ function resultValue(item: SearchResult) {
     .join(" ");
 }
 
+function useDebouncedValue(value: string, delayMs: number) {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => setDebouncedValue(value), delayMs);
+    return () => window.clearTimeout(timeout);
+  }, [delayMs, value]);
+
+  return debouncedValue;
+}
+
 function SearchResultRow({ item, recent = false }: { item: SearchResult; recent?: boolean }) {
   return (
     <>
@@ -130,10 +142,11 @@ export function CommandSearch({
 }) {
   const [search, setSearch] = useState("");
   const [recentResults, setRecentResults] = useState<SearchResult[]>(loadRecentResults);
-  const deferredSearch = useDeferredValue(search);
   const normalizedSearch = search.trim();
-  const deferredNormalizedSearch = deferredSearch.trim();
-  const queryEnabled = deferredNormalizedSearch.length >= MIN_SEARCH_LENGTH;
+  const debouncedSearch = useDebouncedValue(normalizedSearch, SEARCH_DEBOUNCE_MS);
+  const deferredSearch = useDeferredValue(debouncedSearch);
+  const queryEnabled = deferredSearch.length >= MIN_SEARCH_LENGTH;
+  const searchIsSettling = normalizedSearch !== debouncedSearch;
   const { data: results = [], isFetching, isError } = useSearchQuery(deferredSearch);
   const navigate = useNavigate();
 
@@ -193,8 +206,12 @@ export function CommandSearch({
           className="h-14 text-base"
         />
         <div className="flex items-center justify-between px-4 pb-3 text-xs text-muted-foreground">
-          <span>{queryEnabled ? `${results.length} results` : "Global search"}</span>
-          {isFetching && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+          <span>
+            {queryEnabled
+              ? `${results.length} results`
+              : `Type ${MIN_SEARCH_LENGTH}+ characters to search`}
+          </span>
+          {(isFetching || searchIsSettling) && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
         </div>
       </div>
 
@@ -202,7 +219,7 @@ export function CommandSearch({
         {!showDiscovery && (
           <CommandEmpty>
             <div className="flex flex-col items-center gap-2 py-6 text-sm text-muted-foreground">
-              {isFetching ? (
+              {isFetching || searchIsSettling ? (
                 <>
                   <Loader2 className="h-5 w-5 animate-spin" />
                   <span>Searching...</span>

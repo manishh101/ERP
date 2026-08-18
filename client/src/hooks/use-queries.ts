@@ -892,6 +892,24 @@ function compactId(id: string) {
   return id.length > 12 ? id.slice(0, 8) : id;
 }
 
+const SEARCH_REQUEST_TIMEOUT_MS = 1_800;
+
+function createSearchRequestSignal(signal: AbortSignal) {
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), SEARCH_REQUEST_TIMEOUT_MS);
+  const abortRequest = () => controller.abort();
+
+  signal.addEventListener("abort", abortRequest, { once: true });
+
+  return {
+    signal: controller.signal,
+    cleanup: () => {
+      window.clearTimeout(timeoutId);
+      signal.removeEventListener("abort", abortRequest);
+    },
+  };
+}
+
 function mapSearchResults(payload: RawSearchPayload, search: string): SearchResult[] {
   const results: SearchResult[] = [
     ...payload.products.map((product) => {
@@ -2740,15 +2758,27 @@ export function useSearchQuery(search: string) {
 
   return useQuery({
     queryKey: ["search", token, normalizedSearch],
-    enabled: Boolean(token) && normalizedSearch.length >= 2,
-    queryFn: async () =>
-      mapSearchResults(
-        await apiRequest<RawSearchPayload>("/search/global", {
-          token: token!,
-          query: { q: normalizedSearch },
-        }),
-        normalizedSearch,
-      ),
+    enabled: Boolean(token) && normalizedSearch.length >= 3,
+    retry: false,
+    refetchOnWindowFocus: false,
+    staleTime: 30_000,
+    gcTime: 5 * 60_000,
+    queryFn: async ({ signal }) => {
+      const requestSignal = createSearchRequestSignal(signal);
+
+      try {
+        return mapSearchResults(
+          await apiRequest<RawSearchPayload>("/search/global", {
+            token: token!,
+            query: { q: normalizedSearch },
+            signal: requestSignal.signal,
+          }),
+          normalizedSearch,
+        );
+      } finally {
+        requestSignal.cleanup();
+      }
+    },
   });
 }
 
