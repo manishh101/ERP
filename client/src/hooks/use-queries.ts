@@ -61,8 +61,14 @@ type RawProduct = {
   length?: number | string | null;
   variants: Array<{
     id: string;
+    variantName?: string | null;
+    skuVariant?: string | null;
     stockQuantity: number | string;
     sizeLabel?: string | null;
+    fabricColor?: string | null;
+    woodFinish?: string | null;
+    additionalCost?: number | string | null;
+    hsCode?: string | null;
   }>;
 };
 
@@ -610,6 +616,17 @@ function mapProduct(product: RawProduct): ProductRow {
     defaultVariantId: product.variants[0]?.id || "",
     imageUrls: product.imageUrls,
     isSellable: product.isSellable,
+    variants: product.variants.map((v) => ({
+      id: v.id,
+      variantName: v.variantName || "Standard",
+      skuVariant: v.skuVariant || product.sku,
+      stockQuantity: toNumber(v.stockQuantity),
+      additionalCost: toNumber(v.additionalCost),
+      fabricColor: v.fabricColor ?? undefined,
+      woodFinish: v.woodFinish ?? undefined,
+      sizeLabel: v.sizeLabel ?? undefined,
+      hsCode: v.hsCode ?? undefined,
+    })),
     hsCode: product.hsCode ?? undefined,
     woodType: product.woodType ?? undefined,
     finishType: product.finishType ?? undefined,
@@ -1717,6 +1734,7 @@ export type SalesOrderCreatePayload = {
   assignedWarehouseId?: string;
   status: string;
   depositAmount: number;
+  paymentMethod?: string;
   deliveryDate?: string;
   notes?: string;
   // Furniture fields

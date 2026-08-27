@@ -233,6 +233,18 @@ export type TableColumn<T> = {
   render?: (row: T) => ReactNode;
 };
 
+export type ProductVariantOption = {
+  id: string;
+  variantName: string;
+  skuVariant: string;
+  stockQuantity: number;
+  additionalCost?: number;
+  fabricColor?: string;
+  woodFinish?: string;
+  sizeLabel?: string;
+  hsCode?: string;
+};
+
 export type ProductRow = {
   id: string;
   name: string;
@@ -249,6 +261,7 @@ export type ProductRow = {
   defaultVariantId: string;
   imageUrls?: string[];
   isSellable?: boolean;
+  variants?: ProductVariantOption[];
   // Furniture specific
   height?: number;
   width?: number;

@@ -118,6 +118,7 @@ salesOrdersRouter.post(
       status: body.status,
       lineItems: body.lineItems,
       depositAmount: body.depositAmount,
+      paymentMethod: body.paymentMethod,
       deliveryDate: body.deliveryDate,
       notes: body.notes,
       bsDate: getBsDate(),

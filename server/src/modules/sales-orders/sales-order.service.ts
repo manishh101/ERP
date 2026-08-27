@@ -62,6 +62,48 @@ export async function createOrder(input: {
       ? "QUOTE"
       : (deposit >= orderAmount ? "PAID" : deposit > 0 ? "DEPOSIT_PAID" : "CONFIRMED");
 
+    // 1b. Pre-validate stock availability for all line items if order is confirmed / paid immediately
+    if (initialStatus !== "QUOTE") {
+      const insufficientStockItems: string[] = [];
+      for (const item of input.lineItems) {
+        if (!item.productVariantId) continue; // Skip custom items without inventory tracking
+        
+        const variant = await tx.productVariant.findUnique({
+          where: { id: item.productVariantId },
+          include: { product: true }
+        });
+
+        if (!variant) {
+          throw new ApiError(404, `Product variant ${item.productVariantId} not found`);
+        }
+
+        if (variant.stockQuantity < Number(item.quantity)) {
+          const productName = `${variant.product.name} / ${variant.variantName}`;
+          insufficientStockItems.push(
+            `${productName} (Required: ${item.quantity}, Available: ${variant.stockQuantity})`
+          );
+        }
+      }
+
+      if (insufficientStockItems.length > 0) {
+        throw new ApiError(
+          400,
+          `Insufficient stock for the following items:\n${insufficientStockItems.join('\n')}`,
+          { insufficientItems: insufficientStockItems }
+        );
+      }
+    }
+
+    // Resolve assigned warehouse or fallback to tenant's first active warehouse
+    let targetWarehouseId = input.assignedWarehouseId;
+    if (!targetWarehouseId && initialStatus !== "QUOTE") {
+      const defaultWh = await tx.warehouse.findFirst({
+        where: { tenantId: input.tenantId, isActive: true },
+        select: { id: true }
+      });
+      targetWarehouseId = defaultWh?.id;
+    }
+
     // 2. Create SalesOrder with correct initial financial state
     const order = await tx.salesOrder.create({
       data: {
@@ -76,7 +118,7 @@ export async function createOrder(input: {
         bsDate: input.bsDate,
         fiscalYear: input.fiscalYear,
         notes: input.notes,
-        assignedWarehouseId: input.assignedWarehouseId,
+        assignedWarehouseId: targetWarehouseId,
         salespersonId: input.salespersonId,
         // Furniture
         isCustomOrder: input.isCustomOrder ?? false,
@@ -100,6 +142,31 @@ export async function createOrder(input: {
         }
       }
     });
+
+    // 2b. Stock Reservation Logic if order is confirmed/paid upon creation
+    if (initialStatus !== "QUOTE" && targetWarehouseId) {
+      for (const item of input.lineItems) {
+        if (!item.productVariantId) continue;
+
+        const updatedVariant = await tx.productVariant.update({
+          where: { id: item.productVariantId },
+          data: { stockQuantity: { decrement: Number(item.quantity) } },
+          select: { stockQuantity: true }
+        });
+
+        await tx.stockMovement.create({
+          data: {
+            tenantId: input.tenantId,
+            productVariantId: item.productVariantId,
+            warehouseId: targetWarehouseId,
+            type: "RESERVATION",
+            quantity: Number(item.quantity),
+            balanceAfter: updatedVariant.stockQuantity,
+            source: `Order ${order.id} confirmed`,
+          }
+        });
+      }
+    }
 
     // 3. Post ArLedger DEBIT for full orderAmount only if confirmed/paid right away
     if (initialStatus !== "QUOTE") {
@@ -204,6 +271,22 @@ export async function confirmOrder(tenantId: string, orderId: string) {
       );
     }
 
+    // Resolve assigned warehouse or fallback to tenant's first active warehouse
+    let targetWarehouseId = order.assignedWarehouseId;
+    if (!targetWarehouseId) {
+      const defaultWh = await tx.warehouse.findFirst({
+        where: { tenantId: order.tenantId, isActive: true },
+        select: { id: true }
+      });
+      targetWarehouseId = defaultWh?.id ?? null;
+      if (targetWarehouseId) {
+        await tx.salesOrder.update({
+          where: { id: order.id },
+          data: { assignedWarehouseId: targetWarehouseId }
+        });
+      }
+    }
+
     // Stock Reservation Logic - all validations passed, safe to proceed
     for (const item of order.lineItems) {
       if (!item.productVariantId) continue;
@@ -215,18 +298,20 @@ export async function confirmOrder(tenantId: string, orderId: string) {
         select: { stockQuantity: true, variantName: true }
       });
 
-      // Create stock movement log with accurate balanceAfter from the updated record
-      await tx.stockMovement.create({
-        data: {
-          tenantId: order.tenantId,
-          productVariantId: item.productVariantId,
-          warehouseId: order.assignedWarehouseId || "system",
-          type: "RESERVATION",
-          quantity: item.quantity,
-          balanceAfter: updatedVariant.stockQuantity, // FIX: Use actual post-update value
-          source: `Order ${order.id} confirmed`,
-        }
-      });
+      if (targetWarehouseId) {
+        // Create stock movement log with accurate balanceAfter from the updated record
+        await tx.stockMovement.create({
+          data: {
+            tenantId: order.tenantId,
+            productVariantId: item.productVariantId,
+            warehouseId: targetWarehouseId,
+            type: "RESERVATION",
+            quantity: item.quantity,
+            balanceAfter: updatedVariant.stockQuantity, // FIX: Use actual post-update value
+            source: `Order ${order.id} confirmed`,
+          }
+        });
+      }
     }
 
     // Post AR Ledger DEBIT for full orderAmount upon confirmation

@@ -213,6 +213,7 @@ export const salesOrderSchema = z.object({
   salespersonId: z.string().optional(),
   status: z.nativeEnum(SalesOrderStatus).default(SalesOrderStatus.QUOTE),
   depositAmount: decimalNumber.default(0),
+  paymentMethod: z.nativeEnum(PaymentMethod).optional(),
   deliveryDate: optionalDate,
   notes: z.string().optional(),
   paymentMode: z.string().optional(),
