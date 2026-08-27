@@ -169,6 +169,7 @@ export type AdminOverview = {
   generatedAt: string;
   finance: { salesToday: number; salesMonth: number; receivedMonth: number; outstandingAr: number };
   arAging: AgingBuckets;
+  arByCustomer: DashboardArCustomerRow[];
   salesTrend: DashboardSalesTrendPoint[];
   topCustomers: DashboardTopCustomer[];
   topProducts: Array<{ name: string; quantity: number }>;

@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { AccountantOverview } from "@/types/domain";
 import { cn, formatCurrency, formatNumber } from "@/lib/utils";
 import { StatTile } from "./stat-tile";
-import { Section } from "./section";
+import { Section, SectionLink } from "./section";
 import { AgingSummary } from "./aging-summary";
 import { ArByCustomerTable } from "./ar-by-customer-table";
 import { RecentPaymentsTable } from "./recent-payments-table";
@@ -13,12 +13,19 @@ import { AlertsList } from "./alerts-list";
  * VAT — tax/compliance truth, sourced only from the VAT Register. Rendered as
  * its own block, visually separated from the AR (commercial) sections above,
  * so the two are never read as a single combined figure.
+ *
+ * The dividing label ("VAT Register — Tax Compliance") makes the boundary
+ * explicit even when both sections are on screen simultaneously.
  */
 function VatSummary({ vat }: { vat: AccountantOverview["vat"] }) {
   const cells: Array<{ label: string; value: number; tone?: string }> = [
     { label: "Output VAT", value: vat.outputTax },
     { label: "Input VAT", value: vat.inputTax },
-    { label: "Net Payable", value: vat.netPayable, tone: vat.netPayable > 0 ? "text-amber-700" : "text-emerald-700" },
+    {
+      label: "Net Payable",
+      value: vat.netPayable,
+      tone: vat.netPayable > 0 ? "text-amber-700" : "text-emerald-700",
+    },
   ];
 
   return (
@@ -52,12 +59,16 @@ function VatSummary({ vat }: { vat: AccountantOverview["vat"] }) {
  * Accountant view: receivables (commercial AR), collections, and VAT
  * (compliance) — each in its own section, never summed. AR comes from
  * SalesOrder balances; VAT comes exclusively from the VAT Register.
+ *
+ * Section links give quick access to the full ledger, VAT register, and
+ * invoicing queue without requiring extra navigation steps.
  */
 export function AccountantDashboard({ data }: { data: AccountantOverview }) {
   const { receivables, payments, vat, reconciliation, arAging } = data;
 
   return (
     <div className="space-y-6">
+      {/* KPI strip — AR & collections (commercial), VAT net (compliance) */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatTile
           label="Outstanding AR"
@@ -92,16 +103,28 @@ export function AccountantDashboard({ data }: { data: AccountantOverview }) {
         />
       </div>
 
-      <AgingSummary data={arAging} />
+      {/* AR aging — commercial truth, interactive hover shows per-bucket customers */}
+      <AgingSummary data={arAging} arByCustomer={data.arByCustomer} />
 
-      <Section title="Outstanding by Customer" description="Commercial balances owed, oldest first.">
+      {/* Outstanding by customer — oldest-first, links to full AR ledger */}
+      <Section
+        title="Outstanding by Customer"
+        description="Commercial balances owed, oldest first."
+        action={<SectionLink to="/accounting/ledger" label="Full ledger" />}
+      >
         <ArByCustomerTable rows={data.arByCustomer} />
       </Section>
 
-      <Section title="Tax Compliance" description="VAT register — reported separately from receivables.">
+      {/* VAT — visually separated from AR with explicit label */}
+      <Section
+        title="Tax Compliance"
+        description="VAT register — reported separately from receivables."
+        action={<SectionLink to="/accounting/vat" label="VAT register" />}
+      >
         <VatSummary vat={vat} />
       </Section>
 
+      {/* Collections and alerts — side by side */}
       <div className="grid gap-5 lg:grid-cols-2">
         <RecentPaymentsTable rows={payments.recent} />
         <AlertsList alerts={data.alerts} />

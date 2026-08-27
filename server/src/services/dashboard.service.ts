@@ -378,6 +378,7 @@ export interface AdminOverview {
   generatedAt: string;
   finance: { salesToday: number; salesMonth: number; receivedMonth: number; outstandingAr: number };
   arAging: AgingBuckets;
+  arByCustomer: ArCustomerRow[];
   salesTrend: SalesTrendPoint[];
   topCustomers: TopCustomerLite[];
   topProducts: Array<{ name: string; quantity: number }>;
@@ -700,11 +701,12 @@ export async function getRecentActivity(tenantId: string, take = 8): Promise<Act
 // -- Per-role builders -------------------------------------------------------
 
 async function buildAdminOverview(tenantId: string): Promise<AdminOverview> {
-  const [salesTotals, financial, arAging, trendRaw, topEntities, lowStock, recentOrders, recentPayments, recentActivity] =
+  const [salesTotals, financial, arAging, arByCustomerAll, trendRaw, topEntities, lowStock, recentOrders, recentPayments, recentActivity] =
     await Promise.all([
       getSalesTotals(tenantId),
       getFinancialSummary(tenantId, "month"),
       getArAgingBuckets(tenantId),
+      getArAgingSummary(tenantId),
       getSalesTrend(tenantId, startOfCurrentFiscalYear(), new Date(), "month"),
       getTopEntities(tenantId),
       getLowStockItems(tenantId, 8),
@@ -725,6 +727,7 @@ async function buildAdminOverview(tenantId: string): Promise<AdminOverview> {
       outstandingAr: financial.amountPending,
     },
     arAging,
+    arByCustomer: arByCustomerAll,
     salesTrend: trend.map((p) => ({ month: p.month, revenue: p.revenue, orders: p.orders })),
     topCustomers: topEntities.topShowrooms,
     topProducts: topEntities.topProducts,
