@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useAuth } from "@/components/auth/auth-provider";
 import { toast } from "sonner";
@@ -33,7 +33,7 @@ import type {
   PurchaseOrderRow,
 } from "@/types/domain";
 import { CreatePurchaseOrderForm } from "@/components/purchasing/create-po-form";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { ShoppingCart, Clock, Truck, CheckCircle2, DollarSign } from "lucide-react";
 
 export function PurchasingPage() {
@@ -53,6 +53,16 @@ export function PurchasingPage() {
     Record<string, PurchaseOrderMatchSummary>
   >({});
   const [createPoOpen, setCreatePoOpen] = useState(false);
+  // Auto-open the create sheet when navigated here from the Ctrl+K "New Purchase Order" command.
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    if (searchParams.get("new") === "1") {
+      setCreatePoOpen(true);
+      const next = new URLSearchParams(searchParams);
+      next.delete("new");
+      setSearchParams(next, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
   const [selectedStatusTab, setSelectedStatusTab] = useState<string>("ALL");
   const [filterYear, setFilterYear] = useState("");
   const [filterMonth, setFilterMonth] = useState("");

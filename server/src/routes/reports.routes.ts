@@ -6,10 +6,19 @@ import { validate } from "../middleware/validate";
 import { customReportSchema, reportQuerySchema, idParamSchema, listQuerySchema } from "../schemas/domain";
 import {
   getApAgingReport,
+  getApAgingSummary,
   getAraAgingReport,
+  getArAgingSummary,
   getBalanceSheet,
   getCashFlow,
   getProfitAndLoss,
+  getSalesTrend,
+  getPurchaseOrderSummary,
+  getAuditReport,
+  getOutstandingReceivables,
+  getStockMovements,
+  getTaxSummary,
+  getTrialBalance,
 } from "../services/report.service";
 import { getCustomerLedger } from "../modules/ar-ledger/ar-ledger.service";
 import { toNumber } from "../utils/number";
@@ -92,7 +101,7 @@ reportsRouter.get(
     const orders = await prisma.salesOrder.findMany({
       where: {
         tenantId: request.user!.tenantId,
-        status: { not: "CANCELLED" },
+        status: { notIn: ["CANCELLED", "QUOTE"] },
         orderDate: {
           gte: query.startDate,
           lte: query.endDate,
@@ -122,7 +131,11 @@ reportsRouter.get(
         .filter((line) => inDateRange(order.orderDate, query.startDate, query.endDate))
         .filter((line) => !query.category || (line.productVariant && line.productVariant.product.category === query.category))
         .map((line) => {
-          const revenue = line.quantity * toNumber(line.unitPrice);
+          const lineRevenue = line.quantity * toNumber(line.unitPrice);
+          const discAmt = line.discountAmount
+            ? toNumber(line.discountAmount)
+            : lineRevenue * (toNumber(line.discountPct) / 100);
+          const revenue = lineRevenue - discAmt;
           return {
             date: order.orderDate,
             customer: order.customer.name,
@@ -132,6 +145,8 @@ reportsRouter.get(
             variant: line.productVariant ? line.productVariant.variantName : "N/A",
             category: line.productVariant ? line.productVariant.product.category : "Custom",
             quantity: line.quantity,
+            unitPrice: toNumber(line.unitPrice),
+            discountAmount: discAmt,
             revenue,
           };
         }),
@@ -201,7 +216,7 @@ reportsRouter.get(
       where: {
         tenantId: request.user!.tenantId,
         salesOrder: {
-          status: { not: "CANCELLED" },
+          status: { notIn: ["CANCELLED", "QUOTE"] },
         },
       },
       include: {
@@ -210,14 +225,19 @@ reportsRouter.get(
             product: true,
           },
         },
+        salesOrder: true,
       },
     });
 
     const rows = lineItems.map((line) => {
-      const revenue = line.quantity * toNumber(line.unitPrice);
+      const lineRevenue = line.quantity * toNumber(line.unitPrice);
+      const discAmt = line.discountAmount
+        ? toNumber(line.discountAmount)
+        : lineRevenue * (toNumber(line.discountPct) / 100);
+      const revenue = lineRevenue - discAmt;
       const cost =
         line.quantity *
-        (line.productVariant 
+        (line.productVariant
           ? (toNumber(line.productVariant.product.costPrice) + toNumber(line.productVariant.additionalCost))
           : toNumber(line.unitPrice) * 0.7);
 
@@ -228,6 +248,7 @@ reportsRouter.get(
         revenue,
         cost,
         grossMargin: revenue - cost,
+        marginPct: revenue > 0 ? ((revenue - cost) / revenue) * 100 : 0,
       };
     });
 
@@ -331,6 +352,184 @@ reportsRouter.get(
       apAging: await getApAgingReport(request.user!.tenantId),
       exportFormats: ["pdf", "csv"],
     });
+  }),
+);
+
+reportsRouter.get(
+  "/trial-balance",
+  asyncHandler(async (request, response) => {
+    response.json(await getTrialBalance(request.user!.tenantId));
+  }),
+);
+
+reportsRouter.get(
+  "/tax-summary",
+  validate(reportQuerySchema, "query"),
+  asyncHandler(async (request, response) => {
+    const query = request.validated?.query as { startDate?: Date; endDate?: Date };
+    response.json(await getTaxSummary(request.user!.tenantId, query.startDate, query.endDate));
+  }),
+);
+
+reportsRouter.get(
+  "/ar-aging",
+  validate(reportQuerySchema, "query"),
+  asyncHandler(async (request, response) => {
+    const query = request.validated?.query as { startDate?: Date; endDate?: Date };
+    const aging = await getArAgingSummary(request.user!.tenantId, query.startDate, query.endDate);
+    response.json({ rows: aging, exportFormats: ["csv"] });
+  }),
+);
+
+reportsRouter.get(
+  "/ap-aging",
+  asyncHandler(async (request, response) => {
+    const aging = await getApAgingSummary(request.user!.tenantId);
+    response.json({ rows: aging, exportFormats: ["csv"] });
+  }),
+);
+
+reportsRouter.get(
+  "/outstanding-receivables",
+  asyncHandler(async (request, response) => {
+    const receivables = await getOutstandingReceivables(request.user!.tenantId);
+    response.json({ rows: receivables, exportFormats: ["csv"] });
+  }),
+);
+
+reportsRouter.get(
+  "/sales-trend",
+  validate(reportQuerySchema, "query"),
+  asyncHandler(async (request, response) => {
+    const query = request.validated?.query as { 
+      startDate?: Date; 
+      endDate?: Date; 
+      groupBy?: 'month' | 'salesperson' | 'category';
+    };
+    const trend = await getSalesTrend(
+      request.user!.tenantId, 
+      query.startDate, 
+      query.endDate, 
+      query.groupBy || 'month'
+    );
+    response.json({ rows: trend, exportFormats: ["csv"] });
+  }),
+);
+
+reportsRouter.get(
+  "/purchase-orders",
+  validate(reportQuerySchema, "query"),
+  asyncHandler(async (request, response) => {
+    const query = request.validated?.query as { startDate?: Date; endDate?: Date };
+    const summary = await getPurchaseOrderSummary(request.user!.tenantId, query.startDate, query.endDate);
+    response.json({ ...summary, exportFormats: ["csv"] });
+  }),
+);
+
+reportsRouter.get(
+  "/inventory-valuation",
+  asyncHandler(async (request, response) => {
+    // Proxy to existing inventory valuation endpoint - use same logic for consistency
+    const valuation = await prisma.productVariant.findMany({
+      where: { tenantId: request.user!.tenantId },
+      include: {
+        product: true,
+        inventoryItems: { include: { warehouse: true } },
+      },
+    });
+
+    const rows = valuation.map(variant => {
+      const baseCost = toNumber(variant.product.costPrice);
+      const extra = toNumber(variant.additionalCost);
+      const totalQty = variant.inventoryItems.reduce((sum, item) => sum + item.quantity, 0);
+      const unitCost = baseCost + extra;
+      const totalValue = totalQty * unitCost;
+      
+      return {
+        product: variant.product.name,
+        variant: variant.variantName,
+        sku: variant.skuVariant,
+        category: variant.product.category,
+        totalQty,
+        unitCost,
+        totalValue,
+        method: "weighted_average",
+        warehouseBreakdown: variant.inventoryItems.map(item => ({
+          warehouse: item.warehouse.name,
+          quantity: item.quantity,
+          value: item.quantity * unitCost,
+        })),
+      };
+    });
+
+    // Calculate total valuation across all variants (not just this page)
+    const allVariants = await prisma.productVariant.findMany({
+      where: { tenantId: request.user!.tenantId },
+      select: {
+        stockQuantity: true,
+        additionalCost: true,
+        product: { select: { costPrice: true } },
+      },
+    });
+
+    const grandTotal = allVariants.reduce((sum, v) => {
+      const uc = toNumber(v.product.costPrice) + toNumber(v.additionalCost);
+      return sum + uc * v.stockQuantity;
+    }, 0);
+
+    response.json({ rows, grandTotal, exportFormats: ["csv"] });
+  }),
+);
+
+reportsRouter.get(
+  "/audit-log",
+  validate(listQuerySchema, "query"),
+  asyncHandler(async (request, response) => {
+    const query = request.validated?.query as { 
+      page?: number; 
+      pageSize?: number;
+      startDate?: string;
+      endDate?: string;
+      action?: string;
+      entityType?: string;
+    };
+    
+    const report = await getAuditReport(request.user!.tenantId, {
+      startDate: query.startDate ? new Date(query.startDate) : undefined,
+      endDate: query.endDate ? new Date(query.endDate) : undefined,
+      action: query.action,
+      entityType: query.entityType,
+      page: query.page,
+      pageSize: query.pageSize,
+    });
+    response.json(report);
+  }),
+);
+
+reportsRouter.get(
+  "/stock-movements",
+  validate(listQuerySchema, "query"),
+  asyncHandler(async (request, response) => {
+    const query = request.validated?.query as { 
+      page?: number; 
+      pageSize?: number;
+      startDate?: string;
+      endDate?: string;
+      productVariantId?: string;
+      warehouseId?: string;
+      type?: string;
+    };
+    
+    const report = await getStockMovements(request.user!.tenantId, {
+      startDate: query.startDate ? new Date(query.startDate) : undefined,
+      endDate: query.endDate ? new Date(query.endDate) : undefined,
+      productVariantId: query.productVariantId,
+      warehouseId: query.warehouseId,
+      type: query.type,
+      page: query.page,
+      pageSize: query.pageSize,
+    });
+    response.json(report);
   }),
 );
 

@@ -1,28 +1,13 @@
 import { ChevronRight } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
-
-/** Map URL segments to Nepali business module labels */
-const labelMap: Record<string, string> = {
-  parties: "Showrooms",
-  sales: "Sales & Dispatch",
-  delivery: "Challans",
-  invoicing: "VAT/PAN Bills",
-  "supplier-invoices": "Supplier Invoice",
-  estimates: "Estimate Bills",
-  accounting: "Finance",
-  ledger: "Ledger (Khata)",
-  vat: "VAT Register",
-  inventory: "Inventory",
-  purchasing: "Warehouses",
-  products: "Products",
-  settings: "Settings",
-  users: "Users",
-  reporting: "Reports",
-};
+import { BREADCRUMB_LABELS } from "@/config/navigation";
 
 function formatSegment(segment: string): string {
   if (segment.length >= 24) return "Detail"; // Hide CUID/UUID
-  return labelMap[segment] || segment.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  return (
+    BREADCRUMB_LABELS[segment] ||
+    segment.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+  );
 }
 
 export function Breadcrumbs() {

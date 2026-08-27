@@ -219,7 +219,6 @@ inventoryRouter.get(
     // Calculate total valuation across all variants (not just this page)
     const allVariants = await prisma.productVariant.findMany({
       where,
-      include: { product: { select: { costPrice: true } } },
       select: {
         stockQuantity: true,
         additionalCost: true,

@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import { Sidebar } from "@/components/layout/sidebar";
 import { TopBar } from "@/components/layout/top-bar";
 import { CommandSearch } from "@/components/layout/command-search";
+import { RequireRouteAccess } from "@/components/layout/require-route-access";
 import { cn } from "@/lib/utils";
 
 const SIDEBAR_KEY = "erp-sidebar-collapsed";
@@ -17,6 +18,7 @@ export function AppShell() {
   });
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const location = useLocation();
 
   const toggleCollapsed = useCallback(() => {
     setCollapsed((prev) => {
@@ -30,7 +32,12 @@ export function AppShell() {
     });
   }, []);
 
-  // Close mobile sidebar on route change (resize)
+  // Close the mobile drawer whenever the route changes (e.g. tapping a nav link).
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [location.pathname]);
+
+  // Close the mobile drawer when the viewport grows to desktop width.
   useEffect(() => {
     const handler = () => setMobileOpen(false);
     window.addEventListener("resize", handler);
@@ -76,7 +83,9 @@ export function AppShell() {
 
         <main className="flex-1 px-4 py-6 lg:px-6">
           <div className="mx-auto w-full max-w-[1600px]">
-            <Outlet />
+            <RequireRouteAccess>
+              <Outlet />
+            </RequireRouteAccess>
           </div>
         </main>
       </div>

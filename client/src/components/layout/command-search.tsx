@@ -23,21 +23,15 @@ import {
   CommandList,
   CommandSeparator,
 } from "@/components/ui/command";
+import { useAuth } from "@/components/auth/auth-provider";
 import { useSearchQuery } from "@/hooks/use-queries";
-import type { SearchResult } from "@/types/domain";
+import { COMMAND_ACTIONS, type CommandAction } from "@/config/command-actions";
+import { getRequiredRolesForPath } from "@/config/navigation";
+import type { SearchResult, UserRole } from "@/types/domain";
 
 const RECENT_SEARCH_KEY = "myerp:recent-global-search-results";
 const MIN_SEARCH_LENGTH = 3;
 const SEARCH_DEBOUNCE_MS = 300;
-
-const quickLinks: SearchResult[] = [
-  { type: "Workspace", label: "Dashboard", href: "/", meta: "Overview" },
-  { type: "Workspace", label: "Sales", href: "/sales", meta: "Orders" },
-  { type: "Workspace", label: "Purchasing", href: "/purchasing", meta: "Purchase orders" },
-  { type: "Workspace", label: "Inventory", href: "/inventory", meta: "Products" },
-  { type: "Workspace", label: "Payments", href: "/payments", meta: "Cash flow" },
-  { type: "Workspace", label: "Reporting", href: "/reporting", meta: "Reports" },
-];
 
 function loadRecentResults() {
   if (typeof window === "undefined") return [];
@@ -50,6 +44,12 @@ function loadRecentResults() {
   } catch {
     return [];
   }
+}
+
+/** A result is reachable only if its destination route allows the user's role. */
+function canAccessHref(href: string, role: UserRole | undefined) {
+  const required = getRequiredRolesForPath(href);
+  return !required || (!!role && required.includes(role));
 }
 
 function getGroupHeading(type: string) {
@@ -98,6 +98,10 @@ function resultValue(item: SearchResult) {
     .join(" ");
 }
 
+function actionValue(action: CommandAction) {
+  return [action.label, ...(action.keywords ?? [])].filter(Boolean).join(" ");
+}
+
 function useDebouncedValue(value: string, delayMs: number) {
   const [debouncedValue, setDebouncedValue] = useState(value);
 
@@ -133,6 +137,21 @@ function SearchResultRow({ item, recent = false }: { item: SearchResult; recent?
   );
 }
 
+function ActionRow({ action }: { action: CommandAction }) {
+  const Icon = action.icon;
+  return (
+    <>
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border bg-muted/50 text-muted-foreground">
+        <Icon className="h-4 w-4" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <span className="truncate font-medium">{action.label}</span>
+      </div>
+      <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-data-[selected=true]:opacity-100" />
+    </>
+  );
+}
+
 export function CommandSearch({
   open,
   onOpenChange,
@@ -142,6 +161,8 @@ export function CommandSearch({
 }) {
   const [search, setSearch] = useState("");
   const [recentResults, setRecentResults] = useState<SearchResult[]>(loadRecentResults);
+  const { user } = useAuth();
+  const role = user?.role;
   const normalizedSearch = search.trim();
   const debouncedSearch = useDebouncedValue(normalizedSearch, SEARCH_DEBOUNCE_MS);
   const deferredSearch = useDeferredValue(debouncedSearch);
@@ -162,14 +183,37 @@ export function CommandSearch({
     return () => document.removeEventListener("keydown", down);
   }, [open, onOpenChange]);
 
+  // Only surface actions the user is allowed to perform/reach (client mirror of
+  // the server's create-endpoint + route guards; the server stays authoritative).
+  const { createActions, goToActions } = useMemo(() => {
+    const allowed = COMMAND_ACTIONS.filter(
+      (action) => !action.roles || (role && action.roles.includes(role)),
+    );
+    return {
+      createActions: allowed.filter((action) => action.group === "Create"),
+      goToActions: allowed.filter((action) => action.group === "Go to"),
+    };
+  }, [role]);
+
+  // Defence-in-depth: never render a result whose destination the user can't
+  // open (also filters recents persisted before a role change).
+  const accessibleResults = useMemo(
+    () => results.filter((item) => canAccessHref(item.href, role)),
+    [results, role],
+  );
+  const accessibleRecent = useMemo(
+    () => recentResults.filter((item) => canAccessHref(item.href, role)),
+    [recentResults, role],
+  );
+
   const visibleGroups = useMemo(() => {
-    return results.reduce<Record<string, SearchResult[]>>((acc, result) => {
+    return accessibleResults.reduce<Record<string, SearchResult[]>>((acc, result) => {
       const group = result.type;
       if (!acc[group]) acc[group] = [];
       acc[group].push(result);
       return acc;
     }, {});
-  }, [results]);
+  }, [accessibleResults]);
 
   const persistRecent = useCallback((item: SearchResult) => {
     setRecentResults((current) => {
@@ -193,6 +237,15 @@ export function CommandSearch({
     [navigate, onOpenChange, persistRecent],
   );
 
+  const handleActionSelect = useCallback(
+    (action: CommandAction) => {
+      onOpenChange(false);
+      setSearch("");
+      navigate(action.href);
+    },
+    [navigate, onOpenChange],
+  );
+
   const showDiscovery = normalizedSearch.length < MIN_SEARCH_LENGTH;
   const hasResults = Object.keys(visibleGroups).length > 0;
 
@@ -208,7 +261,7 @@ export function CommandSearch({
         <div className="flex items-center justify-between px-4 pb-3 text-xs text-muted-foreground">
           <span>
             {queryEnabled
-              ? `${results.length} results`
+              ? `${accessibleResults.length} results`
               : `Type ${MIN_SEARCH_LENGTH}+ characters to search`}
           </span>
           {(isFetching || searchIsSettling) && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
@@ -233,40 +286,58 @@ export function CommandSearch({
           </CommandEmpty>
         )}
 
-        {showDiscovery && recentResults.length > 0 && (
-          <CommandGroup heading="Recent">
-            {recentResults.map((item) => (
+        {/* Actions are always rendered; cmdk shows them on an empty query and
+            filters them by value as the user types (e.g. "new product"). */}
+        {createActions.length > 0 && (
+          <CommandGroup heading="Create">
+            {createActions.map((action) => (
               <CommandItem
-                key={`recent-${item.href}`}
-                value={resultValue(item)}
-                onSelect={() => handleSelect(item)}
+                key={action.href}
+                value={actionValue(action)}
+                onSelect={() => handleActionSelect(action)}
                 className="group gap-3 rounded-md px-2 py-2.5"
               >
-                <SearchResultRow item={item} recent />
+                <ActionRow action={action} />
               </CommandItem>
             ))}
           </CommandGroup>
         )}
 
-        {showDiscovery && recentResults.length > 0 && <CommandSeparator className="my-2" />}
-
-        {showDiscovery && (
-          <CommandGroup heading="Quick Links">
-            {quickLinks.map((item) => (
+        {goToActions.length > 0 && (
+          <CommandGroup heading="Go to" className="pt-2">
+            {goToActions.map((action) => (
               <CommandItem
-                key={item.href}
-                value={resultValue(item)}
-                onSelect={() => handleSelect(item)}
+                key={action.href}
+                value={actionValue(action)}
+                onSelect={() => handleActionSelect(action)}
                 className="group gap-3 rounded-md px-2 py-2.5"
               >
-                <SearchResultRow item={item} />
+                <ActionRow action={action} />
               </CommandItem>
             ))}
           </CommandGroup>
         )}
 
-        {!showDiscovery && hasResults && Object.entries(visibleGroups).map(([type, items], index) => (
-          <CommandGroup key={type} heading={getGroupHeading(type)} className={index > 0 ? "pt-2" : undefined}>
+        {showDiscovery && accessibleRecent.length > 0 && (
+          <>
+            <CommandSeparator className="my-2" />
+            <CommandGroup heading="Recent">
+              {accessibleRecent.map((item) => (
+                <CommandItem
+                  key={`recent-${item.href}`}
+                  value={resultValue(item)}
+                  onSelect={() => handleSelect(item)}
+                  className="group gap-3 rounded-md px-2 py-2.5"
+                >
+                  <SearchResultRow item={item} recent />
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </>
+        )}
+
+        {!showDiscovery && hasResults && Object.entries(visibleGroups).map(([type, items]) => (
+          <CommandGroup key={type} heading={getGroupHeading(type)} className="pt-2">
             {items.map((item) => (
               <CommandItem
                 key={`${item.type}-${item.href}-${item.label}`}

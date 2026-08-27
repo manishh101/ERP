@@ -1,4 +1,5 @@
-import { useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Download, Plus, Search, Wallet } from "lucide-react";
 import { usePaymentsQuery, useSalesOrdersQuery, useRecordPaymentMutation } from "@/hooks/use-queries";
 import type { PaymentCreatePayload } from "@/hooks/use-queries";
@@ -31,6 +32,16 @@ export function PaymentsPage() {
   const { data, isLoading } = usePaymentsQuery(page, 500, search, filterYear, filterMonth);
   const { token } = useAuth();
   const [recordOpen, setRecordOpen] = useState(false);
+  // Auto-open the record-payment sheet when navigated here from the Ctrl+K "Record Payment" command.
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    if (searchParams.get("new") === "1") {
+      setRecordOpen(true);
+      const next = new URLSearchParams(searchParams);
+      next.delete("new");
+      setSearchParams(next, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const handleDownloadReceipt = (paymentId: string) => {
     window.open(`${API_BASE_URL}/payments/${paymentId}/receipt?token=${token}`, "_blank");

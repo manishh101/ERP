@@ -196,9 +196,10 @@ export function DataTable<T extends { id: string }>({
           <Search className="h-4 w-4 text-muted-foreground" />
           <Input
             placeholder={searchPlaceholder}
+            aria-label={searchPlaceholder}
             value={globalFilter}
             onChange={(e) => setGlobalFilter(e.target.value)}
-            className="h-8 border-0 bg-transparent p-0 shadow-none focus-visible:ring-0"
+            className="h-8 border-0 bg-transparent p-0 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
           />
         </div>
       )}
@@ -212,23 +213,39 @@ export function DataTable<T extends { id: string }>({
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id} className="hover:bg-transparent">
-                {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id} className="whitespace-nowrap">
-                    {header.isPlaceholder ? null : header.column.getCanSort() ? (
-                      <button
-                        className="flex items-center gap-1 hover:text-foreground w-full"
-                        onClick={header.column.getToggleSortingHandler()}
-                      >
-                        <div className="flex-1 text-left">
-                          {flexRender(header.column.columnDef.header, header.getContext())}
-                        </div>
-                        <ArrowUpDown className="h-3 w-3 shrink-0" />
-                      </button>
-                    ) : (
-                      flexRender(header.column.columnDef.header, header.getContext())
-                    )}
-                  </TableHead>
-                ))}
+                {headerGroup.headers.map((header) => {
+                  const sortDir = header.column.getIsSorted();
+                  return (
+                    <TableHead
+                      key={header.id}
+                      className="whitespace-nowrap"
+                      aria-sort={
+                        !header.column.getCanSort()
+                          ? undefined
+                          : sortDir === "asc"
+                            ? "ascending"
+                            : sortDir === "desc"
+                              ? "descending"
+                              : "none"
+                      }
+                    >
+                      {header.isPlaceholder ? null : header.column.getCanSort() ? (
+                        <button
+                          type="button"
+                          className="flex w-full items-center gap-1 hover:text-foreground"
+                          onClick={header.column.getToggleSortingHandler()}
+                        >
+                          <div className="flex-1 text-left">
+                            {flexRender(header.column.columnDef.header, header.getContext())}
+                          </div>
+                          <ArrowUpDown className="h-3 w-3 shrink-0" aria-hidden="true" />
+                        </button>
+                      ) : (
+                        flexRender(header.column.columnDef.header, header.getContext())
+                      )}
+                    </TableHead>
+                  );
+                })}
               </TableRow>
             ))}
           </TableHeader>
@@ -288,18 +305,20 @@ export function DataTable<T extends { id: string }>({
             <Button
               variant="outline"
               size="sm"
+              aria-label="Previous page"
               onClick={() => table.previousPage()}
               disabled={!table.getCanPreviousPage()}
             >
-              <ChevronLeft className="h-4 w-4" />
+              <ChevronLeft className="h-4 w-4" aria-hidden="true" />
             </Button>
             <Button
               variant="outline"
               size="sm"
+              aria-label="Next page"
               onClick={() => table.nextPage()}
               disabled={!table.getCanNextPage()}
             >
-              <ChevronRight className="h-4 w-4" />
+              <ChevronRight className="h-4 w-4" aria-hidden="true" />
             </Button>
           </div>
         </div>

@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import type { ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "@/components/shared/data-table";
 import { PageHeader } from "@/components/shared/page-header";
@@ -85,6 +85,16 @@ const partyColumns: ColumnDef<RawCustomer, unknown>[] = [
 export function PartiesPage() {
   const { data, error, isLoading } = useCustomersQuery();
   const [createCustomerOpen, setCreateCustomerOpen] = useState(false);
+  // Auto-open the create sheet when navigated here from the Ctrl+K "New Customer" command.
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    if (searchParams.get("new") === "1") {
+      setCreateCustomerOpen(true);
+      const next = new URLSearchParams(searchParams);
+      next.delete("new");
+      setSearchParams(next, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
   const [ledgerCustomer, setLedgerCustomer] = useState<{ id: string; name: string } | null>(null);
   const [typeFilter, setTypeFilter] = useState<"ALL" | "SHOWROOM" | "RETAIL">(
     "ALL",

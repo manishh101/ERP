@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useAuth } from "@/components/auth/auth-provider";
 import { toast } from "sonner";
@@ -99,6 +99,16 @@ export function InventoryPage() {
 
   const [adjustmentOpen, setAdjustmentOpen] = useState(false);
   const [createProductOpen, setCreateProductOpen] = useState(false);
+  // Auto-open the create sheet when navigated here from the Ctrl+K "New Product" command.
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    if (searchParams.get("new") === "1") {
+      setCreateProductOpen(true);
+      const next = new URLSearchParams(searchParams);
+      next.delete("new");
+      setSearchParams(next, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
   const [catalogSearch, setCatalogSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState<QuickFilter>("All");
   const [adjustmentForm, setAdjustmentForm] = useState(initialAdjustmentForm);

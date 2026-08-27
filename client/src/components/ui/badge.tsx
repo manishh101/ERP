@@ -4,10 +4,11 @@ import { cn } from "@/lib/utils";
 const badgeVariants = {
   default: "bg-primary/10 text-primary border-transparent",
   secondary: "bg-secondary text-secondary-foreground border-transparent",
-  destructive: "bg-red-100 text-red-800 border-transparent",
+  destructive: "bg-destructive/10 text-destructive border-transparent",
   outline: "border-border text-foreground",
-  success: "bg-green-100 text-green-800 border-transparent",
-  warning: "bg-amber-100 text-amber-800 border-transparent",
+  success: "bg-success/10 text-success border-transparent",
+  warning: "bg-warning/10 text-warning border-transparent",
+  info: "bg-info/10 text-info border-transparent",
 };
 
 export type BadgeVariant = keyof typeof badgeVariants;

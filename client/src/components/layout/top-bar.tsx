@@ -1,10 +1,28 @@
-import { Search, Menu, Calendar, Landmark } from "lucide-react";
+import { Search, Menu, Calendar, Landmark, ChevronDown, LogOut } from "lucide-react";
 import { useAuth } from "@/components/auth/auth-provider";
 import { Breadcrumbs } from "@/components/layout/breadcrumbs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import { formatEnumLabel, getCurrentBsDate, getCurrentFiscalYear } from "@/lib/utils";
+
+function getInitials(name?: string): string {
+  const parts = (name ?? "").split(" ").filter(Boolean);
+  if (parts.length === 0) return "U";
+  return parts
+    .slice(0, 2)
+    .map((p) => p[0])
+    .join("")
+    .toUpperCase();
+}
 
 export function TopBar({
   onMenuClick,
@@ -23,6 +41,7 @@ export function TopBar({
       <button
         className="rounded-md p-1.5 text-muted-foreground hover:text-foreground lg:hidden"
         onClick={onMenuClick}
+        aria-label="Open navigation menu"
       >
         <Menu className="h-5 w-5" />
       </button>
@@ -53,7 +72,7 @@ export function TopBar({
       <Button
         variant="outline"
         size="sm"
-        className="hidden h-9 w-[220px] justify-start gap-2 rounded-full border-border/70 bg-card px-3 text-muted-foreground shadow-xs transition-colors hover:bg-muted/60 hover:text-foreground sm:flex lg:w-[280px]"
+        className="hidden h-9 w-[220px] justify-start gap-2 rounded-md border-border/70 bg-card px-3 text-muted-foreground shadow-xs transition-colors hover:bg-muted/60 hover:text-foreground sm:flex lg:w-[280px]"
         onClick={onSearchOpen}
         aria-label="Open global search"
       >
@@ -73,14 +92,41 @@ export function TopBar({
         <Search className="h-4 w-4" />
       </button>
 
-      {/* User */}
-      <div className="flex items-center gap-2">
-        <Badge variant="secondary">{formatEnumLabel(user?.role)}</Badge>
-        <span className="hidden text-sm text-muted-foreground md:inline">{user?.name}</span>
-        <Button variant="ghost" size="sm" onClick={logout}>
-          Sign Out
-        </Button>
-      </div>
+      {/* User menu */}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            className="flex items-center gap-2 rounded-md p-1 pr-1.5 text-sm transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
+            aria-label="Open user menu"
+          >
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
+              {getInitials(user?.name)}
+            </span>
+            <span className="hidden max-w-[120px] truncate font-medium md:inline">{user?.name}</span>
+            <ChevronDown className="hidden h-4 w-4 shrink-0 text-muted-foreground md:inline" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-56">
+          <DropdownMenuLabel className="flex flex-col gap-0.5">
+            <span className="truncate text-sm font-semibold">{user?.name ?? "User"}</span>
+            {user?.email && (
+              <span className="truncate text-xs font-normal text-muted-foreground">{user.email}</span>
+            )}
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <div className="px-2 py-1.5">
+            <Badge variant="secondary">{formatEnumLabel(user?.role)}</Badge>
+          </div>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onSelect={() => logout()}
+            className="text-destructive focus:text-destructive"
+          >
+            <LogOut className="h-4 w-4" />
+            Sign out
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </header>
   );
 }

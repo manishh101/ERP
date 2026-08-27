@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import type { ColumnDef } from "@tanstack/react-table";
 import { ConfirmDialog } from "@/components/layout/confirm-dialog";
 import { toast } from "sonner";
@@ -82,6 +83,16 @@ export function SalesPage() {
   const [depositModalOpen, setDepositModalOpen] = useState(false);
   const [createCustomerOpen, setCreateCustomerOpen] = useState(false);
   const [createSalesOrderOpen, setCreateSalesOrderOpen] = useState(false);
+  // Auto-open the create sheet when navigated here from the Ctrl+K "New Sales Order" command.
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    if (searchParams.get("new") === "1") {
+      setCreateSalesOrderOpen(true);
+      const next = new URLSearchParams(searchParams);
+      next.delete("new");
+      setSearchParams(next, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
   const [deliverModalOpen, setDeliverModalOpen] = useState(false);
   const [deliverDate, setDeliverDate] = useState<string>(new Date().toISOString().split("T")[0]);
   const [ledgerCustomer, setLedgerCustomer] = useState<{

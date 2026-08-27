@@ -373,6 +373,8 @@ type RawSearchPayload = {
     email?: string | null;
     phone?: string | null;
     type?: string | null;
+    district?: string | null;
+    address?: string | null;
     outstandingBalance?: number | string;
   }>;
   suppliers?: Array<{
@@ -381,6 +383,7 @@ type RawSearchPayload = {
     contact?: string | null;
     email?: string | null;
     phone?: string | null;
+    address?: string | null;
     country?: string | null;
   }>;
   invoices: Array<{
@@ -892,7 +895,11 @@ function compactId(id: string) {
   return id.length > 12 ? id.slice(0, 8) : id;
 }
 
-const SEARCH_REQUEST_TIMEOUT_MS = 1_800;
+// Global search fans out across ~8 tables with relation subqueries against a
+// pooled/remote Postgres, so a settled query steadily takes ~3-4s. Bound the
+// request generously above that so real results render, while still aborting a
+// genuinely hung request (surfaced as the error state).
+const SEARCH_REQUEST_TIMEOUT_MS = 8_000;
 
 function createSearchRequestSignal(signal: AbortSignal) {
   const controller = new AbortController();
@@ -930,16 +937,18 @@ function mapSearchResults(payload: RawSearchPayload, search: string): SearchResu
       label: customer.name,
       href: `/parties/${customer.id}`,
       meta: customer.phone || customer.email || formatEnumLabel(customer.type),
-      description: `Outstanding ${formatCurrency(toNumber(customer.outstandingBalance))}`,
-      keywords: [customer.id, customer.name, customer.email ?? "", customer.phone ?? "", customer.type ?? ""],
+      description: [customer.district || customer.address, `Outstanding ${formatCurrency(toNumber(customer.outstandingBalance))}`]
+        .filter(Boolean)
+        .join(" · "),
+      keywords: [customer.id, customer.name, customer.email ?? "", customer.phone ?? "", customer.type ?? "", customer.district ?? "", customer.address ?? ""],
     })),
     ...(payload.suppliers ?? []).map((supplier) => ({
       type: "Supplier",
       label: supplier.name,
       href: `/suppliers/${supplier.id}`,
       meta: supplier.phone || supplier.email || supplier.contact || undefined,
-      description: [supplier.country, supplier.contact].filter(Boolean).join(" · "),
-      keywords: [supplier.id, supplier.name, supplier.contact ?? "", supplier.email ?? "", supplier.phone ?? ""],
+      description: [supplier.address || supplier.country, supplier.contact].filter(Boolean).join(" · "),
+      keywords: [supplier.id, supplier.name, supplier.contact ?? "", supplier.email ?? "", supplier.phone ?? "", supplier.address ?? ""],
     })),
     ...payload.invoices.map((invoice) => ({
       type: "Invoice",
@@ -2761,8 +2770,11 @@ export function useSearchQuery(search: string) {
     enabled: Boolean(token) && normalizedSearch.length >= 3,
     retry: false,
     refetchOnWindowFocus: false,
-    staleTime: 30_000,
-    gcTime: 5 * 60_000,
+    // Search surfaces sensitive financial data (payments, invoices, balances).
+    // Always revalidate on use and keep it in memory only briefly rather than
+    // caching aggressively — freshness/correctness over latency (CLAUDE.md).
+    staleTime: 0,
+    gcTime: 60_000,
     queryFn: async ({ signal }) => {
       const requestSignal = createSearchRequestSignal(signal);
 
@@ -2903,6 +2915,16 @@ export function useReportsQuery() {
             value: String(financialSummary.apAging.length),
           },
         ],
+        profitAndLoss: financialSummary.profitAndLoss,
+        balanceSheet: financialSummary.balanceSheet,
+        cashFlow: financialSummary.cashFlow,
+        arAging: financialSummary.arAging,
+        apAging: financialSummary.apAging,
+        sales,
+        inventory,
+        margin,
+        suppliers,
+        customers,
       };
     },
   });
@@ -2957,5 +2979,155 @@ export function useCustomerLedgerQuery(customerId: string, options?: { startDate
       }));
     },
     enabled: !!customerId && !!token,
+  });
+}
+
+// ===== NEW REPORT QUERY HOOKS (synced with backend services) =====
+
+export function useTrialBalanceQuery() {
+  const { token, user } = useAuth();
+  const enabled = Boolean(token) && (user?.role === "ADMIN" || user?.role === "ACCOUNTANT");
+
+  return useQuery({
+    queryKey: ["trial-balance", token, user?.role],
+    enabled,
+    queryFn: async () => {
+      return apiRequest<any[]>("/reports/trial-balance", { token: token! });
+    },
+  });
+}
+
+export function useTaxSummaryQuery(startDate?: Date, endDate?: Date) {
+  const { token } = useAuth();
+  return useQuery({
+    queryKey: ["tax-summary", token, startDate?.toISOString(), endDate?.toISOString()],
+    enabled: Boolean(token),
+    queryFn: async () => {
+      const query: Record<string, string> = {};
+      if (startDate) query.startDate = startDate.toISOString();
+      if (endDate) query.endDate = endDate.toISOString();
+      return apiRequest<any>("/reports/tax-summary", { token: token!, query });
+    },
+  });
+}
+
+export function useArAgingReportQuery(startDate?: Date, endDate?: Date) {
+  const { token } = useAuth();
+  return useQuery({
+    queryKey: ["ar-aging-report", token, startDate?.toISOString(), endDate?.toISOString()],
+    enabled: Boolean(token),
+    queryFn: async () => {
+      const query: Record<string, string> = {};
+      if (startDate) query.startDate = startDate.toISOString();
+      if (endDate) query.endDate = endDate.toISOString();
+      return apiRequest<{ rows: any[] }>("/reports/ar-aging", { token: token!, query });
+    },
+  });
+}
+
+export function useApAgingReportQuery() {
+  const { token } = useAuth();
+  return useQuery({
+    queryKey: ["ap-aging-report", token],
+    enabled: Boolean(token),
+    queryFn: async () => {
+      return apiRequest<{ rows: any[] }>("/reports/ap-aging", { token: token! });
+    },
+  });
+}
+
+export function useOutstandingReceivablesQuery() {
+  const { token } = useAuth();
+  return useQuery({
+    queryKey: ["outstanding-receivables", token],
+    enabled: Boolean(token),
+    queryFn: async () => {
+      return apiRequest<{ rows: any[] }>("/reports/outstanding-receivables", { token: token! });
+    },
+  });
+}
+
+export function useSalesTrendQuery(startDate?: Date, endDate?: Date, groupBy: 'month' | 'salesperson' | 'category' = 'month') {
+  const { token } = useAuth();
+  return useQuery({
+    queryKey: ["sales-trend", token, startDate?.toISOString(), endDate?.toISOString(), groupBy],
+    enabled: Boolean(token),
+    queryFn: async () => {
+      const query: Record<string, string> = { groupBy };
+      if (startDate) query.startDate = startDate.toISOString();
+      if (endDate) query.endDate = endDate.toISOString();
+      return apiRequest<{ rows: any[] }>("/reports/sales-trend", { token: token!, query });
+    },
+  });
+}
+
+export function usePurchaseOrdersReportQuery(startDate?: Date, endDate?: Date) {
+  const { token } = useAuth();
+  return useQuery({
+    queryKey: ["purchase-orders-report", token, startDate?.toISOString(), endDate?.toISOString()],
+    enabled: Boolean(token),
+    queryFn: async () => {
+      const query: Record<string, string> = {};
+      if (startDate) query.startDate = startDate.toISOString();
+      if (endDate) query.endDate = endDate.toISOString();
+      return apiRequest<any>("/reports/purchase-orders", { token: token!, query });
+    },
+  });
+}
+
+// Note: useInventoryValuationQuery already exists at line 2388 using /inventory/valuation endpoint
+// We use that existing one instead of duplicating
+
+export function useAuditLogQuery(params?: {
+  startDate?: Date;
+  endDate?: Date;
+  action?: string;
+  entityType?: string;
+  page?: number;
+  pageSize?: number;
+}) {
+  const { token, user } = useAuth();
+  const enabled = Boolean(token) && (user?.role === "ADMIN" || user?.role === "ACCOUNTANT");
+
+  return useQuery({
+    queryKey: ["audit-log", token, params],
+    enabled,
+    queryFn: async () => {
+      const query: Record<string, string> = {};
+      if (params?.startDate) query.startDate = params.startDate.toISOString();
+      if (params?.endDate) query.endDate = params.endDate.toISOString();
+      if (params?.action) query.action = params.action;
+      if (params?.entityType) query.entityType = params.entityType;
+      if (params?.page) query.page = String(params.page);
+      if (params?.pageSize) query.pageSize = String(params.pageSize);
+      return apiRequest<any>("/reports/audit-log", { token: token!, query });
+    },
+  });
+}
+
+export function useStockMovementsQuery(params?: {
+  startDate?: Date;
+  endDate?: Date;
+  productVariantId?: string;
+  warehouseId?: string;
+  type?: string;
+  page?: number;
+  pageSize?: number;
+}) {
+  const { token } = useAuth();
+  return useQuery({
+    queryKey: ["stock-movements", token, params],
+    enabled: Boolean(token),
+    queryFn: async () => {
+      const query: Record<string, string> = {};
+      if (params?.startDate) query.startDate = params.startDate.toISOString();
+      if (params?.endDate) query.endDate = params.endDate.toISOString();
+      if (params?.productVariantId) query.productVariantId = params.productVariantId;
+      if (params?.warehouseId) query.warehouseId = params.warehouseId;
+      if (params?.type) query.type = params.type;
+      if (params?.page) query.page = String(params.page);
+      if (params?.pageSize) query.pageSize = String(params.pageSize);
+      return apiRequest<any>("/reports/stock-movements", { token: token!, query });
+    },
   });
 }

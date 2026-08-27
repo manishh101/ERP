@@ -23,6 +23,14 @@ searchRouter.get(
     const query = request.validated?.query as { q: string };
     const search = query.q.trim();
     const tenantId = request.user!.tenantId;
+    // Financial entities (tax invoices, supplier bills, payments) are gated to
+    // the same roles that own /invoicing, /supplier-invoices and /payments in
+    // the nav. Non-financial roles never receive that data from search — the
+    // server, not the client, enforces this. Products/customers/suppliers/
+    // sales orders/purchase orders stay visible to all (their routes are not
+    // ADMIN/ACCOUNTANT-gated).
+    const canSeeFinancials =
+      request.user!.role === "ADMIN" || request.user!.role === "ACCOUNTANT";
     const documentSearch = search.replace(/^(po|so|payment|pay)[-\s#:]+/i, "").trim();
     const idSearches = Array.from(new Set([search, documentSearch].filter(Boolean)));
     const normalizedEnumSearch = search.toUpperCase().replace(/[\s-]+/g, "_");
@@ -38,14 +46,19 @@ searchRouter.get(
     const salesOrderStatus = enumMatch(SalesOrderStatus) as SalesOrderStatus | undefined;
     const supplierInvoiceStatus = enumMatch(SupplierInvoiceStatus) as SupplierInvoiceStatus | undefined;
 
+    // Run every table query in a single parallel batch so they overlap in one
+    // round-trip group. Financial entities (tax invoices, supplier bills,
+    // payments) are only *constructed* for roles that own /invoicing,
+    // /supplier-invoices and /payments — non-financial roles issue zero
+    // financial queries, so the gate stays server-side.
     const [
       products,
       customers,
       suppliers,
-      invoices,
-      supplierInvoices,
       salesOrders,
       purchaseOrders,
+      invoices,
+      supplierInvoices,
       payments,
     ] = await Promise.all([
       prisma.product.findMany({
@@ -90,6 +103,8 @@ searchRouter.get(
           email: true,
           phone: true,
           type: true,
+          district: true,
+          address: true,
           outstandingBalance: true,
         },
         orderBy: { updatedAt: "desc" },
@@ -113,53 +128,8 @@ searchRouter.get(
           contact: true,
           email: true,
           phone: true,
+          address: true,
           country: true,
-        },
-        orderBy: { updatedAt: "desc" },
-        take: 6,
-      }),
-      prisma.taxInvoice.findMany({
-        where: {
-          tenantId,
-          OR: [
-            ...idSearches.map((term) => ({ id: contains(term) })),
-            ...(invoiceStatus ? [{ status: invoiceStatus }] : []),
-            { invoiceNumber: contains(search) },
-            { bsDate: contains(search) },
-            ...idSearches.map((term) => ({ salesOrder: { id: contains(term) } })),
-            { salesOrder: { customer: { name: contains(search) } } },
-          ],
-        },
-        select: {
-          id: true,
-          invoiceNumber: true,
-          status: true,
-          invoiceAmount: true,
-          bsDate: true,
-          salesOrder: { select: { id: true, customer: { select: { name: true } } } },
-        },
-        orderBy: { updatedAt: "desc" },
-        take: 6,
-      }),
-      prisma.supplierInvoice.findMany({
-        where: {
-          tenantId,
-          OR: [
-            ...idSearches.map((term) => ({ id: contains(term) })),
-            ...(supplierInvoiceStatus ? [{ status: supplierInvoiceStatus }] : []),
-            { invoiceNumber: contains(search) },
-            { supplier: { name: contains(search) } },
-            ...idSearches.map((term) => ({ purchaseOrder: { id: contains(term) } })),
-            { notes: contains(search) },
-          ],
-        },
-        select: {
-          id: true,
-          invoiceNumber: true,
-          status: true,
-          totalAmount: true,
-          supplier: { select: { id: true, name: true } },
-          purchaseOrder: { select: { id: true } },
         },
         orderBy: { updatedAt: "desc" },
         take: 6,
@@ -216,35 +186,87 @@ searchRouter.get(
         orderBy: { updatedAt: "desc" },
         take: 6,
       }),
-      prisma.payment.findMany({
-        where: {
-          tenantId,
-          OR: [
-            ...idSearches.map((term) => ({ id: contains(term) })),
-            ...(paymentMethod ? [{ method: paymentMethod }] : []),
-            { reference: contains(search) },
-            { note: contains(search) },
-            { bsDate: contains(search) },
-            ...idSearches.map((term) => ({ salesOrder: { id: contains(term) } })),
-            { salesOrder: { customer: { name: contains(search) } } },
-            ...idSearches.map((term) => ({ purchaseOrder: { id: contains(term) } })),
-            { purchaseOrder: { supplier: { name: contains(search) } } },
-            { supplierInvoice: { invoiceNumber: contains(search) } },
-          ],
-        },
-        select: {
-          id: true,
-          amount: true,
-          method: true,
-          reference: true,
-          bsDate: true,
-          salesOrder: { select: { id: true, customer: { select: { name: true } } } },
-          purchaseOrder: { select: { id: true, supplier: { select: { name: true } } } },
-          supplierInvoice: { select: { invoiceNumber: true, supplier: { select: { name: true } } } },
-        },
-        orderBy: { paymentDate: "desc" },
-        take: 6,
-      }),
+      canSeeFinancials
+        ? prisma.taxInvoice.findMany({
+            where: {
+              tenantId,
+              OR: [
+                ...idSearches.map((term) => ({ id: contains(term) })),
+                ...(invoiceStatus ? [{ status: invoiceStatus }] : []),
+                { invoiceNumber: contains(search) },
+                { bsDate: contains(search) },
+                ...idSearches.map((term) => ({ salesOrder: { id: contains(term) } })),
+                { salesOrder: { customer: { name: contains(search) } } },
+              ],
+            },
+            select: {
+              id: true,
+              invoiceNumber: true,
+              status: true,
+              invoiceAmount: true,
+              bsDate: true,
+              salesOrder: { select: { id: true, customer: { select: { name: true } } } },
+            },
+            orderBy: { updatedAt: "desc" },
+            take: 6,
+          })
+        : Promise.resolve([]),
+      canSeeFinancials
+        ? prisma.supplierInvoice.findMany({
+            where: {
+              tenantId,
+              OR: [
+                ...idSearches.map((term) => ({ id: contains(term) })),
+                ...(supplierInvoiceStatus ? [{ status: supplierInvoiceStatus }] : []),
+                { invoiceNumber: contains(search) },
+                { supplier: { name: contains(search) } },
+                ...idSearches.map((term) => ({ purchaseOrder: { id: contains(term) } })),
+                { notes: contains(search) },
+              ],
+            },
+            select: {
+              id: true,
+              invoiceNumber: true,
+              status: true,
+              totalAmount: true,
+              supplier: { select: { id: true, name: true } },
+              purchaseOrder: { select: { id: true } },
+            },
+            orderBy: { updatedAt: "desc" },
+            take: 6,
+          })
+        : Promise.resolve([]),
+      canSeeFinancials
+        ? prisma.payment.findMany({
+            where: {
+              tenantId,
+              OR: [
+                ...idSearches.map((term) => ({ id: contains(term) })),
+                ...(paymentMethod ? [{ method: paymentMethod }] : []),
+                { reference: contains(search) },
+                { note: contains(search) },
+                { bsDate: contains(search) },
+                ...idSearches.map((term) => ({ salesOrder: { id: contains(term) } })),
+                { salesOrder: { customer: { name: contains(search) } } },
+                ...idSearches.map((term) => ({ purchaseOrder: { id: contains(term) } })),
+                { purchaseOrder: { supplier: { name: contains(search) } } },
+                { supplierInvoice: { invoiceNumber: contains(search) } },
+              ],
+            },
+            select: {
+              id: true,
+              amount: true,
+              method: true,
+              reference: true,
+              bsDate: true,
+              salesOrder: { select: { id: true, customer: { select: { name: true } } } },
+              purchaseOrder: { select: { id: true, supplier: { select: { name: true } } } },
+              supplierInvoice: { select: { invoiceNumber: true, supplier: { select: { name: true } } } },
+            },
+            orderBy: { paymentDate: "desc" },
+            take: 6,
+          })
+        : Promise.resolve([]),
     ]);
 
     response.json({
