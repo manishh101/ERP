@@ -8,6 +8,7 @@ import { getPagination } from "../utils/pagination";
 import { toNumber } from "../utils/number";
 import { logAudit } from "../services/audit.service";
 import { ApiError } from "../utils/api-error";
+import { invalidateDashboardCache } from "../config/redis";
 export const inventoryRouter = Router();
 
 inventoryRouter.use(requireAuth);
@@ -334,6 +335,9 @@ inventoryRouter.post(
         },
       });
     }
+
+    // Stock changed — bust dashboard caches (WAREHOUSE stock/low/out-of-stock tiles).
+    await invalidateDashboardCache(request.user!.tenantId);
 
     response.status(201).json(updated);
   }),

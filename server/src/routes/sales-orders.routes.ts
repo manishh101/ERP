@@ -17,7 +17,7 @@ import { toNumber } from "../utils/number";
 import { getBsDate, getCurrentFiscalYear } from "../shared/fiscal-year.util";
 import { createOrder, confirmOrder, cancelOrder } from "../modules/sales-orders/sales-order.service";
 import { recordPayment } from "../modules/payments/payment.service";
-import { invalidateCache, CACHE_KEYS } from "../config/redis";
+import { invalidateDashboardCache } from "../config/redis";
 import { financialMutationLimiter } from "../middleware/rate-limit";
 
 export const salesOrdersRouter = Router();
@@ -129,14 +129,7 @@ salesOrdersRouter.post(
     });
 
     // #19: Invalidate dashboard caches after financial mutation
-    const tenantId = request.user!.tenantId;
-    await invalidateCache(
-      CACHE_KEYS.AR_AGING(tenantId),
-      CACHE_KEYS.TOP_ENTITIES(tenantId),
-      CACHE_KEYS.FINANCIAL_SUMMARY_TODAY(tenantId),
-      CACHE_KEYS.FINANCIAL_SUMMARY_MONTH(tenantId),
-      CACHE_KEYS.FINANCIAL_SUMMARY_YEAR(tenantId),
-    );
+    await invalidateDashboardCache(request.user!.tenantId);
 
     response.status(201).json(order);
   }),
@@ -221,6 +214,7 @@ salesOrdersRouter.patch(
     // If attempting to move from QUOTE/DRAFT to CONFIRMED via PATCH, route through confirmOrder service for stock reservation & AR debit
     if (body.status === "CONFIRMED" && (existingOrder.status === "QUOTE" || (existingOrder.status as string) === "DRAFT")) {
       const confirmed = await confirmOrder(request.user!.tenantId, params.id);
+      await invalidateDashboardCache(request.user!.tenantId);
       response.json(confirmed);
       return;
     }
@@ -256,6 +250,7 @@ salesOrdersRouter.patch(
       },
     });
 
+    await invalidateDashboardCache(request.user!.tenantId);
     response.json(salesOrder);
   }),
 );
@@ -267,6 +262,7 @@ salesOrdersRouter.post(
   asyncHandler(async (request, response) => {
     const params = request.validated?.params as { id: string };
     const salesOrder = await confirmOrder(request.user!.tenantId, params.id);
+    await invalidateDashboardCache(request.user!.tenantId);
     response.json(salesOrder);
   }),
 );
@@ -278,6 +274,7 @@ salesOrdersRouter.post(
   asyncHandler(async (request, response) => {
     const params = request.validated?.params as { id: string };
     const salesOrder = await cancelOrder(request.user!.tenantId, params.id);
+    await invalidateDashboardCache(request.user!.tenantId);
     response.json(salesOrder);
   }),
 );
@@ -317,6 +314,7 @@ salesOrdersRouter.post(
       }
     });
 
+    await invalidateDashboardCache(request.user!.tenantId);
     response.json(order);
   }),
 );

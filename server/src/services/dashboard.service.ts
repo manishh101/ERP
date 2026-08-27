@@ -1,7 +1,15 @@
 import { prisma } from "../config/prisma";
 import { withCache, CACHE_KEYS } from "../config/redis";
-import { getAraAgingReport } from "./report.service";
+import {
+  getAraAgingReport,
+  getSalesTrend,
+  getTaxSummary,
+  getArAgingSummary,
+  getOutstandingReceivables,
+  getAuditReport,
+} from "./report.service";
 import { toNumber } from "../utils/number";
+import type { UserRole } from "@prisma/client";
 import NepaliDate from "nepali-datetime";
 
 // ---------------------------------------------------------------------------
@@ -30,29 +38,14 @@ function startOfCurrentFiscalYear() {
   return new NepaliDate(bsYear, 3, 1).getDateObject();
 }
 
-function currentFiscalYearStartBsYear() {
-  const nd = new NepaliDate(new Date());
-  return nd.getMonth() >= 3 ? nd.getYear() : nd.getYear() - 1;
+function startOfToday() {
+  const date = new Date();
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 }
 
-function dashboardFiscalMonths() {
-  const startYear = currentFiscalYearStartBsYear();
-  const monthIndexes = [3, 4, 5, 6, 7, 8, 9, 10, 11, 0, 1, 2];
-
-  return monthIndexes.map((monthIndex, index) => {
-    const year = index < 9 ? startYear : startYear + 1;
-    const nd = new NepaliDate(year, monthIndex, 1);
-
-    return {
-      key: `${year}-${String(monthIndex).padStart(2, "0")}`,
-      month: nd.format("MMMM"),
-    };
-  });
-}
-
-function dashboardMonthKey(date: Date) {
-  const nd = new NepaliDate(date);
-  return `${nd.getYear()}-${String(nd.getMonth()).padStart(2, "0")}`;
+function endOfToday() {
+  const date = new Date();
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59, 999);
 }
 
 function formatCurrency(value: number) {
@@ -287,313 +280,596 @@ export async function getShowroomAnalytics(tenantId: string, customerId: string)
   });
 }
 
-// ---------------------------------------------------------------------------
-// Legacy — GET /dashboard/summary (kept for backward compat with existing UI)
-// ---------------------------------------------------------------------------
+// ===========================================================================
+// GET /dashboard/overview — role-aware command center
+//
+// One consolidated, per-role payload. The ACCOUNTING BOUNDARY is enforced here
+// at composition time, not in the UI:
+//   - AR / commercial truth  → SalesOrder.balanceDue + Payment (salesOrderId)
+//   - VAT / tax truth        → getTaxSummary (VatRegister only)
+//   These are never summed and live in separate fields/sections.
+//   - WAREHOUSE and DRIVER builders call NO money-bearing service, so those
+//     payloads cannot leak revenue / AR / VAT even by accident.
+// ===========================================================================
 
-export async function getDashboardSummary(tenantId: string) {
-  const monthStart = startOfCurrentMonth();
+// -- Lite row DTOs (kept flat & serialisable; dates as ISO strings) ----------
 
-  const fiscalYearStart = startOfCurrentFiscalYear();
+export interface RecentOrderLite {
+  id: string;
+  customer: string;
+  status: string;
+  deliveryDate: string;
+  total: number;
+}
 
-  const [
-    monthOrders,
-    inventoryItems,
-    deliveries,
-    lowStockItems,
-    recentSalesOrders,
-    recentSalesOrdersForCharts,
-  ] = await Promise.all([
-    prisma.salesOrder.findMany({
-      where: {
-        tenantId,
-        orderDate: { gte: monthStart },
-        status: { not: "CANCELLED" },
-      },
-      select: { orderAmount: true },
+export interface RecentPaymentLite {
+  id: string;
+  customer: string;
+  amount: number;
+  method: string;
+  date: string;
+}
+
+export interface LowStockLite {
+  id: string;
+  product: string;
+  variant: string;
+  quantity: number;
+  threshold: number;
+}
+
+export interface StockLite {
+  id: string;
+  product: string;
+  variant: string;
+  quantity: number;
+}
+
+export interface ActivityLite {
+  id: string;
+  action: string;
+  entityType: string;
+  user: string;
+  timestamp: string;
+}
+
+export interface DeliveryLite {
+  id: string;
+  customer: string;
+  address: string;
+  status: string;
+  scheduledDate: string;
+}
+
+export interface TopCustomerLite {
+  id: string;
+  name: string;
+  revenue: number;
+}
+
+export interface ArCustomerRow {
+  customerId: string;
+  customerName: string;
+  customerType: string;
+  bucket0_30: number;
+  bucket31_60: number;
+  bucket61_90: number;
+  bucket90_plus: number;
+  totalOutstanding: number;
+}
+
+export interface AlertLite {
+  id: string;
+  severity: "info" | "warn" | "danger";
+  title: string;
+  detail: string;
+}
+
+export interface SalesTrendPoint {
+  month: string;
+  revenue: number;
+  orders: number;
+}
+
+// -- Per-role payloads (discriminated union on `role`) -----------------------
+
+export interface AdminOverview {
+  role: "ADMIN";
+  generatedAt: string;
+  finance: { salesToday: number; salesMonth: number; receivedMonth: number; outstandingAr: number };
+  arAging: AgingBuckets;
+  salesTrend: SalesTrendPoint[];
+  topCustomers: TopCustomerLite[];
+  topProducts: Array<{ name: string; quantity: number }>;
+  lowStock: { count: number; items: LowStockLite[] };
+  recentOrders: RecentOrderLite[];
+  recentPayments: RecentPaymentLite[];
+  recentActivity: ActivityLite[];
+}
+
+export interface AccountantOverview {
+  role: "ACCOUNTANT";
+  generatedAt: string;
+  receivables: { outstandingAr: number; customerCount: number };
+  arAging: AgingBuckets;
+  arByCustomer: ArCustomerRow[];
+  payments: { receivedMonth: number; recent: RecentPaymentLite[] };
+  vat: { outputTax: number; inputTax: number; netPayable: number };
+  reconciliation: { invoicedCount: number; uninvoicedCount: number; uninvoicedValue: number };
+  alerts: AlertLite[];
+}
+
+export interface SalesOverview {
+  role: "SALES";
+  generatedAt: string;
+  today: { salesToday: number; ordersToday: number };
+  orderStatus: Record<string, number>;
+  pendingOrders: { count: number; items: RecentOrderLite[] };
+  collections: { receivedMonth: number; recent: RecentPaymentLite[] };
+  topCustomers: TopCustomerLite[];
+}
+
+export interface WarehouseOverview {
+  role: "WAREHOUSE";
+  generatedAt: string;
+  stock: { totalVariants: number; lowStockCount: number; outOfStockCount: number };
+  lowStock: { items: LowStockLite[] };
+  outOfStock: { items: StockLite[] };
+  deliveries: { today: Record<string, number>; activeQueue: number };
+  pendingReceipts: { count: number };
+}
+
+export interface DriverOverview {
+  role: "DRIVER";
+  generatedAt: string;
+  today: Record<string, number>;
+  activeQueue: number;
+  assigned: DeliveryLite[];
+}
+
+export type DashboardOverview =
+  | AdminOverview
+  | AccountantOverview
+  | SalesOverview
+  | WarehouseOverview
+  | DriverOverview;
+
+// -- New tenant-scoped aggregate helpers -------------------------------------
+
+/** Total sales (orderAmount, ex-cancelled) for today + current month, plus today's order count. */
+export async function getSalesTotals(tenantId: string) {
+  const [today, month] = await Promise.all([
+    prisma.salesOrder.aggregate({
+      where: { tenantId, status: { not: "CANCELLED" }, orderDate: { gte: startOfToday() } },
+      _sum: { orderAmount: true },
+      _count: true,
     }),
-    prisma.productVariant.findMany({
-      where: { tenantId },
-      include: {
-        product: true,
-      },
-    }),
-    prisma.delivery.count({
-      where: {
-        tenantId,
-        status: {
-          in: ["SCHEDULED", "OUT_FOR_DELIVERY", "FAILED_ATTEMPT"],
-        },
-      },
-    }),
-    prisma.productVariant.findMany({
-      where: {
-        tenantId,
-        stockQuantity: {
-          lte: 5,
-        },
-      },
-      include: {
-        product: true,
-      },
-      take: 10,
-    }),
-    prisma.salesOrder.findMany({
-      where: { tenantId },
-      include: {
-        customer: true,
-        lineItems: true,
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-      take: 8,
-    }),
-    prisma.salesOrder.findMany({
-      where: {
-        tenantId,
-        orderDate: { gte: fiscalYearStart },
-        status: { not: "CANCELLED" },
-      },
-      include: {
-        lineItems: {
-          include: {
-            productVariant: {
-              include: {
-                product: true,
-              },
-            },
-          },
-        },
-      },
+    prisma.salesOrder.aggregate({
+      where: { tenantId, status: { not: "CANCELLED" }, orderDate: { gte: startOfCurrentMonth() } },
+      _sum: { orderAmount: true },
     }),
   ]);
 
-  const totalRevenueMtd = monthOrders.reduce((sum, o) => sum + toNumber(o.orderAmount), 0);
-  const openOrders = await prisma.salesOrder.findMany({
-    where: { tenantId, balanceDue: { gt: 0 }, status: { not: "CANCELLED" } },
-    select: { balanceDue: true },
+  return {
+    salesToday: toNumber(today._sum.orderAmount ?? 0),
+    ordersToday: today._count,
+    salesMonth: toNumber(month._sum.orderAmount ?? 0),
+  };
+}
+
+/** Count of orders per status (all statuses present in the tenant). */
+export async function getOrderStatusCounts(tenantId: string): Promise<Record<string, number>> {
+  const grouped = await prisma.salesOrder.groupBy({
+    by: ["status"],
+    where: { tenantId },
+    _count: { _all: true },
   });
-  const outstandingArValue = openOrders.reduce((sum, o) => sum + toNumber(o.balanceDue), 0);
+  const counts: Record<string, number> = {};
+  for (const row of grouped) counts[row.status] = row._count._all;
+  return counts;
+}
 
-  const inventoryValue = inventoryItems.reduce((sum, variant) => {
-    const baseCost = toNumber(variant.product.costPrice);
-    const extra = toNumber(variant.additionalCost);
-    return sum + variant.stockQuantity * (baseCost + extra);
-  }, 0);
-
-  const invoicePayments = await prisma.payment.findMany({
+/** Most recent orders. `openOnly` restricts to actionable (pre-dispatch) statuses. */
+export async function getRecentOrders(
+  tenantId: string,
+  options: { take?: number; openOnly?: boolean } = {},
+): Promise<RecentOrderLite[]> {
+  const { take = 8, openOnly = false } = options;
+  const orders = await prisma.salesOrder.findMany({
     where: {
       tenantId,
-      salesOrderId: { not: null },
-      paymentDate: {
-        gte: new Date(new Date().getFullYear(), new Date().getMonth() - 5, 1),
-      },
+      ...(openOnly
+        ? { status: { in: ["QUOTE", "CONFIRMED", "DEPOSIT_PAID", "PAID", "IN_WAREHOUSE"] } }
+        : {}),
     },
+    select: {
+      id: true,
+      status: true,
+      orderAmount: true,
+      orderDate: true,
+      deliveryDate: true,
+      customer: { select: { name: true } },
+    },
+    orderBy: { createdAt: "desc" },
+    take,
   });
 
-  const expenseRows = await prisma.expense.findMany({
-    where: {
-      tenantId,
-      date: {
-        gte: new Date(new Date().getFullYear(), new Date().getMonth() - 5, 1),
-      },
-    },
-  });
-
-  const revenueVsCogs = dashboardFiscalMonths().map((item) => ({
-    ...item,
-    revenue: 0,
-    cogs: 0,
+  return orders.map((order) => ({
+    id: order.id,
+    customer: order.customer.name,
+    status: order.status,
+    deliveryDate: (order.deliveryDate ?? order.orderDate).toISOString(),
+    total: toNumber(order.orderAmount),
   }));
+}
 
-  const cashFlowSeries = Array.from({ length: 6 }).map((_, index) => {
-    const nd = new NepaliDate();
-    let m = nd.getMonth() - (5 - index);
-    let y = nd.getYear();
-    while (m < 0) {
-      m += 12;
-      y -= 1;
-    }
-    const bucketNd = new NepaliDate(y, m, 1);
-    const label = bucketNd.format("MMMM");
-    return { month: label, inflow: 0, outflow: 0 };
-  });
-
-  // Compute COGS across recent orders (last 12 months) for charts & Net Profit
-  let recentTotalRevenue = 0;
-  let recentTotalCogs = 0;
-  let mtdNetProfit = 0;
-
-  recentSalesOrdersForCharts.forEach((order) => {
-    const isMtd = order.orderDate >= monthStart;
-    const bucket = revenueVsCogs.find((item) => item.key === dashboardMonthKey(order.orderDate));
-    order.lineItems.forEach((lineItem) => {
-      // Apply discounts to revenue (Fix #7)
-      const lineGross = lineItem.quantity * toNumber(lineItem.unitPrice);
-      const discAmt = lineItem.discountAmount
-        ? toNumber(lineItem.discountAmount)
-        : lineGross * (toNumber(lineItem.discountPct) / 100);
-      const revenue = lineGross - discAmt;
-      const cogs =
-        lineItem.quantity *
-        (lineItem.productVariant 
-          ? (toNumber(lineItem.productVariant.product.costPrice) + toNumber(lineItem.productVariant.additionalCost))
-          : toNumber(lineItem.unitPrice) * 0.7); // 70% estimated COGS for custom items if no variant
-      if (bucket) {
-        bucket.revenue += revenue;
-        bucket.cogs += cogs;
-      }
-      recentTotalRevenue += revenue;
-      recentTotalCogs += cogs;
-      if (isMtd) {
-        mtdNetProfit += (revenue - cogs);
-      }
-    });
-  });
-
-  // Prefer GL-based MTD Net Profit if General Ledger entries exist
-  const glMtdLines = await prisma.journalEntryLine.findMany({
-    where: {
-      tenantId,
-      journalEntry: {
-        date: { gte: monthStart },
-      },
+/** Most recent customer payments (AR — salesOrderId set). Supplier payments excluded. */
+export async function getRecentPayments(tenantId: string, take = 8): Promise<RecentPaymentLite[]> {
+  const payments = await prisma.payment.findMany({
+    where: { tenantId, salesOrderId: { not: null } },
+    select: {
+      id: true,
+      amount: true,
+      method: true,
+      paymentDate: true,
+      salesOrder: { select: { customer: { select: { name: true } } } },
     },
-    include: { account: true },
+    orderBy: { paymentDate: "desc" },
+    take,
   });
 
-  if (glMtdLines.length > 0) {
-    let glIncome = 0;
-    let glExpense = 0;
-    for (const line of glMtdLines) {
-      if (line.account.type === "INCOME") {
-        glIncome += toNumber(line.credit) - toNumber(line.debit);
-      } else if (line.account.type === "EXPENSE") {
-        glExpense += toNumber(line.debit) - toNumber(line.credit);
-      }
-    }
-    mtdNetProfit = glIncome - glExpense;
-  }
+  return payments.map((payment) => ({
+    id: payment.id,
+    customer: payment.salesOrder?.customer.name ?? "—",
+    amount: toNumber(payment.amount),
+    method: payment.method,
+    date: payment.paymentDate.toISOString(),
+  }));
+}
 
-  invoicePayments.forEach((payment) => {
-    const bucket = cashFlowSeries.find(
-      (item) => item.month === new NepaliDate(payment.paymentDate).format("MMMM")
-    );
-    if (bucket) bucket.inflow += toNumber(payment.amount);
-  });
-
-  expenseRows.forEach((expense) => {
-    const bucket = cashFlowSeries.find(
-      (item) => item.month === new NepaliDate(expense.date).format("MMMM")
-    );
-    if (bucket) bucket.outflow += toNumber(expense.amount);
-  });
-
-  const topProductMap = new Map<string, number>();
-  recentSalesOrdersForCharts.forEach((order) => {
-    order.lineItems.forEach((lineItem) => {
-      const name = lineItem.productVariant 
-        ? `${lineItem.productVariant.product.name} / ${lineItem.productVariant.variantName}`
-        : lineItem.customProductName || "Custom Item";
-      topProductMap.set(name, (topProductMap.get(name) ?? 0) + lineItem.quantity);
-    });
-  });
-
-  const topSellingProducts = [...topProductMap.entries()]
-    .map(([name, quantity]) => ({ name, quantity }))
-    .sort((left, right) => right.quantity - left.quantity)
-    .slice(0, 10);
-
-  const customInProduction = await prisma.salesOrder.count({
-    where: {
-      tenantId,
-      isCustomOrder: true,
-      status: { in: ["CONFIRMED", "DEPOSIT_PAID", "IN_WAREHOUSE"] },
+/**
+ * Variants at or below their product's low-stock threshold. Mirrors
+ * inventory.routes.ts /low-stock (threshold-driven, not a hardcoded <=5).
+ */
+export async function getLowStockItems(
+  tenantId: string,
+  take = 8,
+): Promise<{ count: number; items: LowStockLite[] }> {
+  const variants = await prisma.productVariant.findMany({
+    where: { tenantId, product: { lowStockThreshold: { gt: 0 } } },
+    select: {
+      id: true,
+      variantName: true,
+      stockQuantity: true,
+      product: { select: { name: true, lowStockThreshold: true } },
     },
   });
 
-  // AR Aging buckets — now included in main summary for dashboard widget
-  const arAging = await getArAgingBuckets(tenantId);
-
-  // Per-customer aging buckets from server-side days-overdue calculation (Fix #5)
-  const arAgingRows = await getAraAgingReport(tenantId);
-  const arAgingByCustomer: Record<string, string> = {};
-  for (const row of arAgingRows) {
-    // If a customer has multiple orders in different buckets, keep the worst (oldest)
-    const existing = arAgingByCustomer[row.customer];
-    const BUCKET_ORDER = ["0-30", "31-60", "61-90", "90+"];
-    if (!existing || BUCKET_ORDER.indexOf(row.bucket) > BUCKET_ORDER.indexOf(existing)) {
-      arAgingByCustomer[row.customer] = row.bucket;
-    }
-  }
+  const low = variants
+    .filter((v) => v.stockQuantity <= v.product.lowStockThreshold)
+    .sort(
+      (a, b) =>
+        a.stockQuantity - a.product.lowStockThreshold - (b.stockQuantity - b.product.lowStockThreshold),
+    );
 
   return {
-    kpis: [
-      {
-        label: "Revenue (MTD)",
-        value: formatCurrency(totalRevenueMtd),
-        change: "Live",
-        tone: "positive",
-      },
-      {
-        label: "Outstanding AR",
-        value: formatCurrency(outstandingArValue),
-        change: "Open orders",
-        tone: outstandingArValue > 0 ? "neutral" : "positive",
-      },
-      {
-        label: "Custom Orders",
-        value: String(customInProduction),
-        change: "In production",
-        tone: "neutral",
-      },
-      {
-        label: "Inventory Value",
-        value: formatCurrency(inventoryValue),
-        change: "Weighted average",
-        tone: "positive",
-      },
-      {
-        label: "Pending Deliveries",
-        value: String(deliveries),
-        change: "Current queue",
-        tone: deliveries > 0 ? "neutral" : "positive",
-      },
-      {
-        label: "Low Stock Items",
-        value: String(lowStockItems.length),
-        change: "Threshold alerts",
-        tone: lowStockItems.length > 0 ? "negative" : "positive",
-      },
-      {
-        label: "Net Profit (MTD)",
-        value: formatCurrency(mtdNetProfit),
-        change: "Current month",
-        tone: mtdNetProfit >= 0 ? "positive" : "negative",
-      },
-    ],
-    revenueVsCogs,
-    cashFlow: cashFlowSeries,
-    topProducts: topSellingProducts,
-    arAging, // AR Aging buckets added to summary response
-    arAgingByCustomer, // Per-customer aging buckets by days overdue (Fix #5)
-    // Server-side COGS/Net Profit — based on last 12 months
-    totalRevenue: recentTotalRevenue,
-    totalCogs: recentTotalCogs,
-    netProfit: recentTotalRevenue - recentTotalCogs,
-    recentSalesOrders: recentSalesOrders.map((order) => ({
-      id: order.id,
-      customer: order.customer.name,
-      status: order.status,
-      deliveryDate: order.deliveryDate?.toISOString() ?? order.orderDate.toISOString(),
-      total: toNumber(order.orderAmount), // Fix #8: Use orderAmount, not raw line sum
-    })),
-    lowStockItems: lowStockItems.map((variant: any) => ({
-      id: variant.id,
-      product: variant.product.name,
-      variant: variant.variantName,
-      quantity: variant.stockQuantity,
+    count: low.length,
+    items: low.slice(0, take).map((v) => ({
+      id: v.id,
+      product: v.product.name,
+      variant: v.variantName,
+      quantity: v.stockQuantity,
+      threshold: v.product.lowStockThreshold,
     })),
   };
 }
+
+/** Total variant count + how many are out of stock (stockQuantity <= 0). */
+export async function getStockStatusCounts(
+  tenantId: string,
+): Promise<{ totalVariants: number; outOfStockCount: number }> {
+  const [totalVariants, outOfStockCount] = await Promise.all([
+    prisma.productVariant.count({ where: { tenantId } }),
+    prisma.productVariant.count({ where: { tenantId, stockQuantity: { lte: 0 } } }),
+  ]);
+  return { totalVariants, outOfStockCount };
+}
+
+/** Variants that are fully out of stock. */
+export async function getOutOfStockItems(tenantId: string, take = 8): Promise<StockLite[]> {
+  const variants = await prisma.productVariant.findMany({
+    where: { tenantId, stockQuantity: { lte: 0 } },
+    select: {
+      id: true,
+      variantName: true,
+      stockQuantity: true,
+      product: { select: { name: true } },
+    },
+    orderBy: { stockQuantity: "asc" },
+    take,
+  });
+
+  return variants.map((v) => ({
+    id: v.id,
+    product: v.product.name,
+    variant: v.variantName,
+    quantity: v.stockQuantity,
+  }));
+}
+
+/**
+ * Delivery snapshot. `driverId` scopes to one driver (DRIVER view);
+ * `includeAssigned` additionally returns today's delivery list.
+ */
+export async function getDeliverySummary(
+  tenantId: string,
+  options: { driverId?: string; includeAssigned?: boolean } = {},
+): Promise<{ today: Record<string, number>; activeQueue: number; assigned: DeliveryLite[] }> {
+  const { driverId, includeAssigned = false } = options;
+  const baseWhere = { tenantId, ...(driverId ? { driverId } : {}) };
+  const todayWindow = { gte: startOfToday(), lte: endOfToday() };
+
+  const [todayGroups, activeQueue, assigned] = await Promise.all([
+    prisma.delivery.groupBy({
+      by: ["status"],
+      where: { ...baseWhere, scheduledDate: todayWindow },
+      _count: { _all: true },
+    }),
+    prisma.delivery.count({
+      where: { ...baseWhere, status: { in: ["SCHEDULED", "OUT_FOR_DELIVERY", "FAILED_ATTEMPT"] } },
+    }),
+    includeAssigned
+      ? prisma.delivery.findMany({
+          where: { ...baseWhere, scheduledDate: todayWindow },
+          select: {
+            id: true,
+            status: true,
+            scheduledDate: true,
+            deliveryAddress: true,
+            salesOrder: { select: { customer: { select: { name: true } } } },
+          },
+          orderBy: { scheduledDate: "asc" },
+        })
+      : Promise.resolve([] as Array<{
+          id: string;
+          status: string;
+          scheduledDate: Date;
+          deliveryAddress: string;
+          salesOrder: { customer: { name: string } };
+        }>),
+  ]);
+
+  const today: Record<string, number> = {};
+  for (const row of todayGroups) today[row.status] = row._count._all;
+
+  return {
+    today,
+    activeQueue,
+    assigned: assigned.map((d) => ({
+      id: d.id,
+      customer: d.salesOrder.customer.name,
+      address: d.deliveryAddress,
+      status: d.status,
+      scheduledDate: d.scheduledDate.toISOString(),
+    })),
+  };
+}
+
+/** Purchase orders awaiting goods receipt. */
+export async function getPendingReceiptsCount(tenantId: string): Promise<number> {
+  return prisma.purchaseOrder.count({
+    where: { tenantId, status: { in: ["APPROVED", "SENT", "PARTIALLY_RECEIVED"] } },
+  });
+}
+
+/**
+ * AR reconciliation: how many outstanding orders have a tax invoice vs not,
+ * and the outstanding value that is not yet invoiced. Derived from the AR side
+ * (getOutstandingReceivables) — never mixed with VAT figures.
+ */
+export async function getUninvoicedArSummary(
+  tenantId: string,
+): Promise<{ invoicedCount: number; uninvoicedCount: number; uninvoicedValue: number }> {
+  const rows = await getOutstandingReceivables(tenantId);
+  let invoicedCount = 0;
+  let uninvoicedCount = 0;
+  let uninvoicedValue = 0;
+  for (const row of rows) {
+    if (row.isInvoiced) {
+      invoicedCount += 1;
+    } else {
+      uninvoicedCount += 1;
+      uninvoicedValue += row.balanceDue;
+    }
+  }
+  return { invoicedCount, uninvoicedCount, uninvoicedValue };
+}
+
+/** Recent audit-log activity, flattened for the ADMIN feed. */
+export async function getRecentActivity(tenantId: string, take = 8): Promise<ActivityLite[]> {
+  const { logs } = await getAuditReport(tenantId, { pageSize: take });
+  return logs.map((log) => ({
+    id: log.id,
+    action: log.action,
+    entityType: log.entityType,
+    user: log.user,
+    timestamp: (log.timestamp instanceof Date ? log.timestamp : new Date(log.timestamp)).toISOString(),
+  }));
+}
+
+// -- Per-role builders -------------------------------------------------------
+
+async function buildAdminOverview(tenantId: string): Promise<AdminOverview> {
+  const [salesTotals, financial, arAging, trendRaw, topEntities, lowStock, recentOrders, recentPayments, recentActivity] =
+    await Promise.all([
+      getSalesTotals(tenantId),
+      getFinancialSummary(tenantId, "month"),
+      getArAgingBuckets(tenantId),
+      getSalesTrend(tenantId, startOfCurrentFiscalYear(), new Date(), "month"),
+      getTopEntities(tenantId),
+      getLowStockItems(tenantId, 8),
+      getRecentOrders(tenantId, { take: 8 }),
+      getRecentPayments(tenantId, 8),
+      getRecentActivity(tenantId, 8),
+    ]);
+
+  const trend = trendRaw as Array<{ month: string; revenue: number; quantity: number; orders: number }>;
+
+  return {
+    role: "ADMIN",
+    generatedAt: new Date().toISOString(),
+    finance: {
+      salesToday: salesTotals.salesToday,
+      salesMonth: salesTotals.salesMonth,
+      receivedMonth: financial.amountReceived,
+      outstandingAr: financial.amountPending,
+    },
+    arAging,
+    salesTrend: trend.map((p) => ({ month: p.month, revenue: p.revenue, orders: p.orders })),
+    topCustomers: topEntities.topShowrooms,
+    topProducts: topEntities.topProducts,
+    lowStock,
+    recentOrders,
+    recentPayments,
+    recentActivity,
+  };
+}
+
+async function buildAccountantOverview(tenantId: string): Promise<AccountantOverview> {
+  const fyStart = startOfCurrentFiscalYear();
+  const now = new Date();
+  const [arAging, arByCustomerAll, financial, recentPayments, vat, reconciliation] = await Promise.all([
+    getArAgingBuckets(tenantId),
+    getArAgingSummary(tenantId),
+    getFinancialSummary(tenantId, "month"),
+    getRecentPayments(tenantId, 8),
+    getTaxSummary(tenantId, fyStart, now),
+    getUninvoicedArSummary(tenantId),
+  ]);
+
+  const alerts: AlertLite[] = [];
+  if (arAging["90+"] > 0) {
+    alerts.push({
+      id: "ar-90-plus",
+      severity: "danger",
+      title: "Receivables over 90 days",
+      detail: `${formatCurrency(arAging["90+"])} is more than 90 days overdue`,
+    });
+  }
+  if (vat.netPayable > 0) {
+    alerts.push({
+      id: "vat-payable",
+      severity: "warn",
+      title: "VAT payable this fiscal year",
+      detail: `${formatCurrency(vat.netPayable)} output VAT exceeds input VAT`,
+    });
+  }
+  if (reconciliation.uninvoicedValue > 0) {
+    alerts.push({
+      id: "uninvoiced-ar",
+      severity: "warn",
+      title: "Uninvoiced receivables",
+      detail: `${reconciliation.uninvoicedCount} order(s) worth ${formatCurrency(reconciliation.uninvoicedValue)} have an outstanding balance but no tax invoice`,
+    });
+  }
+
+  return {
+    role: "ACCOUNTANT",
+    generatedAt: now.toISOString(),
+    receivables: { outstandingAr: financial.amountPending, customerCount: arAging.customerCount },
+    arAging,
+    arByCustomer: arByCustomerAll.slice(0, 15),
+    payments: { receivedMonth: financial.amountReceived, recent: recentPayments },
+    vat,
+    reconciliation,
+    alerts,
+  };
+}
+
+async function buildSalesOverview(tenantId: string): Promise<SalesOverview> {
+  const [salesTotals, orderStatus, pendingItems, financial, recentPayments, topEntities] = await Promise.all([
+    getSalesTotals(tenantId),
+    getOrderStatusCounts(tenantId),
+    getRecentOrders(tenantId, { take: 8, openOnly: true }),
+    getFinancialSummary(tenantId, "month"),
+    getRecentPayments(tenantId, 8),
+    getTopEntities(tenantId),
+  ]);
+
+  const OPEN_STATUSES = ["QUOTE", "CONFIRMED", "DEPOSIT_PAID", "PAID", "IN_WAREHOUSE"];
+  const pendingCount = OPEN_STATUSES.reduce((sum, status) => sum + (orderStatus[status] ?? 0), 0);
+
+  return {
+    role: "SALES",
+    generatedAt: new Date().toISOString(),
+    today: { salesToday: salesTotals.salesToday, ordersToday: salesTotals.ordersToday },
+    orderStatus,
+    pendingOrders: { count: pendingCount, items: pendingItems },
+    collections: { receivedMonth: financial.amountReceived, recent: recentPayments },
+    topCustomers: topEntities.topShowrooms,
+  };
+}
+
+async function buildWarehouseOverview(tenantId: string): Promise<WarehouseOverview> {
+  const [stockCounts, lowStock, outOfStock, deliveries, pendingReceipts] = await Promise.all([
+    getStockStatusCounts(tenantId),
+    getLowStockItems(tenantId, 10),
+    getOutOfStockItems(tenantId, 10),
+    getDeliverySummary(tenantId),
+    getPendingReceiptsCount(tenantId),
+  ]);
+
+  return {
+    role: "WAREHOUSE",
+    generatedAt: new Date().toISOString(),
+    stock: {
+      totalVariants: stockCounts.totalVariants,
+      lowStockCount: lowStock.count,
+      outOfStockCount: stockCounts.outOfStockCount,
+    },
+    lowStock: { items: lowStock.items },
+    outOfStock: { items: outOfStock },
+    deliveries: { today: deliveries.today, activeQueue: deliveries.activeQueue },
+    pendingReceipts: { count: pendingReceipts },
+  };
+}
+
+async function buildDriverOverview(tenantId: string, driverId: string): Promise<DriverOverview> {
+  const summary = await getDeliverySummary(tenantId, { driverId, includeAssigned: true });
+  return {
+    role: "DRIVER",
+    generatedAt: new Date().toISOString(),
+    today: summary.today,
+    activeQueue: summary.activeQueue,
+    assigned: summary.assigned,
+  };
+}
+
+/**
+ * Role-aware dashboard composer. Role comes from the verified JWT — never a
+ * client hint. ADMIN/ACCOUNTANT/SALES/WAREHOUSE are cached per-role (900s);
+ * DRIVER is per-user so it is computed live to avoid per-driver key explosion.
+ */
+export async function getDashboardOverview(
+  tenantId: string,
+  role: UserRole,
+  userId: string,
+): Promise<DashboardOverview> {
+  switch (role) {
+    case "ADMIN":
+      return withCache(CACHE_KEYS.OVERVIEW(tenantId, role), 900, () => buildAdminOverview(tenantId));
+    case "ACCOUNTANT":
+      return withCache(CACHE_KEYS.OVERVIEW(tenantId, role), 900, () => buildAccountantOverview(tenantId));
+    case "SALES":
+      return withCache(CACHE_KEYS.OVERVIEW(tenantId, role), 900, () => buildSalesOverview(tenantId));
+    case "WAREHOUSE":
+      return withCache(CACHE_KEYS.OVERVIEW(tenantId, role), 900, () => buildWarehouseOverview(tenantId));
+    case "DRIVER":
+      return buildDriverOverview(tenantId, userId);
+    default: {
+      const _exhaustive: never = role;
+      throw new Error(`Unsupported dashboard role: ${String(_exhaustive)}`);
+    }
+  }
+}
+

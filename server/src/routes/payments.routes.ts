@@ -16,7 +16,7 @@ import { toNumber } from "../utils/number";
 import { getBsDate, getCurrentFiscalYear } from "../shared/fiscal-year.util";
 import { recordPayment } from "../modules/payments/payment.service";
 import { logAudit } from "../services/audit.service";
-import { invalidateCache, CACHE_KEYS } from "../config/redis";
+import { invalidateDashboardCache } from "../config/redis";
 import { financialMutationLimiter } from "../middleware/rate-limit";
 
 export const paymentsRouter = Router();
@@ -112,15 +112,6 @@ paymentsRouter.post(
         createdById: request.user!.id,
         ipAddress: request.ip,
       });
-
-      // #19: Invalidate dashboard caches after financial mutation
-      await invalidateCache(
-        CACHE_KEYS.AR_AGING(tenantId),
-        CACHE_KEYS.TOP_ENTITIES(tenantId),
-        CACHE_KEYS.FINANCIAL_SUMMARY_TODAY(tenantId),
-        CACHE_KEYS.FINANCIAL_SUMMARY_MONTH(tenantId),
-        CACHE_KEYS.FINANCIAL_SUMMARY_YEAR(tenantId),
-      );
     } else {
       // Supplier payments: journal entry inside the transaction
       payment = await prisma.$transaction(async (tx) => {
@@ -171,6 +162,9 @@ paymentsRouter.post(
         return created;
       });
     }
+
+    // #19: Invalidate dashboard caches after any payment mutation (customer or supplier).
+    await invalidateDashboardCache(tenantId);
 
     response.status(201).json(payment);
   }),

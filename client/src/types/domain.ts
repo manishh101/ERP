@@ -89,6 +89,142 @@ export type DashboardPayload = {
   arAgingByCustomer?: Record<string, string>; // customerName → bucket ("0-30", "31-60", etc.)
 };
 
+// ---------------------------------------------------------------------------
+// Dashboard Overview — role-aware command center (GET /dashboard/overview).
+// Mirrors the discriminated union in server/src/services/dashboard.service.ts.
+// WAREHOUSE and DRIVER intentionally carry NO monetary fields.
+// ---------------------------------------------------------------------------
+
+export type DashboardRecentPayment = {
+  id: string;
+  customer: string;
+  amount: number;
+  method: string;
+  date: string;
+};
+
+export type DashboardLowStockRow = {
+  id: string;
+  product: string;
+  variant: string;
+  quantity: number;
+  threshold: number;
+};
+
+export type DashboardStockRow = {
+  id: string;
+  product: string;
+  variant: string;
+  quantity: number;
+};
+
+export type DashboardActivity = {
+  id: string;
+  action: string;
+  entityType: string;
+  user: string;
+  timestamp: string;
+};
+
+export type DashboardDelivery = {
+  id: string;
+  customer: string;
+  address: string;
+  status: string;
+  scheduledDate: string;
+};
+
+export type DashboardTopCustomer = {
+  id: string;
+  name: string;
+  revenue: number;
+};
+
+export type DashboardArCustomerRow = {
+  customerId: string;
+  customerName: string;
+  customerType: string;
+  bucket0_30: number;
+  bucket31_60: number;
+  bucket61_90: number;
+  bucket90_plus: number;
+  totalOutstanding: number;
+};
+
+export type DashboardAlert = {
+  id: string;
+  severity: "info" | "warn" | "danger";
+  title: string;
+  detail: string;
+};
+
+export type DashboardSalesTrendPoint = {
+  month: string;
+  revenue: number;
+  orders: number;
+};
+
+export type AdminOverview = {
+  role: "ADMIN";
+  generatedAt: string;
+  finance: { salesToday: number; salesMonth: number; receivedMonth: number; outstandingAr: number };
+  arAging: AgingBuckets;
+  salesTrend: DashboardSalesTrendPoint[];
+  topCustomers: DashboardTopCustomer[];
+  topProducts: Array<{ name: string; quantity: number }>;
+  lowStock: { count: number; items: DashboardLowStockRow[] };
+  recentOrders: DashboardRecentSalesOrder[];
+  recentPayments: DashboardRecentPayment[];
+  recentActivity: DashboardActivity[];
+};
+
+export type AccountantOverview = {
+  role: "ACCOUNTANT";
+  generatedAt: string;
+  receivables: { outstandingAr: number; customerCount: number };
+  arAging: AgingBuckets;
+  arByCustomer: DashboardArCustomerRow[];
+  payments: { receivedMonth: number; recent: DashboardRecentPayment[] };
+  vat: { outputTax: number; inputTax: number; netPayable: number };
+  reconciliation: { invoicedCount: number; uninvoicedCount: number; uninvoicedValue: number };
+  alerts: DashboardAlert[];
+};
+
+export type SalesOverview = {
+  role: "SALES";
+  generatedAt: string;
+  today: { salesToday: number; ordersToday: number };
+  orderStatus: Record<string, number>;
+  pendingOrders: { count: number; items: DashboardRecentSalesOrder[] };
+  collections: { receivedMonth: number; recent: DashboardRecentPayment[] };
+  topCustomers: DashboardTopCustomer[];
+};
+
+export type WarehouseOverview = {
+  role: "WAREHOUSE";
+  generatedAt: string;
+  stock: { totalVariants: number; lowStockCount: number; outOfStockCount: number };
+  lowStock: { items: DashboardLowStockRow[] };
+  outOfStock: { items: DashboardStockRow[] };
+  deliveries: { today: Record<string, number>; activeQueue: number };
+  pendingReceipts: { count: number };
+};
+
+export type DriverOverview = {
+  role: "DRIVER";
+  generatedAt: string;
+  today: Record<string, number>;
+  activeQueue: number;
+  assigned: DashboardDelivery[];
+};
+
+export type DashboardOverview =
+  | AdminOverview
+  | AccountantOverview
+  | SalesOverview
+  | WarehouseOverview
+  | DriverOverview;
+
 export type TableColumn<T> = {
   key: keyof T | string;
   header: string;

@@ -85,4 +85,37 @@ export const CACHE_KEYS = {
   FINANCIAL_SUMMARY_MONTH: (tenantId: string) => `dashboard:${tenantId}:financial-summary:month`,
   FINANCIAL_SUMMARY_YEAR: (tenantId: string) => `dashboard:${tenantId}:financial-summary:year`,
   SHOWROOM_ANALYTICS: (tenantId: string, customerId: string) => `dashboard:${tenantId}:showroom-analytics:${customerId}`,
+  OVERVIEW: (tenantId: string, role: string) => `dashboard:${tenantId}:overview:${role}`,
 } as const;
+
+/**
+ * Roles whose /dashboard/overview payload is cached. DRIVER is intentionally
+ * excluded — its data is per-user, so caching it would explode key cardinality
+ * (one key per driver) for little benefit; DRIVER is computed live instead.
+ */
+const CACHED_OVERVIEW_ROLES = ["ADMIN", "ACCOUNTANT", "SALES", "WAREHOUSE"] as const;
+
+/**
+ * Every dashboard cache key for a tenant — the granular §8 aggregates plus the
+ * consolidated per-role overview keys. Bounded to a fixed set (Redis `del` has
+ * no wildcard), so a bust is O(1) in key count.
+ */
+export function dashboardCacheKeys(tenantId: string): string[] {
+  return [
+    CACHE_KEYS.AR_AGING(tenantId),
+    CACHE_KEYS.TOP_ENTITIES(tenantId),
+    CACHE_KEYS.FINANCIAL_SUMMARY_TODAY(tenantId),
+    CACHE_KEYS.FINANCIAL_SUMMARY_MONTH(tenantId),
+    CACHE_KEYS.FINANCIAL_SUMMARY_YEAR(tenantId),
+    ...CACHED_OVERVIEW_ROLES.map((role) => CACHE_KEYS.OVERVIEW(tenantId, role)),
+  ];
+}
+
+/**
+ * Bust all dashboard caches for a tenant. Call after any mutation that changes
+ * the numbers a dashboard tile shows (payments, orders, stock, deliveries).
+ * Non-fatal if Redis is down (invalidateCache swallows the error).
+ */
+export async function invalidateDashboardCache(tenantId: string): Promise<void> {
+  await invalidateCache(...dashboardCacheKeys(tenantId));
+}

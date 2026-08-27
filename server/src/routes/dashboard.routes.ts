@@ -2,7 +2,7 @@ import { Router } from "express";
 import { requireAuth, requireRole } from "../middleware/auth";
 import { asyncHandler } from "../middleware/async-handler";
 import {
-  getDashboardSummary,
+  getDashboardOverview,
   getFinancialSummary,
   getArAgingBuckets,
   getTopEntities,
@@ -16,12 +16,18 @@ export const dashboardRouter = Router();
 dashboardRouter.use(requireAuth);
 
 // ---------------------------------------------------------------------------
-// Legacy endpoint — kept for backward compatibility with existing frontend
+// GET /dashboard/overview — role-aware command center (single request per load)
+// Role is taken from the verified JWT; the service shapes/scopes data by role.
 // ---------------------------------------------------------------------------
 dashboardRouter.get(
-  "/summary",
+  "/overview",
   asyncHandler(async (request, response) => {
-    response.json(await getDashboardSummary(request.user!.tenantId));
+    const data = await getDashboardOverview(
+      request.user!.tenantId,
+      request.user!.role,
+      request.user!.id,
+    );
+    response.json(data);
   })
 );
 

@@ -6,7 +6,7 @@ import { formatCurrency, formatEnumLabel, formatNumber, toNumber } from "@/lib/u
 import type {
   CustomReportPreview,
   CustomReportRequest,
-  DashboardPayload,
+  DashboardOverview,
   DeliveryRow,
   InventoryMovementRow,
   InventoryRecordRow,
@@ -35,31 +35,6 @@ type PaginatedResponse<T> = {
   total: number;
   page?: number;
   pageSize?: number;
-};
-
-type RawDashboardPayload = {
-  kpis: DashboardPayload["kpis"];
-  revenueVsCogs: DashboardPayload["revenueVsCogs"];
-  cashFlow: DashboardPayload["cashFlow"];
-  topProducts: DashboardPayload["topProducts"];
-  recentSalesOrders: Array<{
-    id: string;
-    customer: string;
-    status: string;
-    deliveryDate: string;
-    total: number | string;
-  }>;
-  lowStockItems?: Array<{
-    id: string;
-    product: string;
-    variant: string;
-    quantity: number | string;
-  }>;
-  // Server-side centralized metrics
-  totalRevenue?: number;
-  totalCogs?: number;
-  netProfit?: number;
-  arAgingByCustomer?: Record<string, string>;
 };
 
 type RawProduct = {
@@ -612,21 +587,6 @@ type RawCustomReportPreviewResponse = {
   totalRows: number;
   exportFormats: string[];
 };
-
-function mapDashboardPayload(payload: RawDashboardPayload): DashboardPayload {
-  return {
-    ...payload,
-    recentSalesOrders: payload.recentSalesOrders.map((order) => ({
-      ...order,
-      status: formatEnumLabel(order.status),
-      total: toNumber(order.total),
-    })),
-    lowStockItems: (payload.lowStockItems ?? []).map((item) => ({
-      ...item,
-      quantity: toNumber(item.quantity),
-    })),
-  };
-}
 
 function mapProduct(product: RawProduct): ProductRow {
   const stock = product.variants.reduce((sum, variant) => sum + toNumber(variant.stockQuantity), 0);
@@ -1221,14 +1181,13 @@ function mapCustomReportPreview(payload: RawCustomReportPreviewResponse): Custom
   };
 }
 
-export function useDashboardQuery() {
+export function useDashboardOverview() {
   const { token } = useAuth();
 
   return useQuery({
     queryKey: ["dashboard", token],
     enabled: Boolean(token),
-    queryFn: async () =>
-      mapDashboardPayload(await apiRequest<RawDashboardPayload>("/dashboard/summary", { token: token! })),
+    queryFn: () => apiRequest<DashboardOverview>("/dashboard/overview", { token: token! }),
   });
 }
 

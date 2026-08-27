@@ -2,19 +2,19 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
 import type { DashboardRecentSalesOrder } from "@/types/domain";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency, formatDate, formatEnumLabel } from "@/lib/utils";
 
 const columns: ColumnDef<DashboardRecentSalesOrder, unknown>[] = [
   { accessorKey: "id", header: "Order", cell: ({ row }) => <span className="text-muted-foreground">{row.getValue("id") as string}</span> },
-  { 
-    accessorKey: "customer", 
+  {
+    accessorKey: "customer",
     header: "Party",
     cell: ({ row }) => <span className="font-medium text-foreground">{row.getValue("customer") as string}</span>
   },
   {
     accessorKey: "status",
     header: "Status",
-    cell: ({ row }) => <StatusBadge value={row.getValue("status")} />,
+    cell: ({ row }) => <StatusBadge value={formatEnumLabel(row.getValue("status") as string)} />,
   },
   {
     accessorKey: "deliveryDate",

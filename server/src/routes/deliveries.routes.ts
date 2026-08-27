@@ -13,6 +13,7 @@ import {
 } from "../schemas/domain";
 import { ApiError } from "../utils/api-error";
 import { getPagination } from "../utils/pagination";
+import { invalidateDashboardCache } from "../config/redis";
 
 export const deliveriesRouter = Router();
 
@@ -116,6 +117,7 @@ deliveriesRouter.post(
       return created;
     });
 
+    await invalidateDashboardCache(request.user!.tenantId);
     response.status(201).json(delivery);
   }),
 );
@@ -227,6 +229,7 @@ deliveriesRouter.patch(
       return updated;
     });
 
+    await invalidateDashboardCache(request.user!.tenantId);
     response.json(delivery);
   }),
 );
@@ -257,6 +260,7 @@ deliveriesRouter.post(
       },
     });
 
+    await invalidateDashboardCache(request.user!.tenantId);
     response.json(updated);
   }),
 );
@@ -299,6 +303,7 @@ deliveriesRouter.post(
       return updated;
     });
 
+    await invalidateDashboardCache(request.user!.tenantId);
     response.json(delivery);
   }),
 );
