@@ -1293,6 +1293,7 @@ export function useProductsQuery() {
   return useQuery({
     queryKey: ["products", "sellable", token],
     enabled: Boolean(token),
+    staleTime: 2 * 60 * 1000,
     queryFn: async () => {
       const response = await apiRequest<PaginatedResponse<RawProduct>>("/products", {
         token: token!,
@@ -1318,6 +1319,7 @@ export function useAllProductsQuery() {
   return useQuery({
     queryKey: ["products", "all", token],
     enabled: Boolean(token),
+    staleTime: 2 * 60 * 1000,
     queryFn: async () => {
       const response = await apiRequest<PaginatedResponse<RawProduct>>("/products", {
         token: token!,
@@ -1510,6 +1512,7 @@ export function useSuppliersQuery() {
   return useQuery({
     queryKey: ["suppliers", token],
     enabled: Boolean(token),
+    staleTime: 2 * 60 * 1000,
     queryFn: async () => {
       const response = await apiRequest<PaginatedResponse<RawSupplier>>("/suppliers", {
         token: token!,
@@ -1773,6 +1776,7 @@ export function useCustomersQuery() {
   return useQuery({
     queryKey: ["customers", token],
     enabled: Boolean(token),
+    staleTime: 2 * 60 * 1000,
     queryFn: async () => {
       const response = await apiRequest<PaginatedResponse<RawCustomer>>("/customers", {
         token: token!,
@@ -2058,6 +2062,13 @@ export function useCreateInvoiceMutation() {
       queryClient.invalidateQueries({ queryKey: ["sales-order"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["ar-ledger"] });
+      queryClient.invalidateQueries({ queryKey: ["vat-register"] });
+      queryClient.invalidateQueries({ queryKey: ["customer-workspace"] });
+      queryClient.invalidateQueries({ queryKey: ["customer-ledger"] });
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
+      queryClient.invalidateQueries({ queryKey: ["customer"] });
+      queryClient.invalidateQueries({ queryKey: ["accounting-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["journal-entries"] });
     },
   });
 }
@@ -2086,19 +2097,22 @@ export function useRecordPaymentMutation() {
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["invoices"] });
+      queryClient.invalidateQueries({ queryKey: ["tax-invoices"] });
       queryClient.invalidateQueries({ queryKey: ["sales-orders"] });
       queryClient.invalidateQueries({ queryKey: ["sales-order"] });
       queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
-      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-      queryClient.invalidateQueries({ queryKey: ["ar-ledger"] });
+      queryClient.invalidateQueries({ queryKey: ["purchase-order"] });
       queryClient.invalidateQueries({ queryKey: ["payments"] });
       queryClient.invalidateQueries({ queryKey: ["supplier-invoices"] });
-      queryClient.invalidateQueries({ queryKey: ["purchase-order"] });
       queryClient.invalidateQueries({ queryKey: ["suppliers"] });
       queryClient.invalidateQueries({ queryKey: ["customers"] });
       queryClient.invalidateQueries({ queryKey: ["customer"] });
+      queryClient.invalidateQueries({ queryKey: ["customer-workspace"] });
       queryClient.invalidateQueries({ queryKey: ["customer-ledger"] });
+      queryClient.invalidateQueries({ queryKey: ["ar-ledger"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["accounting-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["journal-entries"] });
     },
   });
 }
@@ -2497,6 +2511,7 @@ export function useWarehousesQuery() {
   return useQuery({
     queryKey: ["warehouses", token],
     enabled: Boolean(token),
+    staleTime: 2 * 60 * 1000,
     queryFn: async () => {
       return apiRequest<Array<{ id: string; name: string; code: string; location?: string; type: string }>>("/inventory/warehouses", {
         token: token!,

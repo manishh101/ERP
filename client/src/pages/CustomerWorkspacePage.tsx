@@ -142,29 +142,50 @@ export function CustomerWorkspacePage() {
     );
   }
 
-  // ─── Compute Financial Metrics ───
-  const orders = customer.salesOrders || [];
+  // ─── Compute Financial Metrics (Memoized) ───
+  const orders = useMemo(() => customer.salesOrders || [], [customer.salesOrders]);
   
   // Extract payments from customer's sales orders
-  const payments = orders.flatMap((so: any) =>
-    (so.payments || []).map((p: any) => ({
-      ...p,
-      date: p.paymentDate || p.createdAt,
-      relatedEntity: `Order #${so.id.slice(0, 8)}`,
-      salesOrderId: so.id,
-    }))
-  ).sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const payments = useMemo(() => {
+    return orders
+      .flatMap((so: any) =>
+        (so.payments || []).map((p: any) => ({
+          ...p,
+          date: p.paymentDate || p.createdAt,
+          relatedEntity: `Order #${so.id.slice(0, 8)}`,
+          salesOrderId: so.id,
+        }))
+      )
+      .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [orders]);
 
-  const totalPurchases = orders.reduce((sum: number, o: any) => sum + toNumber(o.orderAmount || o.grandTotal || o.total), 0);
-  const totalPayments = payments.reduce((sum: number, p: any) => sum + toNumber(p.amount), 0);
-  const outstandingBalance = toNumber(customer.outstandingBalance || 0);
-  const creditLimit = toNumber(customer.creditLimit || 0);
-  const creditAvailable = creditLimit > 0 ? Math.max(0, creditLimit - outstandingBalance) : 0;
-  const creditUtilization = creditLimit > 0 ? (outstandingBalance / creditLimit) * 100 : 0;
+  const {
+    totalPurchases,
+    totalPayments,
+    outstandingBalance,
+    creditLimit,
+    creditAvailable,
+    creditUtilization,
+    pendingOrdersWithBalance,
+  } = useMemo(() => {
+    const purchases = orders.reduce((sum: number, o: any) => sum + toNumber(o.orderAmount || o.grandTotal || o.total), 0);
+    const pmts = payments.reduce((sum: number, p: any) => sum + toNumber(p.amount), 0);
+    const balance = toNumber(customer.outstandingBalance || 0);
+    const limit = toNumber(customer.creditLimit || 0);
+    const available = limit > 0 ? Math.max(0, limit - balance) : 0;
+    const utilization = limit > 0 ? (balance / limit) * 100 : 0;
+    const pendingWithBal = orders.filter((o: any) => toNumber(o.balanceDue) > 0 && o.status !== "CANCELLED");
 
-  // Attention Items
-  const pendingOrdersWithBalance = orders.filter((o: any) => toNumber(o.balanceDue) > 0 && o.status !== "CANCELLED");
-  const pendingDeliveries = (customer.deliveries || []).filter((d: any) => d.status !== "DELIVERED");
+    return {
+      totalPurchases: purchases,
+      totalPayments: pmts,
+      outstandingBalance: balance,
+      creditLimit: limit,
+      creditAvailable: available,
+      creditUtilization: utilization,
+      pendingOrdersWithBalance: pendingWithBal,
+    };
+  }, [orders, payments, customer.outstandingBalance, customer.creditLimit]);
 
   // Smart Order Selector for Payments
   const openPaymentForBestOrder = () => {
@@ -194,164 +215,170 @@ export function CustomerWorkspacePage() {
     }
   };
 
-  // ─── Orders Table Columns ───
-  const orderColumns: ColumnDef<any, unknown>[] = [
-    {
-      accessorKey: "id",
-      header: "Order ID",
-      cell: ({ row }) => (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="p-0 h-auto text-primary hover:underline font-mono"
-          onClick={() => navigate(`/sales/${row.original.id}`)}
-        >
-          #{row.original.id.slice(0, 8)}
-        </Button>
-      ),
-    },
-    {
-      accessorKey: "orderDate",
-      header: "Date",
-      cell: ({ row }) => (
-        <div>
-          <div className="font-medium">{formatDate(row.original.orderDate)}</div>
-          <div className="text-xs text-muted-foreground">{row.original.bsDate || "-"}</div>
-        </div>
-      ),
-    },
-    {
-      accessorKey: "status",
-      header: "Status",
-      cell: ({ row }) => {
-        const rawStatus = row.original.status;
-        return (
-          <Badge
-            variant={
-              rawStatus === "PAID" || rawStatus === "DELIVERED"
-                ? "default"
-                : rawStatus === "CANCELLED"
-                ? "destructive"
-                : "secondary"
-            }
+  // ─── Orders Table Columns (Memoized) ───
+  const orderColumns: ColumnDef<any, unknown>[] = useMemo(
+    () => [
+      {
+        accessorKey: "id",
+        header: "Order ID",
+        cell: ({ row }) => (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="p-0 h-auto text-primary hover:underline font-mono"
+            onClick={() => navigate(`/sales/${row.original.id}`)}
           >
-            {formatEnumLabel(rawStatus)}
-          </Badge>
-        );
+            #{row.original.id.slice(0, 8)}
+          </Button>
+        ),
       },
-    },
-    {
-      id: "total",
-      header: () => <div className="text-right">Total</div>,
-      cell: ({ row }) => (
-        <div className="text-right font-medium tabular-nums">
-          {formatCurrency(toNumber(row.original.orderAmount || row.original.grandTotal || row.original.total))}
-        </div>
-      ),
-    },
-    {
-      accessorKey: "balanceDue",
-      header: () => <div className="text-right">Balance Due</div>,
-      cell: ({ row }) => {
-        const bal = toNumber(row.original.balanceDue);
-        return (
-          <div className={cn("text-right tabular-nums font-semibold", bal > 0 ? "text-amber-700" : "text-emerald-700")}>
-            {formatCurrency(bal)}
+      {
+        accessorKey: "orderDate",
+        header: "Date",
+        cell: ({ row }) => (
+          <div>
+            <div className="font-medium">{formatDate(row.original.orderDate)}</div>
+            <div className="text-xs text-muted-foreground">{row.original.bsDate || "-"}</div>
           </div>
-        );
+        ),
       },
-    },
-    {
-      id: "actions",
-      header: "",
-      cell: ({ row }) => {
-        const bal = toNumber(row.original.balanceDue);
-        return (
-          <div className="flex justify-end gap-1">
-            {bal > 0 && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-emerald-700 hover:text-emerald-800 hover:bg-emerald-50"
-                onClick={() => {
-                  setSelectedOrderId(row.original.id);
-                  setSelectedOrderNumber(row.original.id.slice(0, 8));
-                  setSelectedOrderBalance(bal);
-                  setIsPaymentModalOpen(true);
-                }}
-              >
-                <DollarSign className="h-3.5 w-3.5 mr-1" />
-                Pay
+      {
+        accessorKey: "status",
+        header: "Status",
+        cell: ({ row }) => {
+          const rawStatus = row.original.status;
+          return (
+            <Badge
+              variant={
+                rawStatus === "PAID" || rawStatus === "DELIVERED"
+                  ? "default"
+                  : rawStatus === "CANCELLED"
+                  ? "destructive"
+                  : "secondary"
+              }
+            >
+              {formatEnumLabel(rawStatus)}
+            </Badge>
+          );
+        },
+      },
+      {
+        id: "total",
+        header: () => <div className="text-right">Total</div>,
+        cell: ({ row }) => (
+          <div className="text-right font-medium tabular-nums">
+            {formatCurrency(toNumber(row.original.orderAmount || row.original.grandTotal || row.original.total))}
+          </div>
+        ),
+      },
+      {
+        accessorKey: "balanceDue",
+        header: () => <div className="text-right">Balance Due</div>,
+        cell: ({ row }) => {
+          const bal = toNumber(row.original.balanceDue);
+          return (
+            <div className={cn("text-right tabular-nums font-semibold", bal > 0 ? "text-amber-700" : "text-emerald-700")}>
+              {formatCurrency(bal)}
+            </div>
+          );
+        },
+      },
+      {
+        id: "actions",
+        header: "",
+        cell: ({ row }) => {
+          const bal = toNumber(row.original.balanceDue);
+          return (
+            <div className="flex justify-end gap-1">
+              {bal > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-emerald-700 hover:text-emerald-800 hover:bg-emerald-50"
+                  onClick={() => {
+                    setSelectedOrderId(row.original.id);
+                    setSelectedOrderNumber(row.original.id.slice(0, 8));
+                    setSelectedOrderBalance(bal);
+                    setIsPaymentModalOpen(true);
+                  }}
+                >
+                  <DollarSign className="h-3.5 w-3.5 mr-1" />
+                  Pay
+                </Button>
+              )}
+              <Button variant="ghost" size="sm" onClick={() => navigate(`/sales/${row.original.id}`)}>
+                <Eye className="h-3.5 w-3.5 mr-1" />
+                View
               </Button>
-            )}
-            <Button variant="ghost" size="sm" onClick={() => navigate(`/sales/${row.original.id}`)}>
-              <Eye className="h-3.5 w-3.5 mr-1" />
-              View
-            </Button>
-          </div>
-        );
+            </div>
+          );
+        },
       },
-    },
-  ];
+    ],
+    [navigate],
+  );
 
-  // ─── Payments Table Columns ───
-  const paymentColumns: ColumnDef<any, unknown>[] = [
-    {
-      accessorKey: "date",
-      header: "Date",
-      cell: ({ row }) => (
-        <div>
-          <div className="font-medium">{formatDate(row.original.date)}</div>
-          <div className="text-xs text-muted-foreground">{row.original.bsDate || "-"}</div>
-        </div>
-      ),
-    },
-    {
-      accessorKey: "method",
-      header: "Method",
-      cell: ({ row }) => (
-        <Badge variant="secondary" className="capitalize">
-          {String(row.original.method || "CASH").toLowerCase().replace("_", " ")}
-        </Badge>
-      ),
-    },
-    {
-      accessorKey: "amount",
-      header: () => <div className="text-right">Amount</div>,
-      cell: ({ row }) => (
-        <div className="text-right font-semibold tabular-nums text-emerald-700">
-          {formatCurrency(toNumber(row.original.amount))}
-        </div>
-      ),
-    },
-    {
-      accessorKey: "reference",
-      header: "Reference",
-      cell: ({ row }) => <span className="font-mono text-xs">{row.original.reference || "—"}</span>,
-    },
-    {
-      accessorKey: "relatedEntity",
-      header: "Against",
-      cell: ({ row }) => (
-        <Link to={`/sales/${row.original.salesOrderId}`} className="font-medium text-primary hover:underline">
-          {row.original.relatedEntity}
-        </Link>
-      ),
-    },
-    {
-      id: "actions",
-      header: "",
-      cell: ({ row }) => (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => window.open(`${API_BASE_URL}/payments/${row.original.id}/receipt?token=${token}`, "_blank")}
-        >
-          <Download className="h-3.5 w-3.5" />
-        </Button>
-      ),
-    },
-  ];
+  // ─── Payments Table Columns (Memoized) ───
+  const paymentColumns: ColumnDef<any, unknown>[] = useMemo(
+    () => [
+      {
+        accessorKey: "date",
+        header: "Date",
+        cell: ({ row }) => (
+          <div>
+            <div className="font-medium">{formatDate(row.original.date)}</div>
+            <div className="text-xs text-muted-foreground">{row.original.bsDate || "-"}</div>
+          </div>
+        ),
+      },
+      {
+        accessorKey: "method",
+        header: "Method",
+        cell: ({ row }) => (
+          <Badge variant="secondary" className="capitalize">
+            {String(row.original.method || "CASH").toLowerCase().replace("_", " ")}
+          </Badge>
+        ),
+      },
+      {
+        accessorKey: "amount",
+        header: () => <div className="text-right">Amount</div>,
+        cell: ({ row }) => (
+          <div className="text-right font-semibold tabular-nums text-emerald-700">
+            {formatCurrency(toNumber(row.original.amount))}
+          </div>
+        ),
+      },
+      {
+        accessorKey: "reference",
+        header: "Reference",
+        cell: ({ row }) => <span className="font-mono text-xs">{row.original.reference || "—"}</span>,
+      },
+      {
+        accessorKey: "relatedEntity",
+        header: "Against",
+        cell: ({ row }) => (
+          <Link to={`/sales/${row.original.salesOrderId}`} className="font-medium text-primary hover:underline">
+            {row.original.relatedEntity}
+          </Link>
+        ),
+      },
+      {
+        id: "actions",
+        header: "",
+        cell: ({ row }) => (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => window.open(`${API_BASE_URL}/payments/${row.original.id}/receipt?token=${token}`, "_blank")}
+          >
+            <Download className="h-3.5 w-3.5" />
+          </Button>
+        ),
+      },
+    ],
+    [token],
+  );
 
   // ─── AR Ledger Data ───
   const ledgerEntries = ledgerData?.entries || [];
