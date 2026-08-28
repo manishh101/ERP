@@ -345,6 +345,9 @@ export const deliverySchema = z.object({
   notes: z.string().optional(),
   paymentMode: z.string().optional(),
   proofPhotoUrl: z.string().optional(),
+  receiverName: z.string().optional(),
+  receiverPhone: z.string().optional(),
+  actualDeliveryDate: z.coerce.date().optional(),
 });
 
 export const deliveryUpdateSchema = deliverySchema.partial().omit({ soId: true });

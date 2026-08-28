@@ -100,11 +100,17 @@ deliveriesRouter.post(
         if (!driverUser) throw new ApiError(400, "Selected driver user was not found");
       }
 
+      const now = new Date();
+      const actualDeliveryDate = body.actualDeliveryDate || (body.status === "DELIVERED" ? now : undefined);
+
       const created = await tx.delivery.create({
         data: {
           ...body,
           driverId: driverId ?? null,
+          actualDeliveryDate,
+          completedAt: body.status === "DELIVERED" ? now : undefined,
           tenantId: request.user!.tenantId,
+          customerId: order.customerId,
         },
         include: {
           driver: true,
@@ -121,6 +127,7 @@ deliveriesRouter.post(
           where: { id: body.soId },
           data: {
             status: body.status === "DELIVERED" ? "DELIVERED" : "OUT_FOR_DELIVERY",
+            actualDeliveryDate: body.status === "DELIVERED" ? actualDeliveryDate : undefined,
           },
         });
       } else if (order.status === "CONFIRMED" || order.status === "DEPOSIT_PAID" || order.status === "PAID") {
@@ -131,6 +138,23 @@ deliveriesRouter.post(
           },
         });
       }
+
+      await tx.auditLog.create({
+        data: {
+          tenantId: request.user!.tenantId,
+          userId: request.user!.id,
+          action: "CREATE_DELIVERY",
+          entityType: "Delivery",
+          entityId: created.id,
+          customerId: order.customerId,
+          newState: {
+            status: created.status,
+            scheduledDate: created.scheduledDate,
+            driverId: created.driverId,
+            soId: created.soId,
+          },
+        },
+      });
 
       return created;
     });
@@ -232,6 +256,7 @@ deliveriesRouter.patch(
     const delivery = await prisma.$transaction(async (tx) => {
       const existing = await tx.delivery.findFirst({
         where: { id: params.id, tenantId: request.user!.tenantId },
+        include: { salesOrder: true },
       });
       if (!existing) throw new ApiError(404, "Delivery not found");
 
@@ -239,11 +264,22 @@ deliveriesRouter.patch(
         throw new ApiError(403, "Access denied: cannot update delivery assigned to another driver");
       }
 
+      const now = new Date();
+      const isBecomingDelivered = body.status === "DELIVERED";
+      const actualDeliveryDate = body.actualDeliveryDate || (isBecomingDelivered ? now : existing.actualDeliveryDate);
+
       const updated = await tx.delivery.update({
         where: { id: params.id },
         data: {
           ...body,
-          completedAt: body.status === "DELIVERED" ? new Date() : undefined,
+          actualDeliveryDate,
+          completedAt: isBecomingDelivered ? (existing.completedAt || now) : body.status ? undefined : existing.completedAt,
+        },
+        include: {
+          driver: true,
+          salesOrder: {
+            include: { customer: true },
+          },
         },
       });
 
@@ -252,6 +288,7 @@ deliveriesRouter.patch(
           where: { id: updated.soId },
           data: {
             status: body.status === "DELIVERED" ? "DELIVERED" : "OUT_FOR_DELIVERY",
+            actualDeliveryDate: body.status === "DELIVERED" ? actualDeliveryDate : undefined,
           },
         });
       } else if (body.status === "SCHEDULED" && existing.status !== "SCHEDULED") {
@@ -262,6 +299,29 @@ deliveriesRouter.patch(
           },
         });
       }
+
+      await tx.auditLog.create({
+        data: {
+          tenantId: request.user!.tenantId,
+          userId: request.user!.id,
+          action: "UPDATE_DELIVERY_STATUS",
+          entityType: "Delivery",
+          entityId: updated.id,
+          customerId: existing.salesOrder.customerId,
+          previousState: {
+            status: existing.status,
+            driverId: existing.driverId,
+            scheduledDate: existing.scheduledDate,
+          },
+          newState: {
+            status: updated.status,
+            driverId: updated.driverId,
+            scheduledDate: updated.scheduledDate,
+            actualDeliveryDate: updated.actualDeliveryDate,
+            receiverName: updated.receiverName,
+          },
+        },
+      });
 
       return updated;
     });
@@ -283,6 +343,7 @@ deliveriesRouter.post(
     const updated = await prisma.$transaction(async (tx) => {
       const delivery = await tx.delivery.findFirst({
         where: { id: params.id, tenantId: request.user!.tenantId },
+        include: { salesOrder: true },
       });
 
       if (!delivery) {
@@ -300,12 +361,37 @@ deliveriesRouter.post(
           failureReason: body.failureReason,
           scheduledDate: body.scheduledDate ?? delivery.scheduledDate,
         },
+        include: {
+          driver: true,
+          salesOrder: {
+            include: { customer: true },
+          },
+        },
       });
 
       await tx.salesOrder.update({
         where: { id: delivery.soId },
         data: {
           status: "IN_WAREHOUSE",
+        },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          tenantId: request.user!.tenantId,
+          userId: request.user!.id,
+          action: "DELIVERY_FAILED_ATTEMPT",
+          entityType: "Delivery",
+          entityId: updatedDelivery.id,
+          customerId: delivery.salesOrder.customerId,
+          previousState: {
+            status: delivery.status,
+          },
+          newState: {
+            status: "FAILED_ATTEMPT",
+            failureReason: body.failureReason,
+            rescheduledDate: body.scheduledDate,
+          },
         },
       });
 
@@ -327,6 +413,7 @@ deliveriesRouter.post(
     const delivery = await prisma.$transaction(async (tx) => {
       const existing = await tx.delivery.findFirst({
         where: { id: params.id, tenantId: request.user!.tenantId },
+        include: { salesOrder: true },
       });
 
       if (!existing) {
@@ -342,6 +429,12 @@ deliveriesRouter.post(
         data: {
           status: "CANCELLED",
         },
+        include: {
+          driver: true,
+          salesOrder: {
+            include: { customer: true },
+          },
+        },
       });
 
       // Reset SO status to CONFIRMED so it can be re-scheduled
@@ -349,6 +442,19 @@ deliveriesRouter.post(
         where: { id: existing.soId },
         data: {
           status: "CONFIRMED",
+        },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          tenantId: request.user!.tenantId,
+          userId: request.user!.id,
+          action: "CANCEL_DELIVERY",
+          entityType: "Delivery",
+          entityId: updated.id,
+          customerId: existing.salesOrder.customerId,
+          previousState: { status: existing.status },
+          newState: { status: "CANCELLED" },
         },
       });
 

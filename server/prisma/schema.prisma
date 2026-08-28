@@ -471,6 +471,7 @@ model SalesOrder {
   expectedReadyDate   DateTime?            @map("expected_ready_date")
   assemblyNotes       String?              @map("assembly_notes")
   deliveryFloor       Int?                 @map("delivery_floor")
+  actualDeliveryDate  DateTime?            @map("actual_delivery_date")
   notes               String?
   createdAt           DateTime             @default(now()) @map("created_at")
   updatedAt           DateTime             @updatedAt @map("updated_at")
@@ -670,6 +671,9 @@ model Delivery {
   deliveryAddress String         @map("delivery_address")
   notes           String?
   proofPhotoUrl   String?        @map("proof_photo_url")
+  receiverName    String?        @map("receiver_name")
+  receiverPhone   String?        @map("receiver_phone")
+  actualDeliveryDate DateTime?   @map("actual_delivery_date")
   failureReason   String?        @map("failure_reason")
   completedAt     DateTime?      @map("completed_at")
   floorDelivery   Boolean        @default(false) @map("floor_delivery")

@@ -901,6 +901,18 @@ export function SalesOrderDetailPage() {
                     <Truck className="h-3.5 w-3.5 text-primary shrink-0" />
                     Scheduled Dispatch: {formatDate(delivery.scheduledDate)}
                   </p>
+                  {delivery.actualDeliveryDate && (
+                    <p className="text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5 pt-0.5 font-semibold">
+                      <CheckCircle className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                      Delivered: {formatDate(delivery.actualDeliveryDate)}
+                    </p>
+                  )}
+                  {delivery.receiverName && (
+                    <p className="text-muted-foreground pt-0.5">
+                      Received by: <strong className="text-foreground">{delivery.receiverName}</strong>
+                      {delivery.receiverPhone ? ` (${delivery.receiverPhone})` : ""}
+                    </p>
+                  )}
                 </div>
               )}
 

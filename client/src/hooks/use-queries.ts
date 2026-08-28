@@ -242,6 +242,9 @@ type RawDelivery = {
   deliveryAddress: string;
   notes?: string | null;
   proofPhotoUrl?: string | null;
+  receiverName?: string | null;
+  receiverPhone?: string | null;
+  actualDeliveryDate?: string | null;
   failureReason?: string | null;
   completedAt?: string | null;
   driver?: {
@@ -873,6 +876,9 @@ function mapDelivery(delivery: RawDelivery): DeliveryRow {
     status: formatEnumLabel(delivery.status),
     rawStatus: delivery.status,
     scheduledDate: delivery.scheduledDate,
+    actualDeliveryDate: delivery.actualDeliveryDate ?? undefined,
+    receiverName: delivery.receiverName ?? undefined,
+    receiverPhone: delivery.receiverPhone ?? undefined,
     route,
     deliveryAddress: delivery.deliveryAddress,
     notes: delivery.notes ?? undefined,
@@ -2341,10 +2347,14 @@ export function useCreateDeliveryMutation() {
 export type DeliveryUpdatePayload = {
   id: string;
   status?: string;
+  scheduledDate?: string;
   notes?: string;
   proofPhotoUrl?: string;
   driverId?: string;
   vehicle?: string;
+  receiverName?: string;
+  receiverPhone?: string;
+  actualDeliveryDate?: string;
 };
 
 export function useUpdateDeliveryMutation() {
@@ -2361,6 +2371,8 @@ export function useUpdateDeliveryMutation() {
       queryClient.invalidateQueries({ queryKey: ["deliveries"] });
       queryClient.invalidateQueries({ queryKey: ["sales-orders"] });
       queryClient.invalidateQueries({ queryKey: ["sales-order"] });
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
+      queryClient.invalidateQueries({ queryKey: ["customer"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["ar-ledger"] });
       queryClient.invalidateQueries({ queryKey: ["inventory"] });
@@ -2388,7 +2400,10 @@ export function useFailDeliveryMutation() {
       queryClient.invalidateQueries({ queryKey: ["deliveries"] });
       queryClient.invalidateQueries({ queryKey: ["sales-orders"] });
       queryClient.invalidateQueries({ queryKey: ["sales-order"] });
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
+      queryClient.invalidateQueries({ queryKey: ["customer"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["ar-ledger"] });
       queryClient.invalidateQueries({ queryKey: ["inventory"] });
     },
   });
@@ -2407,7 +2422,10 @@ export function useCancelDeliveryMutation() {
       queryClient.invalidateQueries({ queryKey: ["deliveries"] });
       queryClient.invalidateQueries({ queryKey: ["sales-orders"] });
       queryClient.invalidateQueries({ queryKey: ["sales-order"] });
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
+      queryClient.invalidateQueries({ queryKey: ["customer"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["ar-ledger"] });
       queryClient.invalidateQueries({ queryKey: ["inventory"] });
     },
   });

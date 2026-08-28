@@ -50,6 +50,9 @@ export function DriverWorkspacePage() {
   // POD Completion Modal State
   const [podModalOpen, setPodModalOpen] = useState(false);
   const [activeDelivery, setActiveDelivery] = useState<DeliveryRow | null>(null);
+  const [receiverName, setReceiverName] = useState("");
+  const [receiverPhone, setReceiverPhone] = useState("");
+  const [actualDeliveryDate, setActualDeliveryDate] = useState("");
   const [driverNotes, setDriverNotes] = useState("");
   const [proofPhotoUrl, setProofPhotoUrl] = useState("");
 
@@ -119,6 +122,9 @@ export function DriverWorkspacePage() {
 
   const handleOpenPodModal = (delivery: DeliveryRow) => {
     setActiveDelivery(delivery);
+    setReceiverName(delivery.receiverName ?? delivery.customer ?? "");
+    setReceiverPhone(delivery.receiverPhone ?? delivery.customerPhone ?? "");
+    setActualDeliveryDate(new Date().toISOString().split("T")[0]);
     setDriverNotes(delivery.notes ?? "");
     setProofPhotoUrl(delivery.proofPhotoUrl ?? "");
     setPodModalOpen(true);
@@ -130,6 +136,9 @@ export function DriverWorkspacePage() {
       await updateDelivery.mutateAsync({
         id: activeDelivery.id,
         status: "DELIVERED",
+        receiverName: receiverName.trim() || undefined,
+        receiverPhone: receiverPhone.trim() || undefined,
+        actualDeliveryDate: actualDeliveryDate ? new Date(actualDeliveryDate).toISOString() : new Date().toISOString(),
         notes: driverNotes.trim() || undefined,
         proofPhotoUrl: proofPhotoUrl.trim() || undefined,
       });
@@ -442,14 +451,22 @@ export function DriverWorkspacePage() {
                     )}
 
                     {isDelivered && (
-                      <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-400 text-xs font-bold flex items-center justify-between">
-                        <span className="flex items-center gap-2">
-                          <CheckCircle2 className="h-4 w-4 text-emerald-600" /> Delivery Fulfilled
-                        </span>
-                        {delivery.completedAt && (
-                          <span className="font-mono text-[10px] text-muted-foreground font-normal">
-                            {new Date(delivery.completedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-400 text-xs font-bold space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <span className="flex items-center gap-2">
+                            <CheckCircle2 className="h-4 w-4 text-emerald-600" /> Delivery Fulfilled
                           </span>
+                          {(delivery.actualDeliveryDate || delivery.completedAt) && (
+                            <span className="font-mono text-[10px] text-muted-foreground font-normal">
+                              {formatDate(delivery.actualDeliveryDate || delivery.completedAt!)}
+                            </span>
+                          )}
+                        </div>
+                        {delivery.receiverName && (
+                          <p className="text-[11px] font-normal text-muted-foreground">
+                            Received by: <strong className="text-foreground">{delivery.receiverName}</strong>
+                            {delivery.receiverPhone ? ` (${delivery.receiverPhone})` : ""}
+                          </p>
                         )}
                       </div>
                     )}
@@ -485,6 +502,47 @@ export function DriverWorkspacePage() {
           </DialogHeader>
 
           <div className="space-y-4 py-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="pod-receiver-name" className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                  <UserCheck className="h-3.5 w-3.5 text-primary" /> Receiver Name
+                </Label>
+                <Input
+                  id="pod-receiver-name"
+                  placeholder="Name of person receiving goods"
+                  value={receiverName}
+                  onChange={(e) => setReceiverName(e.target.value)}
+                  className="rounded-xl h-10 text-xs"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="pod-receiver-phone" className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                  <Phone className="h-3.5 w-3.5 text-primary" /> Receiver Phone
+                </Label>
+                <Input
+                  id="pod-receiver-phone"
+                  placeholder="Receiver phone number"
+                  value={receiverPhone}
+                  onChange={(e) => setReceiverPhone(e.target.value)}
+                  className="rounded-xl h-10 text-xs"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="pod-actual-date" className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                <Calendar className="h-3.5 w-3.5 text-primary" /> Actual Delivery Date
+              </Label>
+              <Input
+                id="pod-actual-date"
+                type="date"
+                value={actualDeliveryDate}
+                onChange={(e) => setActualDeliveryDate(e.target.value)}
+                className="rounded-xl h-10 text-xs"
+              />
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="pod-driver-notes" className="text-xs font-bold text-foreground flex items-center gap-1.5">
                 <FileText className="h-4 w-4 text-primary" /> Delivery Particulars / Receiver Notes
@@ -494,7 +552,7 @@ export function DriverWorkspacePage() {
                 placeholder="e.g. Received by Gate Manager Ramesh. Checked all 10 items undamaged."
                 value={driverNotes}
                 onChange={(e) => setDriverNotes(e.target.value)}
-                className="rounded-2xl min-h-[90px] text-xs"
+                className="rounded-2xl min-h-[80px] text-xs"
               />
             </div>
 
@@ -507,7 +565,7 @@ export function DriverWorkspacePage() {
                 placeholder="Photo URL or attachment string"
                 value={proofPhotoUrl}
                 onChange={(e) => setProofPhotoUrl(e.target.value)}
-                className="rounded-xl h-11 text-xs"
+                className="rounded-xl h-10 text-xs"
               />
               <p className="text-[10px] text-muted-foreground">
                 Drivers can attach photo verification URLs or gate pass references.

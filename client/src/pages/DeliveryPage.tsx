@@ -491,6 +491,22 @@ export function DeliveryPage() {
                     <span className="font-medium text-foreground">{formatDate(selectedDelivery.scheduledDate)}</span>
                   </div>
 
+                  {selectedDelivery.actualDeliveryDate && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Actual Delivery:</span>
+                      <span className="font-bold text-emerald-700 dark:text-emerald-400">{formatDate(selectedDelivery.actualDeliveryDate)}</span>
+                    </div>
+                  )}
+
+                  {selectedDelivery.receiverName && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Received By:</span>
+                      <span className="font-semibold text-foreground">
+                        {selectedDelivery.receiverName} {selectedDelivery.receiverPhone ? `(${selectedDelivery.receiverPhone})` : ""}
+                      </span>
+                    </div>
+                  )}
+
                   <div className="flex items-center justify-between">
                     <span className="text-muted-foreground">Route Note:</span>
                     <span className="font-medium text-foreground">{selectedDelivery.route || "Local Factory Route"}</span>

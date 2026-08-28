@@ -929,6 +929,11 @@ export function CustomerWorkspacePage() {
                     cell: ({ row }: { row: any }) => formatDate(row.original.scheduledDate),
                   },
                   {
+                    accessorKey: "actualDeliveryDate",
+                    header: "Delivered On",
+                    cell: ({ row }: { row: any }) => row.original.actualDeliveryDate ? formatDate(row.original.actualDeliveryDate) : "—",
+                  },
+                  {
                     accessorKey: "status",
                     header: "Status",
                     cell: ({ row }: { row: any }) => (
@@ -940,8 +945,17 @@ export function CustomerWorkspacePage() {
                   { accessorKey: "deliveryAddress", header: "Address" },
                   {
                     accessorKey: "driver",
-                    header: "Driver",
-                    cell: ({ row }: { row: any }) => row.original.driver?.name || "Unassigned",
+                    header: "Driver / Receiver",
+                    cell: ({ row }: { row: any }) => (
+                      <div className="text-xs">
+                        <div className="font-medium">{row.original.driver?.name || "Unassigned"}</div>
+                        {row.original.receiverName && (
+                          <div className="text-emerald-700 dark:text-emerald-400 text-[11px] font-semibold">
+                            Rec: {row.original.receiverName}
+                          </div>
+                        )}
+                      </div>
+                    ),
                   },
                 ]}
                 data={(customer.deliveries as any[]) || []}

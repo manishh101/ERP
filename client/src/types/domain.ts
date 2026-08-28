@@ -520,6 +520,9 @@ export type DeliveryRow = {
   status: string;
   rawStatus: string;
   scheduledDate: string;
+  actualDeliveryDate?: string;
+  receiverName?: string;
+  receiverPhone?: string;
   route: string;
   deliveryAddress: string;
   notes?: string;
