@@ -12,6 +12,7 @@ import {
 } from "../schemas/domain";
 import { ApiError } from "../utils/api-error";
 import { getPagination } from "../utils/pagination";
+import { invalidateDashboardCache } from "../config/redis";
 
 export const purchaseOrdersRouter = Router();
 
@@ -194,6 +195,8 @@ purchaseOrdersRouter.post(
       },
     });
 
+    await invalidateDashboardCache(request.user!.tenantId);
+
     response.status(201).json(purchaseOrder);
   }),
 );
@@ -286,6 +289,8 @@ purchaseOrdersRouter.patch(
         lineItems: true,
       },
     });
+
+    await invalidateDashboardCache(request.user!.tenantId);
 
     response.json(purchaseOrder);
   }),
@@ -533,6 +538,8 @@ purchaseOrdersRouter.post(
 
       return receipt;
     });
+
+    await invalidateDashboardCache(request.user!.tenantId);
 
     response.status(201).json(result);
   }),

@@ -24,6 +24,7 @@ import {
   getTrialBalance,
 } from "../services/report.service";
 import { getPagination } from "../utils/pagination";
+import { invalidateDashboardCache } from "../config/redis";
 
 export const accountingRouter = Router();
 
@@ -97,6 +98,8 @@ accountingRouter.post(
       tenantId: request.user!.tenantId,
       createdById: body.createdById ?? request.user?.id,
     });
+
+    await invalidateDashboardCache(request.user!.tenantId);
 
     response.status(201).json(entry);
   }),

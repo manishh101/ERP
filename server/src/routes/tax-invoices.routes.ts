@@ -17,6 +17,7 @@ import { getPagination } from "../utils/pagination";
 import { verifyToken } from "../utils/jwt";
 import { getBsDate, getCurrentFiscalYear } from "../shared/fiscal-year.util";
 import { logAudit } from "../services/audit.service";
+import { invalidateDashboardCache } from "../config/redis";
 
 export const taxInvoicesRouter = Router();
 
@@ -177,6 +178,8 @@ taxInvoicesRouter.post(
       newState: { invoiceNumber: invoice.invoiceNumber, invoiceType: invoice.invoiceType, invoiceAmount: invoice.invoiceAmount },
     });
 
+    await invalidateDashboardCache(request.user!.tenantId);
+
     response.status(201).json(invoice);
   }),
 );
@@ -245,6 +248,8 @@ taxInvoicesRouter.patch(
         } : {})
       },
     });
+
+    await invalidateDashboardCache(request.user!.tenantId);
 
     response.json(invoice);
   }),

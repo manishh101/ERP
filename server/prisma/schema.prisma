@@ -360,6 +360,7 @@ model GoodsReceipt {
   lines           GoodsReceiptLine[]
 
   @@index([purchaseOrderId])
+  @@index([tenantId, status])
   @@map("goods_receipts")
 }
 
@@ -401,6 +402,7 @@ model SupplierInvoice {
 
   @@unique([invoiceNumber, tenantId])
   @@index([supplierId, status])
+  @@index([tenantId, status, issueDate])
   @@map("supplier_invoices")
 }
 
@@ -482,6 +484,8 @@ model SalesOrder {
   payments            Payment[]
 
   @@index([customerId, status])
+  @@index([tenantId, status, orderDate])
+  @@index([tenantId, customerId])
   @@map("sales_orders")
 }
 
@@ -538,6 +542,7 @@ model TaxInvoice {
   @@index([soId])
   @@index([status, dueDate])
   @@index([tenantId, invoiceType])
+  @@index([tenantId, status, issueDate])
   @@map("tax_invoices")
 }
 
@@ -679,6 +684,7 @@ model Delivery {
   customerId      String?        @map("customer_id")
 
   @@index([driverId, status])
+  @@index([tenantId, status, scheduledDate])
   @@map("deliveries")
 }
 
@@ -701,6 +707,7 @@ model StockMovement {
   user             User?                  @relation(fields: [userId], references: [id])
 
   @@index([productVariantId, warehouseId, occurredAt])
+  @@index([tenantId, occurredAt])
   @@map("stock_movements")
 }
 
@@ -874,6 +881,7 @@ model VatRegister {
   customer   Customer   @relation(fields: [customerId], references: [id])
 
   @@index([fiscalYear, bsDate])
+  @@index([tenantId, fiscalYear])
   @@map("vat_register")
 }
 
