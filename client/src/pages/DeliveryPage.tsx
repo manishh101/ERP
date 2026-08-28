@@ -97,20 +97,20 @@ export function DeliveryPage() {
   // Dispatch KPIs
   const totalChallans = allDeliveries.length;
   const activeDispatchCount = allDeliveries.filter(
-    (d) => d.status === "SCHEDULED" || d.status === "OUT_FOR_DELIVERY"
+    (d) => (d.rawStatus ?? d.status) === "SCHEDULED" || (d.rawStatus ?? d.status) === "OUT_FOR_DELIVERY"
   ).length;
-  const completedCount = allDeliveries.filter((d) => d.status === "DELIVERED").length;
+  const completedCount = allDeliveries.filter((d) => (d.rawStatus ?? d.status) === "DELIVERED").length;
 
   // Filtered Deliveries
   const filteredDeliveries = allDeliveries.filter((d) => {
     if (statusTab === "ALL") return true;
-    return d.status === statusTab;
+    return (d.rawStatus ?? d.status) === statusTab;
   });
 
   const STATUS_TABS = [
     { id: "ALL", label: "All Challans", count: totalChallans },
-    { id: "SCHEDULED", label: "Scheduled", count: allDeliveries.filter((d) => d.status === "SCHEDULED").length },
-    { id: "OUT_FOR_DELIVERY", label: "Out for Delivery", count: allDeliveries.filter((d) => d.status === "OUT_FOR_DELIVERY").length },
+    { id: "SCHEDULED", label: "Scheduled", count: allDeliveries.filter((d) => (d.rawStatus ?? d.status) === "SCHEDULED").length },
+    { id: "OUT_FOR_DELIVERY", label: "Out for Delivery", count: allDeliveries.filter((d) => (d.rawStatus ?? d.status) === "OUT_FOR_DELIVERY").length },
     { id: "DELIVERED", label: "Delivered", count: completedCount },
   ];
 
@@ -216,7 +216,8 @@ export function DeliveryPage() {
       header: "Quick Action",
       cell: ({ row }) => {
         const item = row.original;
-        if (item.status === "SCHEDULED") {
+        const currentStatus = item.rawStatus ?? item.status;
+        if (currentStatus === "SCHEDULED") {
           return (
             <Button
               size="sm"
@@ -230,7 +231,7 @@ export function DeliveryPage() {
             </Button>
           );
         }
-        if (item.status === "OUT_FOR_DELIVERY") {
+        if (currentStatus === "OUT_FOR_DELIVERY") {
           return (
             <Button
               size="sm"
@@ -575,7 +576,7 @@ export function DeliveryPage() {
                     Dispatch Operations
                   </p>
 
-                  {selectedDelivery.status === "SCHEDULED" && (
+                  {(selectedDelivery.rawStatus ?? selectedDelivery.status) === "SCHEDULED" && (
                     <Button
                       onClick={() => handleUpdateStatus(selectedDelivery.id, "OUT_FOR_DELIVERY")}
                       disabled={updateDelivery.isPending}
@@ -585,7 +586,7 @@ export function DeliveryPage() {
                     </Button>
                   )}
 
-                  {selectedDelivery.status === "OUT_FOR_DELIVERY" && (
+                  {(selectedDelivery.rawStatus ?? selectedDelivery.status) === "OUT_FOR_DELIVERY" && (
                     <Button
                       onClick={() => handleUpdateStatus(selectedDelivery.id, "DELIVERED")}
                       disabled={updateDelivery.isPending}
@@ -595,7 +596,7 @@ export function DeliveryPage() {
                     </Button>
                   )}
 
-                  {selectedDelivery.status === "DELIVERED" && (
+                  {(selectedDelivery.rawStatus ?? selectedDelivery.status) === "DELIVERED" && (
                     <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 dark:bg-emerald-950/40 text-xs font-semibold flex items-center gap-2">
                       <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
                       Delivery fulfilled and acknowledged.
