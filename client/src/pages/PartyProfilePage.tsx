@@ -378,7 +378,7 @@ export function PartyProfilePage() {
           KHATA ANALYTICS (Month-by-Month)
           ═══════════════════════════════════════════════════════ */}
       <KhataAnalyticsTable
-        ledgerEntries={ledgerData ?? []}
+        ledgerEntries={ledgerData?.entries ?? []}
         salesOrders={orders}
       />
 

@@ -14,6 +14,17 @@ export const inventoryRouter = Router();
 inventoryRouter.use(requireAuth);
 
 inventoryRouter.get(
+  "/warehouses",
+  asyncHandler(async (request, response) => {
+    const warehouses = await prisma.warehouse.findMany({
+      where: { tenantId: request.user!.tenantId, isActive: true },
+      orderBy: { name: "asc" },
+    });
+    response.json(warehouses);
+  }),
+);
+
+inventoryRouter.get(
   "/",
   validate(listQuerySchema, "query"),
   asyncHandler(async (request, response) => {

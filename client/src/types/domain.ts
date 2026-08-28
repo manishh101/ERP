@@ -308,7 +308,23 @@ export type PurchaseOrderRow = {
     taxAmount: number;
     totalAmount: number;
     status: string;
+    rawStatus?: string;
     notes?: string;
+  }>;
+  rawGoodsReceipts?: Array<{
+    id: string;
+    receiptNumber?: string;
+    receivedAt: string;
+    notes?: string;
+    linesCount: number;
+  }>;
+  rawPayments?: Array<{
+    id: string;
+    amount: number;
+    paymentDate: string;
+    method: string;
+    reference?: string;
+    supplierInvoiceId?: string;
   }>;
   pendingQuantity: number;
   lineItems: PurchaseOrderLineRow[];
@@ -447,12 +463,17 @@ export type TaxInvoiceRow = {
   customer: string;
   status: string;
   dueDate: string | null;
+  issueDate?: string | null;
   amount: number; // Will map to invoiceAmount
+  taxAmount: number;
+  taxableAmount: number;
   balance: number;
   invoiceType: string;
   printed?: boolean;
   bsDate?: string;
   fiscalYear?: string;
+  notes?: string;
+  paymentMode?: string;
 };
 
 export type ArLedgerEntry = {
@@ -492,6 +513,7 @@ export type DeliveryRow = {
   id: string;
   customer: string;
   driver: string;
+  vehicle?: string;
   status: string;
   scheduledDate: string;
   route: string;

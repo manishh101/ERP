@@ -4,18 +4,18 @@ import { CalendarDays, ChevronDown } from "lucide-react";
 
 const NEPALI_YEARS = ["2079", "2080", "2081", "2082", "2083", "2084", "2085"];
 const NEPALI_MONTHS = [
-  { value: "01", label: "01 - Baisakh" },
-  { value: "02", label: "02 - Jestha" },
-  { value: "03", label: "03 - Ashadh" },
-  { value: "04", label: "04 - Shrawan" },
-  { value: "05", label: "05 - Bhadra" },
-  { value: "06", label: "06 - Ashwin" },
-  { value: "07", label: "07 - Kartik" },
-  { value: "08", label: "08 - Mangsir" },
-  { value: "09", label: "09 - Poush" },
-  { value: "10", label: "10 - Magh" },
-  { value: "11", label: "11 - Falgun" },
-  { value: "12", label: "12 - Chaitra" },
+  { value: "04", label: "Month 01 - Shrawan (साउन)" },
+  { value: "05", label: "Month 02 - Bhadra (भदौ)" },
+  { value: "06", label: "Month 03 - Ashwin (असोज)" },
+  { value: "07", label: "Month 04 - Kartik (कार्तिक)" },
+  { value: "08", label: "Month 05 - Mangsir (मंसिर)" },
+  { value: "09", label: "Month 06 - Poush (पुष)" },
+  { value: "10", label: "Month 07 - Magh (माघ)" },
+  { value: "11", label: "Month 08 - Falgun (फागुन)" },
+  { value: "12", label: "Month 09 - Chaitra (चैत)" },
+  { value: "01", label: "Month 10 - Baisakh (वैशाख)" },
+  { value: "02", label: "Month 11 - Jestha (जेठ)" },
+  { value: "03", label: "Month 12 - Ashadh (असार)" },
 ];
 
 type Props = {

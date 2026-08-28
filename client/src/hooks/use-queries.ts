@@ -160,12 +160,9 @@ type RawPurchaseOrder = {
   supplier: {
     name: string;
   };
-  goodsReceipts?: Array<{
-    id: string;
-  }>;
-  supplierInvoices?: Array<{
-    id: string;
-  }>;
+  goodsReceipts?: Array<any>;
+  supplierInvoices?: Array<any>;
+  payments?: Array<any>;
   lineItems: Array<{
     id: string;
     quantity: number | string;
@@ -218,6 +215,7 @@ type RawInvoice = {
   soId: string;
   invoiceNumber: string;
   status: string;
+  issueDate?: string | null;
   dueDate?: string | null;
   invoiceAmount: number | string;
   taxAmount: number | string;
@@ -225,6 +223,8 @@ type RawInvoice = {
   invoiceType: string;
   bsDate?: string | null;
   fiscalYear?: string | null;
+  notes?: string | null;
+  paymentMode?: string | null;
   salesOrder: {
     customer: {
       name: string;
@@ -789,7 +789,9 @@ function mapSalesOrder(order: RawSalesOrder): SalesOrderRow {
 
 function mapInvoice(invoice: RawInvoice): TaxInvoiceRow {
   const amount = toNumber(invoice.invoiceAmount);
+  const tax = toNumber(invoice.taxAmount);
   const paid = toNumber(invoice.amountPaid);
+  const taxable = Math.max(amount - tax, 0);
 
   return {
     id: invoice.id,
@@ -798,11 +800,16 @@ function mapInvoice(invoice: RawInvoice): TaxInvoiceRow {
     customer: invoice.salesOrder.customer.name,
     status: formatEnumLabel(invoice.status),
     dueDate: invoice.dueDate ?? null,
+    issueDate: invoice.issueDate ?? null,
     amount,
+    taxAmount: tax,
+    taxableAmount: taxable,
     balance: Math.max(amount - paid, 0),
     invoiceType: invoice.invoiceType,
     bsDate: invoice.bsDate ?? undefined,
     fiscalYear: invoice.fiscalYear ?? undefined,
+    notes: invoice.notes ?? undefined,
+    paymentMode: invoice.paymentMode ?? undefined,
   };
 }
 
@@ -813,6 +820,7 @@ function mapDelivery(delivery: RawDelivery): DeliveryRow {
     id: delivery.id,
     customer: delivery.salesOrder.customer.name,
     driver: delivery.driver?.name ?? "Unassigned",
+    vehicle: delivery.vehicle ?? undefined,
     status: formatEnumLabel(delivery.status),
     scheduledDate: delivery.scheduledDate,
     route,
@@ -1090,7 +1098,23 @@ function mapPurchaseOrder(order: RawPurchaseOrder): PurchaseOrderRow {
       taxAmount: toNumber(inv.taxAmount),
       totalAmount: toNumber(inv.totalAmount),
       status: formatEnumLabel(inv.status),
+      rawStatus: inv.status,
       notes: inv.notes || undefined,
+    })),
+    rawGoodsReceipts: (order.goodsReceipts || []).map((gr: any) => ({
+      id: gr.id,
+      receiptNumber: gr.receiptNumber || gr.id.slice(0, 8),
+      receivedAt: gr.receivedAt || gr.createdAt,
+      notes: gr.notes || undefined,
+      linesCount: gr.lines?.length || 0,
+    })),
+    rawPayments: (order.payments || []).map((pay: any) => ({
+      id: pay.id,
+      amount: toNumber(pay.amount),
+      paymentDate: pay.paymentDate || pay.createdAt,
+      method: formatEnumLabel(pay.method || "CASH"),
+      reference: pay.reference || undefined,
+      supplierInvoiceId: pay.supplierInvoiceId || undefined,
     })),
     pendingQuantity: lineItems.reduce(
       (sum, lineItem) => sum + Math.max(lineItem.quantity - lineItem.receivedQuantity, 0),
@@ -1905,6 +1929,10 @@ export function useRecordSalesOrderDepositMutation() {
       queryClient.invalidateQueries({ queryKey: ["sales-order"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["ar-ledger"] });
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
+      queryClient.invalidateQueries({ queryKey: ["customer"] });
+      queryClient.invalidateQueries({ queryKey: ["customer-ledger"] });
+      queryClient.invalidateQueries({ queryKey: ["payments"] });
     },
   });
 }
@@ -2011,8 +2039,11 @@ export function useRecordPaymentMutation() {
       queryClient.invalidateQueries({ queryKey: ["ar-ledger"] });
       queryClient.invalidateQueries({ queryKey: ["payments"] });
       queryClient.invalidateQueries({ queryKey: ["supplier-invoices"] });
+      queryClient.invalidateQueries({ queryKey: ["purchase-order"] });
+      queryClient.invalidateQueries({ queryKey: ["suppliers"] });
       queryClient.invalidateQueries({ queryKey: ["customers"] });
       queryClient.invalidateQueries({ queryKey: ["customer"] });
+      queryClient.invalidateQueries({ queryKey: ["customer-ledger"] });
     },
   });
 }
@@ -2053,6 +2084,20 @@ export function useTaxInvoicesQuery() {
         ...response,
         items: response.items.map(mapInvoice),
       };
+    },
+  });
+}
+
+export function useTaxInvoiceQuery(id?: string) {
+  const { token } = useAuth();
+
+  return useQuery({
+    queryKey: ["tax-invoice", id, token],
+    enabled: Boolean(token && id),
+    queryFn: async () => {
+      return apiRequest<any>(`/tax-invoices/${id}`, {
+        token: token!,
+      });
     },
   });
 }
@@ -2361,6 +2406,19 @@ export function useReceivePurchaseOrderMutation() {
         queryClient.invalidateQueries({ queryKey: ["supplier-invoices"] }),
         queryClient.invalidateQueries({ queryKey: ["products"] }),
       ]);
+    },
+  });
+}
+
+export function useWarehousesQuery() {
+  const { token } = useAuth();
+  return useQuery({
+    queryKey: ["warehouses", token],
+    enabled: Boolean(token),
+    queryFn: async () => {
+      return apiRequest<Array<{ id: string; name: string; code: string; location?: string; type: string }>>("/inventory/warehouses", {
+        token: token!,
+      });
     },
   });
 }
@@ -2973,21 +3031,26 @@ export function useCustomerLedgerQuery(customerId: string, options?: { startDate
       if (options?.startDate) query.startDate = options.startDate.toISOString();
       if (options?.endDate) query.endDate = options.endDate.toISOString();
 
-      const data = await apiRequest<{ entries: any[] }>(`/accounting/customers/${customerId}/ledger`, {
+      const data = await apiRequest<{ openingBalance: number; closingBalance: number; entries: any[] }>(`/accounting/customers/${customerId}/ledger`, {
         token: token!,
         query,
       });
 
-      return data.entries.map((tx: any) => ({
-        id: tx.id,
-        date: String(tx.entryDate),
-        type: tx.entryType,
-        reference: tx.referenceId,
-        narration: tx.narration,
-        debit: tx.debit,
-        credit: tx.credit,
-        balance: tx.runningBalance,
-      }));
+      return {
+        openingBalance: data.openingBalance ?? 0,
+        closingBalance: data.closingBalance ?? 0,
+        entries: (data.entries || []).map((tx: any) => ({
+          id: tx.id,
+          date: String(tx.entryDate),
+          bsDate: tx.bsDate,
+          type: tx.entryType,
+          reference: tx.referenceId,
+          narration: tx.narration,
+          debit: tx.debit,
+          credit: tx.credit,
+          balance: tx.runningBalance,
+        })),
+      };
     },
     enabled: !!customerId && !!token,
   });

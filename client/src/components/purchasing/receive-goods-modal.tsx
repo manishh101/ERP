@@ -14,8 +14,8 @@ import { NepaliDatePickerInput } from "@/components/ui/nepali-date-picker-input"
 import { toast } from "sonner";
 import { useReceivePurchaseOrderMutation } from "@/hooks/use-queries";
 import { getErrorMessage } from "@/lib/api";
-import { formatCurrency, formatNumber } from "@/lib/utils";
-import { Receipt, FileText, CheckCircle2, AlertCircle } from "lucide-react";
+import { formatCurrency } from "@/lib/utils";
+import { Receipt, FileText, CheckCircle2, AlertTriangle, PackageCheck } from "lucide-react";
 
 type ReceiveGoodsModalProps = {
   open: boolean;
@@ -112,7 +112,18 @@ export function ReceiveGoodsModal({ open, onOpenChange, order }: ReceiveGoodsMod
 
     if (!supplierInvoiceNo.trim()) {
       toast.error("Supplier Bill Number Required", {
-        description: "Please enter the Supplier Invoice / VAT Bill Number (e.g. INV-9901).",
+        description: "Please enter the Supplier Invoice / VAT Bill Number (e.g. VAT-9901).",
+      });
+      return;
+    }
+
+    // Check for over-receiving validation
+    const overReceivedLine = lines.find(
+      (l) => (Number(l.quantityReceived) || 0) > l.pendingQty
+    );
+    if (overReceivedLine) {
+      toast.error("Over-Receiving Error", {
+        description: `Cannot receive ${overReceivedLine.quantityReceived} units for ${overReceivedLine.productName}. Maximum pending is ${overReceivedLine.pendingQty}.`,
       });
       return;
     }
@@ -143,8 +154,8 @@ export function ReceiveGoodsModal({ open, onOpenChange, order }: ReceiveGoodsMod
         lines: validLines,
       });
 
-      toast.success("Goods Received & VAT Bill Posted", {
-        description: `Logged receipt for PO #${order.id.slice(0, 8)} with VAT Bill ${supplierInvoiceNo.trim()}.`,
+      toast.success("Goods Received & Stock Updated", {
+        description: `Logged receipt for PO #${order.id.slice(0, 8)} with Supplier Bill ${supplierInvoiceNo.trim()}.`,
       });
       onOpenChange(false);
     } catch (e) {
@@ -152,7 +163,13 @@ export function ReceiveGoodsModal({ open, onOpenChange, order }: ReceiveGoodsMod
     }
   };
 
-  // Calculations
+  // Check if this receipt is partial or complete
+  const isPartialReceipt = lines.some((line) => {
+    const receivingNow = Number(line.quantityReceived) || 0;
+    return line.pendingQty - receivingNow > 0;
+  });
+
+  // Financial Calculations
   const billSubtotal = lines.reduce(
     (sum, line) => sum + (Number(line.quantityReceived) || 0) * (Number(line.unitCost) || 0),
     0
@@ -165,16 +182,16 @@ export function ReceiveGoodsModal({ open, onOpenChange, order }: ReceiveGoodsMod
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold flex items-center gap-2">
-            <Receipt className="h-5 w-5 text-emerald-600" />
-            Receive Goods & Log Supplier VAT Bill
+            <PackageCheck className="h-5 w-5 text-emerald-600" />
+            Goods Receipt & Supplier VAT Bill Verification
           </DialogTitle>
           <DialogDescription className="text-xs text-muted-foreground">
-            Log incoming stock items and fill actual prices and tax from the supplier's physical VAT invoice / bill.
+            Record physical stock received into warehouse and enter actual cost & tax from supplier's VAT bill.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 my-2">
-          {/* Supplier Bill Info */}
+          {/* Supplier Bill Information */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-muted/30 p-3 rounded-xl border border-border/50">
             <div className="space-y-1">
               <label className="text-xs font-semibold text-foreground flex items-center gap-1">
@@ -193,17 +210,53 @@ export function ReceiveGoodsModal({ open, onOpenChange, order }: ReceiveGoodsMod
               <label className="text-xs font-semibold text-foreground">Bill Received Date *</label>
               <NepaliDatePickerInput
                 value={receivedDate}
-                onChange={(d: Date) => setReceivedDate(d ? d.toISOString().split("T")[0] : new Date().toISOString().split("T")[0])}
+                onChange={(d: Date) =>
+                  setReceivedDate(d ? d.toISOString().split("T")[0] : new Date().toISOString().split("T")[0])
+                }
               />
             </div>
           </div>
+
+          {/* Receipt Status Notice */}
+          {lines.length > 0 && (
+            <div
+              className={`p-3 rounded-xl border flex items-center justify-between text-xs font-medium ${
+                isPartialReceipt
+                  ? "bg-amber-50 border-amber-200 text-amber-900 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-200"
+                  : "bg-emerald-50 border-emerald-200 text-emerald-900 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-200"
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                {isPartialReceipt ? (
+                  <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                ) : (
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                )}
+                <span>
+                  {isPartialReceipt
+                    ? "Partial Receipt Mode: PO status will update to PARTIALLY_RECEIVED."
+                    : "Full Receipt Mode: PO will be marked as fully RECEIVED."}
+                </span>
+              </div>
+              <Badge
+                variant="outline"
+                className={`font-semibold text-xs ${
+                  isPartialReceipt
+                    ? "border-amber-400 text-amber-700 bg-amber-100 dark:bg-amber-900/50"
+                    : "border-emerald-400 text-emerald-700 bg-emerald-100 dark:bg-emerald-900/50"
+                }`}
+              >
+                {isPartialReceipt ? "Partial Delivery" : "Full Receipt"}
+              </Badge>
+            </div>
+          )}
 
           {/* Line Items Table */}
           <div className="border rounded-xl overflow-hidden shadow-xs">
             <div className="bg-muted/60 p-2.5 text-xs font-bold border-b flex justify-between items-center">
               <span>Items Being Received</span>
               <span className="text-muted-foreground font-normal">
-                Fill Item Name, Unit Cost & Tax/VAT as per Supplier Bill
+                Set Receiving Qty, Unit Cost & Tax/VAT per Supplier Bill
               </span>
             </div>
 
@@ -218,21 +271,22 @@ export function ReceiveGoodsModal({ open, onOpenChange, order }: ReceiveGoodsMod
                   const cost = Number(line.unitCost) || 0;
                   const tax = Number(line.taxAmount) || 0;
                   const lineTotal = qty * cost + tax;
+                  const remainingAfter = Math.max(0, line.pendingQty - qty);
 
                   return (
                     <div key={line.poLineItemId} className="p-3 bg-card space-y-2 text-xs">
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                         <div className="flex-1 space-y-1">
-                          <div className="flex items-center justify-between">
-                            <label className="text-[11px] font-semibold text-foreground flex items-center gap-1.5">
-                              <span>Item Name as per Supplier Bill</span>
-                              <Badge variant="outline" className="text-[10px] font-normal">
-                                Pending: {line.pendingQty} units
-                              </Badge>
+                          <div className="flex items-center gap-2">
+                            <label className="text-[11px] font-semibold text-foreground">
+                              {line.productName}
                             </label>
+                            <Badge variant="outline" className="text-[10px] font-normal">
+                              Ordered: {line.orderedQty} | Prev Received: {line.previouslyReceivedQty} | Pending: {line.pendingQty}
+                            </Badge>
                           </div>
                           <Input
-                            placeholder="e.g. Tata MS Sheet 2mm"
+                            placeholder="Supplier item description"
                             className="h-8 text-xs font-medium rounded-lg"
                             value={line.supplierItemName}
                             onChange={(e) => updateLine(idx, { supplierItemName: e.target.value })}
@@ -244,25 +298,37 @@ export function ReceiveGoodsModal({ open, onOpenChange, order }: ReceiveGoodsMod
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center pt-1">
-                        {/* Qty Received */}
+                        {/* Qty Receiving Now */}
                         <div className="sm:col-span-3 space-y-1">
                           <label className="text-[11px] text-muted-foreground font-medium">
-                            Qty Received
+                            Receiving Now *
                           </label>
                           <Input
                             type="number"
                             min="0"
                             max={line.pendingQty}
-                            className="h-8 text-xs rounded-lg"
+                            className={`h-8 text-xs rounded-lg font-mono font-bold ${
+                              qty > line.pendingQty ? "border-red-500 text-red-600 bg-red-50" : ""
+                            }`}
                             value={line.quantityReceived}
                             onChange={(e) => updateLine(idx, { quantityReceived: e.target.value })}
                           />
                         </div>
 
+                        {/* Remaining After */}
+                        <div className="sm:col-span-2 space-y-1">
+                          <label className="text-[11px] text-muted-foreground font-medium">
+                            Remaining Qty
+                          </label>
+                          <div className="h-8 rounded-lg border bg-muted/30 px-2 flex items-center justify-center font-mono font-semibold text-xs text-foreground">
+                            {remainingAfter} units
+                          </div>
+                        </div>
+
                         {/* Unit Cost */}
                         <div className="sm:col-span-3 space-y-1">
                           <label className="text-[11px] text-muted-foreground font-medium">
-                            Unit Cost (Rs.)
+                            Unit Cost (NPR)
                           </label>
                           <Input
                             type="number"
@@ -274,8 +340,8 @@ export function ReceiveGoodsModal({ open, onOpenChange, order }: ReceiveGoodsMod
                           />
                         </div>
 
-                        {/* Tax/VAT Mode */}
-                        <div className="sm:col-span-3 space-y-1">
+                        {/* Tax Mode */}
+                        <div className="sm:col-span-2 space-y-1">
                           <label className="text-[11px] text-muted-foreground font-medium">
                             Tax Mode
                           </label>
@@ -290,14 +356,14 @@ export function ReceiveGoodsModal({ open, onOpenChange, order }: ReceiveGoodsMod
                           >
                             <option value="EXEMPT_0">0% Exempt</option>
                             <option value="VAT_13">13% VAT</option>
-                            <option value="CUSTOM">Custom Tax</option>
+                            <option value="CUSTOM">Custom</option>
                           </select>
                         </div>
 
                         {/* Tax Amount */}
-                        <div className="sm:col-span-3 space-y-1">
+                        <div className="sm:col-span-2 space-y-1">
                           <label className="text-[11px] text-muted-foreground font-medium">
-                            Tax Amount (Rs.)
+                            VAT Amount
                           </label>
                           <Input
                             type="number"
@@ -320,7 +386,7 @@ export function ReceiveGoodsModal({ open, onOpenChange, order }: ReceiveGoodsMod
           <div className="space-y-1">
             <label className="text-xs font-semibold text-muted-foreground">Receipt Notes / Remarks</label>
             <Input
-              placeholder="e.g. Goods received in good condition at Kathmandu warehouse."
+              placeholder="e.g. Inspected and received at Kathmandu Central Store."
               className="h-9 text-xs rounded-lg"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
@@ -330,11 +396,11 @@ export function ReceiveGoodsModal({ open, onOpenChange, order }: ReceiveGoodsMod
           {/* Live Summary Bar */}
           <div className="bg-primary/5 border border-primary/20 p-3 rounded-xl flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+              <Receipt className="h-5 w-5 text-emerald-600" />
               <div>
                 <p className="text-xs font-bold text-foreground">Supplier VAT Bill Summary</p>
                 <p className="text-[11px] text-muted-foreground">
-                  Subtotal: {formatCurrency(billSubtotal)} | VAT Tax: {formatCurrency(billTaxTotal)}
+                  Subtotal: {formatCurrency(billSubtotal)} | VAT: {formatCurrency(billTaxTotal)}
                 </p>
               </div>
             </div>
@@ -356,7 +422,7 @@ export function ReceiveGoodsModal({ open, onOpenChange, order }: ReceiveGoodsMod
             disabled={receiveMutation.isPending || lines.length === 0}
             className="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
           >
-            {receiveMutation.isPending ? "Posting Receipt..." : "Submit Receipt & Post VAT Bill"}
+            {receiveMutation.isPending ? "Posting Receipt..." : "Submit Receipt & Update Stock"}
           </Button>
         </DialogFooter>
       </DialogContent>

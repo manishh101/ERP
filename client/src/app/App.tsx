@@ -17,7 +17,6 @@ import { NotFoundPage } from "@/pages/NotFoundPage";
 import { PaymentsPage } from "@/pages/PaymentsPage";
 import { ProductDetailPage } from "@/pages/ProductDetailPage";
 import { PartiesPage } from "@/pages/PartiesPage";
-import { PartyProfilePage } from "@/pages/PartyProfilePage";
 import { PurchasingPage } from "@/pages/PurchasingPage";
 import { PurchaseOrderDetailPage } from "@/pages/PurchaseOrderDetailPage";
 import { ReportingPage } from "@/pages/ReportingPage";
@@ -76,8 +75,7 @@ export function App() {
             <Route path="/purchasing/:id" element={<PurchaseOrderDetailPage />} />
             {/* Parties directory */}
             <Route path="/parties" element={<PartiesPage />} />
-            <Route path="/parties/:id" element={<PartyProfilePage />} />
-            <Route path="/customers/:id" element={<CustomerWorkspacePage />} />
+            <Route path="/parties/:id" element={<CustomerWorkspacePage />} />
             <Route path="/suppliers" element={<SuppliersPage />} />
             <Route path="/suppliers/:id" element={<SupplierProfilePage />} />
             <Route path="/sales" element={<SalesPage />} />

@@ -170,6 +170,21 @@ export function PurchaseOrderDetailPage() {
 
   const currentStepIdx = getStepIndex(rawStatus);
 
+  // Calculated financial metrics
+  const poAmount = toNumber(order.totalAmount);
+  const invoicedTotal = (order.rawSupplierInvoices || []).reduce((sum: number, inv: any) => sum + toNumber(inv.totalAmount), 0);
+  const paidTotal = (order.rawPayments || []).reduce((sum: number, pay: any) => sum + toNumber(pay.amount), 0);
+  const balancePayable = Math.max(invoicedTotal - paidTotal, 0);
+
+  const receivedValue = lineItems.reduce((sum: number, li: any) => {
+    const qty = toNumber(li.quantity);
+    const rec = toNumber(li.receivedQuantity);
+    const cost = toNumber(li.unitCost);
+    const tax = toNumber(li.taxAmount);
+    const itemTotal = qty * cost + tax;
+    return sum + (qty > 0 ? (rec / qty) * itemTotal : 0);
+  }, 0);
+
   return (
     <div className="p-6 space-y-6">
       {/* Top Header */}
@@ -189,7 +204,9 @@ export function PurchaseOrderDetailPage() {
             </div>
             <p className="text-sm text-muted-foreground flex items-center gap-1.5 mt-0.5">
               <Building2 className="h-3.5 w-3.5" />
-              {order.supplier}
+              <Link to={`/suppliers/${order.supplierId}`} className="hover:underline font-medium text-foreground">
+                {order.supplier}
+              </Link>
             </p>
           </div>
         </div>
@@ -258,6 +275,46 @@ export function PurchaseOrderDetailPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Financial Executive Summary Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+        <Card className="shadow-xs border-primary/20 bg-primary/5">
+          <CardContent className="p-3.5">
+            <span className="text-[11px] font-semibold text-muted-foreground block">PO Agreed Total</span>
+            <span className="text-base font-bold font-mono text-primary mt-0.5 block">{formatCurrency(poAmount)}</span>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-xs border-blue-500/20 bg-blue-500/5">
+          <CardContent className="p-3.5">
+            <span className="text-[11px] font-semibold text-muted-foreground block">Received Goods Value</span>
+            <span className="text-base font-bold font-mono text-blue-700 dark:text-blue-400 mt-0.5 block">{formatCurrency(receivedValue)}</span>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-xs border-emerald-500/20 bg-emerald-500/5">
+          <CardContent className="p-3.5">
+            <span className="text-[11px] font-semibold text-muted-foreground block">Logged Invoices</span>
+            <span className="text-base font-bold font-mono text-emerald-700 dark:text-emerald-400 mt-0.5 block">{formatCurrency(invoicedTotal)}</span>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-xs border-purple-500/20 bg-purple-500/5">
+          <CardContent className="p-3.5">
+            <span className="text-[11px] font-semibold text-muted-foreground block">Amount Paid</span>
+            <span className="text-base font-bold font-mono text-purple-700 dark:text-purple-400 mt-0.5 block">{formatCurrency(paidTotal)}</span>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-xs border-amber-500/20 bg-amber-500/5 col-span-2 sm:col-span-1">
+          <CardContent className="p-3.5">
+            <span className="text-[11px] font-semibold text-muted-foreground block">Balance Payable</span>
+            <span className={`text-base font-bold font-mono mt-0.5 block ${balancePayable > 0 ? "text-amber-700 dark:text-amber-400" : "text-emerald-600"}`}>
+              {formatCurrency(balancePayable)}
+            </span>
+          </CardContent>
+        </Card>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column: Order Metadata & Line Items */}
@@ -403,51 +460,123 @@ export function PurchaseOrderDetailPage() {
             </CardContent>
           </Card>
 
-          {/* Logged Supplier VAT Bills / Invoices */}
-          {order.rawSupplierInvoices && order.rawSupplierInvoices.length > 0 && (
-            <Card className="shadow-xs border-emerald-500/20 bg-emerald-500/5">
-              <CardHeader className="pb-3">
+          {/* Connected Procurement Lifecycle Documents Hub */}
+          <Card className="shadow-xs border-primary/20">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base font-semibold flex items-center gap-2">
+                <FileCheck className="h-5 w-5 text-primary" />
+                Connected Procurement Workflow Documents
+              </CardTitle>
+              <CardDescription className="text-xs">
+                Direct cross-navigation across Goods Receipts, Supplier Invoices, and Payments for PO-{order.id.slice(0, 8)}.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Goods Receipts */}
+              <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="text-base font-semibold text-emerald-950 dark:text-emerald-200">
-                      Logged Supplier VAT Bills / Invoices
-                    </CardTitle>
-                    <CardDescription className="text-xs">
-                      Official tax bill details recorded from the supplier during goods receipt.
-                    </CardDescription>
-                  </div>
-                  <Badge variant="outline" className="border-emerald-500 text-emerald-700 dark:text-emerald-400">
-                    {order.rawSupplierInvoices.length} Bill(s) Recorded
-                  </Badge>
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                    <Truck className="h-3.5 w-3.5 text-blue-600" /> Goods Receipts ({order.rawGoodsReceipts?.length || 0})
+                  </h4>
                 </div>
-              </CardHeader>
-              <CardContent>
-                <div className="divide-y divide-emerald-500/10 space-y-3">
-                  {order.rawSupplierInvoices.map((inv) => (
-                    <div key={inv.id} className="pt-3 first:pt-0 flex items-center justify-between text-sm">
-                      <div className="space-y-0.5">
-                        <div className="flex items-center space-x-2">
-                          <span className="font-bold text-foreground">Invoice #{inv.invoiceNumber}</span>
-                          <StatusBadge value={inv.status} />
+                {(!order.rawGoodsReceipts || order.rawGoodsReceipts.length === 0) ? (
+                  <p className="text-xs text-muted-foreground italic p-2 bg-muted/20 rounded-lg">
+                    No goods receipts logged yet. Click "Receive Goods" to record physical inventory receipt.
+                  </p>
+                ) : (
+                  <div className="divide-y rounded-xl border bg-muted/10 overflow-hidden text-xs">
+                    {order.rawGoodsReceipts.map((gr) => (
+                      <div key={gr.id} className="p-3 flex items-center justify-between hover:bg-muted/30">
+                        <div className="space-y-0.5">
+                          <span className="font-bold text-foreground">Receipt #{gr.receiptNumber}</span>
+                          <p className="text-muted-foreground">Received on {formatDate(gr.receivedAt)} {gr.notes ? `• ${gr.notes}` : ""}</p>
                         </div>
-                        <p className="text-xs text-muted-foreground">
-                          Bill Date: {formatDate(inv.issueDate)} {inv.notes ? `• ${inv.notes}` : ""}
-                        </p>
+                        <Badge variant="outline" className="font-mono text-[11px] bg-blue-50 dark:bg-blue-950/40 text-blue-700">
+                          {gr.linesCount} Item Line(s) Received
+                        </Badge>
                       </div>
-                      <div className="text-right">
-                        <p className="font-bold font-mono text-emerald-700 dark:text-emerald-400">
-                          {formatCurrency(inv.totalAmount)}
-                        </p>
-                        <p className="text-xs text-muted-foreground font-mono">
-                          Subtotal: {formatCurrency(inv.subtotal)} | VAT Tax: {formatCurrency(inv.taxAmount)}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Logged Supplier Invoices */}
+              <div className="space-y-2 pt-2 border-t">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                    <Receipt className="h-3.5 w-3.5 text-emerald-600" /> Supplier VAT Invoices ({order.rawSupplierInvoices?.length || 0})
+                  </h4>
+                  <Button variant="ghost" size="sm" className="h-7 text-xs text-primary" asChild>
+                    <Link to="/supplier-invoices">View All Invoices</Link>
+                  </Button>
                 </div>
-              </CardContent>
-            </Card>
-          )}
+                {(!order.rawSupplierInvoices || order.rawSupplierInvoices.length === 0) ? (
+                  <p className="text-xs text-muted-foreground italic p-2 bg-muted/20 rounded-lg">
+                    No supplier tax invoices recorded. Invoices can be attached when receiving goods.
+                  </p>
+                ) : (
+                  <div className="divide-y rounded-xl border border-emerald-500/20 bg-emerald-500/5 overflow-hidden text-xs">
+                    {order.rawSupplierInvoices.map((inv) => (
+                      <div key={inv.id} className="p-3 flex items-center justify-between hover:bg-emerald-500/10">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-foreground">Invoice #{inv.invoiceNumber}</span>
+                            <StatusBadge value={inv.status} />
+                          </div>
+                          <p className="text-muted-foreground">
+                            Bill Date: {formatDate(inv.issueDate)} {inv.notes ? `• ${inv.notes}` : ""}
+                          </p>
+                        </div>
+                        <div className="text-right space-y-1">
+                          <p className="font-bold font-mono text-emerald-700 dark:text-emerald-400 text-sm">
+                            {formatCurrency(inv.totalAmount)}
+                          </p>
+                          <Button size="sm" variant="outline" className="h-7 text-[11px] rounded-lg border-emerald-500 text-emerald-700 hover:bg-emerald-100 dark:hover:bg-emerald-950" asChild>
+                            <Link to={`/payments?new=1`}>Record Payment</Link>
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Payments Recorded */}
+              <div className="space-y-2 pt-2 border-t">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                    <TrendingUp className="h-3.5 w-3.5 text-purple-600" /> Supplier Payments ({order.rawPayments?.length || 0})
+                  </h4>
+                  <Button variant="ghost" size="sm" className="h-7 text-xs text-purple-600" asChild>
+                    <Link to="/payments">View Payments Ledger</Link>
+                  </Button>
+                </div>
+                {(!order.rawPayments || order.rawPayments.length === 0) ? (
+                  <p className="text-xs text-muted-foreground italic p-2 bg-muted/20 rounded-lg">
+                    No supplier payments recorded for this purchase order yet.
+                  </p>
+                ) : (
+                  <div className="divide-y rounded-xl border border-purple-500/20 bg-purple-500/5 overflow-hidden text-xs">
+                    {order.rawPayments.map((pay) => (
+                      <div key={pay.id} className="p-3 flex items-center justify-between hover:bg-purple-500/10">
+                        <div className="space-y-0.5">
+                          <span className="font-bold text-foreground">Payment Date: {formatDate(pay.paymentDate)}</span>
+                          <p className="text-muted-foreground">
+                            Method: <strong>{pay.method}</strong> {pay.reference ? `• Ref: ${pay.reference}` : ""}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <span className="font-bold font-mono text-purple-700 dark:text-purple-400 text-sm">
+                            {formatCurrency(pay.amount)}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Right Column: Actions & 3-Way Match */}
@@ -472,7 +601,7 @@ export function PurchaseOrderDetailPage() {
           {/* Workflow Action Panel */}
           <Card className="shadow-xs border-primary/20">
             <CardHeader className="pb-3">
-              <CardTitle className="text-base font-semibold">Order Actions & Status</CardTitle>
+              <CardTitle className="text-base font-semibold">Order Actions & Workflow</CardTitle>
               <CardDescription className="text-xs">
                 Advance this PO through its procurement workflow steps.
               </CardDescription>
@@ -513,8 +642,21 @@ export function PurchaseOrderDetailPage() {
                 >
                   <Receipt className="mr-2 h-4 w-4 text-emerald-600" />
                   {pendingLines.length > 0
-                    ? `Receive Goods & Fill VAT Bill (${pendingLines.length} pending items)`
+                    ? `Receive Goods & Log VAT Bill (${pendingLines.length} pending items)`
                     : `Log / Update Supplier VAT Bill`}
+                </Button>
+              )}
+
+              {/* Close Purchase Order Action */}
+              {(rawStatus === "PARTIALLY_RECEIVED" || rawStatus === "RECEIVED") && (
+                <Button
+                  variant="outline"
+                  className="w-full justify-start rounded-xl border-blue-500 text-blue-700 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 font-semibold"
+                  onClick={() => handleStatusChange("CLOSED", "Closed")}
+                  disabled={updateStatus.isPending}
+                >
+                  <CheckCircle className="mr-2 h-4 w-4 text-blue-600" />
+                  Close Purchase Order
                 </Button>
               )}
 

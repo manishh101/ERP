@@ -45,6 +45,34 @@ export function errorHandler(
       });
     }
 
+    if (error.code === "P2002") {
+      const targetStr = Array.isArray(error.meta?.target) ? error.meta?.target.join(", ") : String(error.meta?.target || "");
+      if (targetStr.includes("invoice_number") || targetStr.includes("invoiceNumber")) {
+        return response.status(409).json({
+          message: "This invoice number already exists. Please use a different invoice number.",
+          code: error.code,
+        });
+      }
+      return response.status(409).json({
+        message: "A record with this unique value already exists. Please check your inputs.",
+        code: error.code,
+      });
+    }
+
+    if (error.code === "P2025") {
+      return response.status(404).json({
+        message: "The requested record was not found.",
+        code: error.code,
+      });
+    }
+
+    if (error.code === "P2003") {
+      return response.status(400).json({
+        message: "Cannot proceed because referenced records exist or are missing.",
+        code: error.code,
+      });
+    }
+
     return response.status(500).json({
       message: "Database query failed. Check server logs for details.",
       code: error.code,

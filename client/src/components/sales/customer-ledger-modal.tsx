@@ -138,15 +138,15 @@ export function CustomerLedgerModal({ customerId, customerName, onClose }: Custo
               <Skeleton className="h-10 w-full" />
               <Skeleton className="h-10 w-full" />
             </div>
-          ) : ledger && ledger.length > 0 ? (
+          ) : ledger?.entries && ledger.entries.length > 0 ? (
             <div className="space-y-4">
-              <DataTable data={ledger} columns={ledgerColumns} pageSize={50} />
+              <DataTable data={ledger.entries} columns={ledgerColumns} pageSize={50} />
 
               <div className="flex justify-end pt-2">
                 <div className="text-right">
                   <p className="text-xs uppercase tracking-wider text-muted-foreground">Closing Balance</p>
                   <p className="mt-1 text-xl font-semibold tabular-nums">
-                    {formatCurrency(ledger[ledger.length - 1].balance)}
+                    {formatCurrency(ledger.closingBalance)}
                   </p>
                 </div>
               </div>
@@ -162,7 +162,7 @@ export function CustomerLedgerModal({ customerId, customerName, onClose }: Custo
           <Button variant="outline" onClick={onClose}>
             Close
           </Button>
-          <Button onClick={handleDownloadPdf} disabled={!ledger || ledger.length === 0}>
+          <Button onClick={handleDownloadPdf} disabled={!ledger?.entries || ledger.entries.length === 0}>
             Download PDF
           </Button>
         </div>
