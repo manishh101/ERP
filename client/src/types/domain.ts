@@ -511,19 +511,33 @@ export type VatRegisterEntry = {
 
 export type DeliveryRow = {
   id: string;
+  soId: string;
   customer: string;
+  customerPhone?: string;
   driver: string;
+  driverId?: string;
   vehicle?: string;
   status: string;
+  rawStatus: string;
   scheduledDate: string;
   route: string;
   deliveryAddress: string;
+  notes?: string;
+  proofPhotoUrl?: string;
+  failureReason?: string;
+  completedAt?: string;
   floor: number;
   assemblyNote?: string;
   deliveryCharge: number;
   assemblyCharge: number;
   floorDelivery: boolean;
   assemblyService: boolean;
+  lineItems: Array<{
+    id: string;
+    productName: string;
+    quantity: number;
+    sku?: string;
+  }>;
 };
 
 export type InventoryRecordRow = {

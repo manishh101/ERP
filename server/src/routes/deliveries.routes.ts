@@ -190,6 +190,14 @@ deliveriesRouter.get(
       },
     });
 
+    if (!delivery) {
+      throw new ApiError(404, "Delivery not found");
+    }
+
+    if (request.user?.role === "DRIVER" && delivery.driverId !== request.user.id) {
+      throw new ApiError(403, "Access denied: delivery assigned to another driver");
+    }
+
     response.json(delivery);
   }),
 );
@@ -208,6 +216,10 @@ deliveriesRouter.patch(
         where: { id: params.id, tenantId: request.user!.tenantId },
       });
       if (!existing) throw new ApiError(404, "Delivery not found");
+
+      if (request.user?.role === "DRIVER" && existing.driverId !== request.user.id) {
+        throw new ApiError(403, "Access denied: cannot update delivery assigned to another driver");
+      }
 
       const updated = await tx.delivery.update({
         where: { id: params.id },
@@ -249,6 +261,10 @@ deliveriesRouter.post(
 
     if (!delivery) {
       throw new ApiError(404, "Delivery not found");
+    }
+
+    if (request.user?.role === "DRIVER" && delivery.driverId !== request.user.id) {
+      throw new ApiError(403, "Access denied: cannot mark failure on delivery assigned to another driver");
     }
 
     const updated = await prisma.delivery.update({

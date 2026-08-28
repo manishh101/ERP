@@ -28,6 +28,15 @@ import { SupplierProfilePage } from "@/pages/SupplierProfilePage";
 import { SupplierInvoicesPage } from "@/pages/SupplierInvoicesPage";
 import { UsersPage } from "@/pages/UsersPage";
 import { CustomerWorkspacePage } from "@/pages/CustomerWorkspacePage";
+import { DriverWorkspacePage } from "@/pages/DriverWorkspacePage";
+
+function IndexOrDriverRedirect() {
+  const { user } = useAuth();
+  if (user?.role === "DRIVER") {
+    return <Navigate to="/driver" replace />;
+  }
+  return <DashboardPage />;
+}
 
 function PageLoader() {
   return (
@@ -68,7 +77,8 @@ export function App() {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route element={<ProtectedAppShell />}>
-            <Route index element={<DashboardPage />} />
+            <Route index element={<IndexOrDriverRedirect />} />
+            <Route path="/driver" element={<DriverWorkspacePage />} />
             <Route path="/inventory" element={<InventoryPage />} />
             <Route path="/inventory/products/:productId" element={<ProductDetailPage />} />
             <Route path="/purchasing" element={<PurchasingPage />} />

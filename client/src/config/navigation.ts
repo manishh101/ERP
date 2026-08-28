@@ -54,7 +54,10 @@ export const NAVIGATION: NavSection[] = [
   },
   {
     title: "Delivery",
-    items: [{ label: "Challans", href: "/delivery", icon: Truck }],
+    items: [
+      { label: "Driver Workspace", href: "/driver", icon: Truck },
+      { label: "Dispatch & Challans", href: "/delivery", icon: ClipboardList },
+    ],
   },
   {
     title: "Purchasing",
@@ -128,7 +131,8 @@ export const BREADCRUMB_LABELS: Record<string, string> = {
   parties: "Customers & Showrooms",
   suppliers: "Suppliers",
   sales: "Orders",
-  delivery: "Challans",
+  delivery: "Dispatch & Challans",
+  driver: "Driver Workspace",
   invoicing: "VAT/PAN Bills",
   "supplier-invoices": "Supplier Invoices",
   estimates: "Estimate Bills",

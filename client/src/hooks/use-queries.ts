@@ -234,17 +234,38 @@ type RawInvoice = {
 
 type RawDelivery = {
   id: string;
+  soId?: string;
+  driverId?: string | null;
   status: string;
   scheduledDate: string;
   vehicle?: string | null;
   deliveryAddress: string;
+  notes?: string | null;
+  proofPhotoUrl?: string | null;
+  failureReason?: string | null;
+  completedAt?: string | null;
   driver?: {
+    id?: string;
     name: string;
   } | null;
   salesOrder: {
+    id?: string;
     customer: {
+      id?: string;
       name: string;
+      phone?: string | null;
+      email?: string | null;
     };
+    lineItems?: Array<{
+      id: string;
+      quantity: number;
+      productVariant?: {
+        sku?: string;
+        product?: {
+          name: string;
+        };
+      };
+    }>;
   };
   floor?: number | null;
   assemblyNote?: string | null;
@@ -816,21 +837,37 @@ function mapInvoice(invoice: RawInvoice): TaxInvoiceRow {
 function mapDelivery(delivery: RawDelivery): DeliveryRow {
   const route = [delivery.vehicle, delivery.deliveryAddress].filter(Boolean).join(" · ");
 
+  const lineItems = (delivery.salesOrder.lineItems ?? []).map((li) => ({
+    id: li.id,
+    productName: li.productVariant?.product?.name ?? "Standard Item",
+    quantity: li.quantity,
+    sku: li.productVariant?.sku ?? undefined,
+  }));
+
   return {
     id: delivery.id,
+    soId: delivery.soId ?? delivery.salesOrder.id ?? "",
     customer: delivery.salesOrder.customer.name,
+    customerPhone: delivery.salesOrder.customer.phone ?? undefined,
     driver: delivery.driver?.name ?? "Unassigned",
+    driverId: delivery.driver?.id ?? delivery.driverId ?? undefined,
     vehicle: delivery.vehicle ?? undefined,
     status: formatEnumLabel(delivery.status),
+    rawStatus: delivery.status,
     scheduledDate: delivery.scheduledDate,
     route,
     deliveryAddress: delivery.deliveryAddress,
+    notes: delivery.notes ?? undefined,
+    proofPhotoUrl: delivery.proofPhotoUrl ?? undefined,
+    failureReason: delivery.failureReason ?? undefined,
+    completedAt: delivery.completedAt ?? undefined,
     floor: delivery.floor ?? 0,
     assemblyNote: delivery.assemblyNote ?? undefined,
     deliveryCharge: toNumber(delivery.deliveryCharge),
     assemblyCharge: toNumber(delivery.assemblyCharge),
     floorDelivery: delivery.floorDelivery ?? false,
     assemblyService: delivery.assemblyService ?? false,
+    lineItems,
   };
 }
 
@@ -2272,6 +2309,7 @@ export function useCreateDeliveryMutation() {
 export type DeliveryUpdatePayload = {
   id: string;
   status?: string;
+  notes?: string;
   proofPhotoUrl?: string;
   driverId?: string;
   vehicle?: string;
@@ -2293,6 +2331,32 @@ export function useUpdateDeliveryMutation() {
       queryClient.invalidateQueries({ queryKey: ["sales-order"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["ar-ledger"] });
+      queryClient.invalidateQueries({ queryKey: ["inventory"] });
+    },
+  });
+}
+
+export type FailDeliveryPayload = {
+  id: string;
+  failureReason: string;
+  scheduledDate?: string;
+};
+
+export function useFailDeliveryMutation() {
+  const { token } = useAuth();
+  return useMutation({
+    mutationFn: async ({ id, ...payload }: FailDeliveryPayload) => {
+      return apiRequest<any>(`/deliveries/${id}/fail`, {
+        method: "POST",
+        token: token!,
+        body: payload,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["deliveries"] });
+      queryClient.invalidateQueries({ queryKey: ["sales-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["sales-order"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["inventory"] });
     },
   });
