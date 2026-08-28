@@ -15,6 +15,7 @@ import {
 
 import { createBalancedJournalEntry } from "../services/accounting.service";
 import { getCustomerLedger } from "../modules/ar-ledger/ar-ledger.service";
+import { getEntries, getMonthlySummary } from "../modules/vat-register/vat-register.service";
 import {
   getBalanceSheet,
 
@@ -235,4 +236,31 @@ accountingRouter.get(
   }),
 );
 
+// ---------------------------------------------------------------------------
+// GET /accounting/vat-register — Full VAT Sales Register (Annex 7)
+// ---------------------------------------------------------------------------
 
+accountingRouter.get(
+  "/vat-register",
+  asyncHandler(async (request, response) => {
+    const fiscalYear = (request.query.fiscalYear as string) || "";
+    if (!fiscalYear) {
+      return response.status(400).json({ error: "fiscalYear query parameter is required" });
+    }
+    const month = request.query.month as string | undefined;
+    const [entries, monthlySummary] = await Promise.all([
+      getEntries(request.user!.tenantId, fiscalYear, month),
+      getMonthlySummary(request.user!.tenantId, fiscalYear),
+    ]);
+    const totals = entries.reduce(
+      (acc, e) => {
+        acc.taxableAmount += e.taxableAmount;
+        acc.outputVat += e.outputVat;
+        acc.totalWithVat += e.totalWithVat;
+        return acc;
+      },
+      { taxableAmount: 0, outputVat: 0, totalWithVat: 0 },
+    );
+    return response.json({ entries, totals, monthlySummary });
+  }),
+);

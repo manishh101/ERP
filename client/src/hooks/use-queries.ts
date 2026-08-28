@@ -1071,6 +1071,7 @@ function mapUsers(payload: PaginatedResponse<RawUser>) {
       id: user.id,
       name: user.name,
       email: user.email,
+      phone: user.phone,
       role: formatEnumLabel(user.role),
       rawRole: user.role as UserRole,
       isActive: user.isActive,
@@ -2657,8 +2658,8 @@ export function useInventoryAdjustmentMutation() {
 }
 
 export function useUsersQuery() {
-  const { token, user } = useAuth();
-  const enabled = Boolean(token) && user?.role === "ADMIN";
+  const { token } = useAuth();
+  const enabled = Boolean(token);
 
   return useQuery({
     queryKey: ["users", token],
@@ -2686,15 +2687,17 @@ export function useArLedgerQuery(customerId: string) {
   });
 }
 
-export function useVatRegisterQuery(month?: string) {
+export function useVatRegisterQuery(fiscalYear: string, month?: string) {
   const { token } = useAuth();
   return useQuery({
-    queryKey: ["vat-register", token, month],
-    enabled: Boolean(token),
+    queryKey: ["vat-register", token, fiscalYear, month],
+    enabled: Boolean(token) && Boolean(fiscalYear),
     queryFn: async () => {
+      const params: Record<string, string> = { fiscalYear };
+      if (month) params.month = month;
       return apiRequest<any>("/accounting/vat-register", {
         token: token!,
-        query: month ? { month } : undefined,
+        query: params,
       });
     },
   });

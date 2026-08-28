@@ -95,7 +95,9 @@ export function DeliveryPage() {
 
   const allDeliveries = data.items;
   const selectedDelivery = allDeliveries.find((d) => d.id === selectedDeliveryId);
-  const driversList = usersData?.items.filter((u) => u.role === "DRIVER" || u.role === "ADMIN") ?? [];
+  const driversList = usersData?.items.filter(
+    (u) => u.rawRole === "DRIVER" || u.rawRole === "ADMIN" || u.role === "DRIVER" || u.role === "Driver" || u.role === "ADMIN" || u.role === "Admin"
+  ) ?? [];
 
   // Dispatch KPIs
   const totalChallans = allDeliveries.length;
@@ -585,8 +587,8 @@ export function DeliveryPage() {
                                 {d.name} {d.phone ? `(${d.phone})` : ""}
                               </option>
                             ))}
-                            <option value="NEW_DRIVER" className="font-bold text-primary">
-                              + Write New Driver Name & Phone
+                            <option value="NEW_DRIVER">
+                              + Add New Driver (Enter Name & Phone)
                             </option>
                           </select>
                         </div>

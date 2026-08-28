@@ -24,12 +24,23 @@ const NEPALI_FISCAL_MONTHS = [
   { value: "3", name: "Month 12 (Ashadh / असार)" },
 ];
 
+// Compute current Nepali fiscal year: Nepal fiscal year starts Shrawan (mid-July, ~month 4 in BS)
+// Approximate: if AD month < 7 (July), FY started previous year, else current year
+function getCurrentNepaliYear() {
+  const now = new Date();
+  const adYear = now.getFullYear();
+  const adMonth = now.getMonth() + 1; // 1-indexed
+  // Nepali year is roughly AD year + 56/57. FY starts mid-July (AD month 7)
+  const bsYear = adYear + 56;
+  return adMonth >= 7 ? `${bsYear}/${String(bsYear + 1).slice(2)}` : `${bsYear - 1}/${String(bsYear).slice(2)}`;
+}
+
 export default function VatRegisterPage() {
-  const [fiscalYear, setFiscalYear] = useState("2080/81");
+  const [fiscalYear, setFiscalYear] = useState(getCurrentNepaliYear);
   const [month, setMonth] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
 
-  const vatRegister = useVatRegisterQuery(month || undefined);
+  const vatRegister = useVatRegisterQuery(fiscalYear, month || undefined);
 
   // Filter entries based on search query
   const filteredEntries = useMemo(() => {

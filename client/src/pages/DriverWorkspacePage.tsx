@@ -33,6 +33,7 @@ import {
   UserCheck,
   RotateCcw,
   Clock,
+  Sparkles,
 } from "lucide-react";
 import type { DeliveryRow } from "@/types/domain";
 
@@ -470,25 +471,60 @@ export function DriverWorkspacePage() {
 
       {/* Proof of Delivery (POD) Completion Modal */}
       <Dialog open={podModalOpen} onOpenChange={setPodModalOpen}>
-        <DialogContent className="max-w-lg rounded-2xl p-6">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-lg font-bold">
-              <CheckCircle2 className="h-5 w-5 text-emerald-600" /> Proof of Delivery (POD)
-            </DialogTitle>
-            <DialogDescription className="text-xs">
-              Confirm goods delivery for <strong className="text-foreground">{activeDelivery?.customer}</strong> ({getChallanCode(activeDelivery?.id)})
-            </DialogDescription>
+        <DialogContent className="max-w-lg rounded-2xl p-6 bg-card border border-border shadow-lg">
+          <DialogHeader className="pb-3 border-b border-border">
+            <div className="flex items-center gap-2.5">
+              <div className="h-9 w-9 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center shrink-0">
+                <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+              </div>
+              <div>
+                <DialogTitle className="text-base font-semibold text-foreground">
+                  Proof of Delivery (POD)
+                </DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+                  Record receiver acknowledgment to complete delivery
+                </DialogDescription>
+              </div>
+            </div>
+
+            {/* Delivery Summary Banner */}
+            {activeDelivery && (
+              <div className="mt-3 p-3 rounded-xl bg-muted/40 border border-border/60 text-xs space-y-1">
+                <div className="flex items-center justify-between font-medium">
+                  <span className="text-foreground">{activeDelivery.customer}</span>
+                  <span className="font-mono text-[11px] text-muted-foreground bg-background px-2 py-0.5 rounded border border-border/60">
+                    {getChallanCode(activeDelivery.id)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-0.5">
+                  <span className="truncate max-w-[260px]">{activeDelivery.deliveryAddress}</span>
+                  <span>{activeDelivery.lineItems?.length ?? 0} Item(s)</span>
+                </div>
+              </div>
+            )}
           </DialogHeader>
 
-          <div className="space-y-4 py-2">
+          <div className="space-y-4 py-3 text-xs">
+            {/* Receiver Name & Phone */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label htmlFor="pod-receiver-name" className="text-xs font-semibold flex items-center gap-1">
-                  <UserCheck className="h-3.5 w-3.5 text-primary" /> Receiver Name
-                </Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="pod-receiver-name" className="text-xs font-medium text-foreground">
+                    Receiver Name
+                  </Label>
+                  {activeDelivery?.customer && (
+                    <button
+                      type="button"
+                      onClick={() => setReceiverName(activeDelivery.customer)}
+                      className="text-[11px] text-primary hover:underline font-normal"
+                    >
+                      Use Party Name
+                    </button>
+                  )}
+                </div>
                 <Input
                   id="pod-receiver-name"
-                  placeholder="Person receiving goods"
+                  placeholder="e.g. Ramesh Shrestha"
                   value={receiverName}
                   onChange={(e) => setReceiverName(e.target.value)}
                   className="rounded-xl h-9 text-xs"
@@ -496,12 +532,23 @@ export function DriverWorkspacePage() {
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="pod-receiver-phone" className="text-xs font-semibold flex items-center gap-1">
-                  <Phone className="h-3.5 w-3.5 text-primary" /> Receiver Phone
-                </Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="pod-receiver-phone" className="text-xs font-medium text-foreground">
+                    Receiver Phone
+                  </Label>
+                  {activeDelivery?.customerPhone && (
+                    <button
+                      type="button"
+                      onClick={() => setReceiverPhone(activeDelivery.customerPhone || "")}
+                      className="text-[11px] text-primary hover:underline font-normal"
+                    >
+                      Use Party Phone
+                    </button>
+                  )}
+                </div>
                 <Input
                   id="pod-receiver-phone"
-                  placeholder="Contact number"
+                  placeholder="e.g. 9841234567"
                   value={receiverPhone}
                   onChange={(e) => setReceiverPhone(e.target.value)}
                   className="rounded-xl h-9 text-xs"
@@ -509,10 +556,20 @@ export function DriverWorkspacePage() {
               </div>
             </div>
 
+            {/* Delivery Date */}
             <div className="space-y-1.5">
-              <Label htmlFor="pod-actual-date" className="text-xs font-semibold flex items-center gap-1">
-                <Calendar className="h-3.5 w-3.5 text-primary" /> Actual Delivery Date
-              </Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="pod-actual-date" className="text-xs font-medium text-foreground">
+                  Actual Delivery Date
+                </Label>
+                <button
+                  type="button"
+                  onClick={() => setActualDeliveryDate(new Date().toISOString().split("T")[0])}
+                  className="text-[11px] text-primary hover:underline font-normal"
+                >
+                  Set to Today
+                </button>
+              </div>
               <Input
                 id="pod-actual-date"
                 type="date"
@@ -522,47 +579,66 @@ export function DriverWorkspacePage() {
               />
             </div>
 
+            {/* Receiver Notes */}
             <div className="space-y-1.5">
-              <Label htmlFor="pod-driver-notes" className="text-xs font-semibold flex items-center gap-1">
-                <FileText className="h-3.5 w-3.5 text-primary" /> Delivery Particulars / Receiver Notes
+              <Label htmlFor="pod-driver-notes" className="text-xs font-medium text-foreground">
+                Receiver Remarks / Notes
               </Label>
               <Textarea
                 id="pod-driver-notes"
-                placeholder="e.g. Received by Gate Manager Ramesh. All items intact."
+                placeholder="e.g. Goods received in intact condition with signed delivery slip."
                 value={driverNotes}
                 onChange={(e) => setDriverNotes(e.target.value)}
-                className="rounded-xl min-h-[70px] text-xs"
+                className="rounded-xl min-h-[65px] text-xs resize-none"
               />
             </div>
 
+            {/* Proof Photo Attachment */}
             <div className="space-y-1.5">
-              <Label htmlFor="pod-photo-url" className="text-xs font-semibold flex items-center gap-1">
-                <Camera className="h-3.5 w-3.5 text-primary" /> Proof Photo / Attachment URL (Optional)
+              <Label htmlFor="pod-photo-url" className="text-xs font-medium text-foreground">
+                Proof Photo / Document Reference <span className="text-muted-foreground font-normal">(Optional)</span>
               </Label>
               <Input
                 id="pod-photo-url"
-                placeholder="Photo URL or attachment string"
+                placeholder="Paste URL or attachment reference"
                 value={proofPhotoUrl}
                 onChange={(e) => setProofPhotoUrl(e.target.value)}
                 className="rounded-xl h-9 text-xs"
               />
+
+              {/* Photo Preview if URL exists */}
+              {proofPhotoUrl && (
+                <div className="mt-2 p-2.5 rounded-xl border border-border bg-muted/30 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Camera className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <span className="text-xs text-muted-foreground truncate">{proofPhotoUrl}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setProofPhotoUrl("")}
+                    className="text-xs text-muted-foreground hover:text-foreground font-medium shrink-0"
+                  >
+                    Clear
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
-          <DialogFooter className="gap-2 sm:gap-0">
+          <DialogFooter className="gap-2 pt-3 border-t border-border">
             <Button
               variant="outline"
               onClick={() => setPodModalOpen(false)}
-              className="rounded-xl h-9 text-xs font-semibold"
+              className="rounded-xl h-9 text-xs font-medium"
             >
               Cancel
             </Button>
             <Button
               onClick={handleCompletePod}
               disabled={updateDelivery.isPending}
-              className="rounded-xl h-9 px-5 font-semibold bg-emerald-600 hover:bg-emerald-700 text-white text-xs"
+              className="rounded-xl h-9 px-5 font-semibold bg-emerald-600 hover:bg-emerald-700 text-white text-xs shadow-xs"
             >
-              {updateDelivery.isPending ? "Submitting..." : "Save Delivery POD"}
+              {updateDelivery.isPending ? "Submitting..." : "Confirm & Save POD"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -570,29 +646,36 @@ export function DriverWorkspacePage() {
 
       {/* Failure / Issue Record Modal */}
       <Dialog open={failModalOpen} onOpenChange={setFailModalOpen}>
-        <DialogContent className="max-w-lg rounded-2xl p-6">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-base font-bold text-destructive">
-              <AlertTriangle className="h-5 w-5 text-destructive" /> Record Delivery Issue
-            </DialogTitle>
-            <DialogDescription className="text-xs">
-              Log why delivery could not be completed for <strong className="text-foreground">{activeDelivery?.customer}</strong>
-            </DialogDescription>
+        <DialogContent className="max-w-md rounded-2xl p-6 bg-card border border-border shadow-lg">
+          <DialogHeader className="pb-3 border-b border-border">
+            <div className="flex items-center gap-2.5">
+              <div className="h-9 w-9 rounded-xl bg-destructive/10 text-destructive flex items-center justify-center shrink-0">
+                <AlertTriangle className="h-5 w-5 text-destructive" />
+              </div>
+              <div>
+                <DialogTitle className="text-base font-semibold text-foreground">
+                  Record Delivery Issue
+                </DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+                  Log reason for incomplete delivery to <strong className="text-foreground">{activeDelivery?.customer}</strong>
+                </DialogDescription>
+              </div>
+            </div>
           </DialogHeader>
 
-          <div className="space-y-3.5 py-2">
+          <div className="space-y-3.5 py-3 text-xs">
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold">Select Reason</Label>
+              <Label className="text-xs font-medium text-foreground">Reason for Unfulfilled Delivery</Label>
               <div className="space-y-1">
                 {STANDARD_FAILURE_REASONS.map((reason) => (
                   <button
                     key={reason}
                     type="button"
                     onClick={() => setFailureReason(reason)}
-                    className={`w-full text-left px-3 py-2 rounded-xl border text-xs font-medium transition-all ${
+                    className={`w-full text-left px-3 py-2 rounded-xl border text-xs font-medium transition-colors ${
                       failureReason === reason
-                        ? "border-destructive bg-destructive/10 text-destructive font-semibold"
-                        : "border-border/60 bg-card hover:bg-muted text-muted-foreground"
+                        ? "border-destructive/80 bg-destructive/5 text-destructive font-semibold"
+                        : "border-border/60 bg-card hover:bg-muted/50 text-foreground"
                     }`}
                   >
                     {reason}
@@ -603,9 +686,9 @@ export function DriverWorkspacePage() {
 
             {failureReason === "Other" && (
               <div className="space-y-1.5">
-                <Label className="text-xs font-semibold">Specify Issue</Label>
+                <Label className="text-xs font-medium text-foreground">Specify Issue Details</Label>
                 <Input
-                  placeholder="Describe the issue..."
+                  placeholder="Provide specific details..."
                   value={customReason}
                   onChange={(e) => setCustomReason(e.target.value)}
                   className="rounded-xl h-9 text-xs"
@@ -614,7 +697,7 @@ export function DriverWorkspacePage() {
             )}
 
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold">Reschedule Date (Optional)</Label>
+              <Label className="text-xs font-medium text-foreground">Reschedule Date <span className="text-muted-foreground font-normal">(Optional)</span></Label>
               <Input
                 type="date"
                 value={rescheduleDate}
@@ -624,18 +707,18 @@ export function DriverWorkspacePage() {
             </div>
           </div>
 
-          <DialogFooter className="gap-2 sm:gap-0">
+          <DialogFooter className="gap-2 pt-3 border-t border-border">
             <Button
               variant="outline"
               onClick={() => setFailModalOpen(false)}
-              className="rounded-xl h-9 text-xs font-semibold"
+              className="rounded-xl h-9 text-xs font-medium"
             >
               Cancel
             </Button>
             <Button
               onClick={handleRecordFailure}
               disabled={failDelivery.isPending}
-              className="rounded-xl h-9 px-5 font-semibold bg-destructive hover:bg-destructive/90 text-white text-xs"
+              className="rounded-xl h-9 px-5 font-semibold bg-destructive hover:bg-destructive/90 text-white text-xs shadow-xs"
             >
               {failDelivery.isPending ? "Saving..." : "Record Issue"}
             </Button>

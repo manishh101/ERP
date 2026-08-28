@@ -18,7 +18,9 @@ export function ScheduleDeliveryForm({ onClose, defaultSoId }: ScheduleDeliveryF
   const salesOrders = useSalesOrdersQuery();
   const users = useUsersQuery();
 
-  const driversList = users.data?.items.filter((u) => u.role === "DRIVER" || u.role === "ADMIN") ?? [];
+  const driversList = users.data?.items.filter(
+    (u) => u.rawRole === "DRIVER" || u.rawRole === "ADMIN" || u.role === "DRIVER" || u.role === "Driver" || u.role === "ADMIN" || u.role === "Admin"
+  ) ?? [];
 
   const [soId, setSoId] = useState(defaultSoId ?? "");
   const [driverId, setDriverId] = useState("");
@@ -199,14 +201,14 @@ export function ScheduleDeliveryForm({ onClose, defaultSoId }: ScheduleDeliveryF
                     {d.name} {d.phone ? `(${d.phone})` : ""}
                   </option>
                 ))}
-                <option value="NEW_DRIVER" className="font-bold text-primary">
-                  + Add New Driver (Write Name & Phone)
+                <option value="NEW_DRIVER">
+                  + Add New Driver (Enter Name & Phone)
                 </option>
               </select>
             ) : (
-              <div className="p-3 bg-primary/5 rounded-xl border border-primary/20 space-y-3">
-                <p className="text-xs font-bold text-primary">
-                  New Driver Information (Will be saved as Driver in System)
+              <div className="p-3.5 bg-muted/40 rounded-xl border border-border/60 space-y-2.5">
+                <p className="text-xs font-medium text-foreground">
+                  New Driver Registration
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
