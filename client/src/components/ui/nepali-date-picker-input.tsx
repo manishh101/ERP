@@ -28,14 +28,35 @@ export function NepaliDatePickerInput({ value, onChange, className, placeholder 
     }
   }, [value]);
 
-  const handleDateChange = (bsStr: string) => {
-    setBsDateStr(bsStr);
-    try {
-      // The nepali-datetime parser supports YYYY-MM-DD
-      const nd = new NepaliDate(bsStr);
-      onChange(new Date(nd.getTime()));
-    } catch (e) {
-      // Invalid format, ignore
+  const handleDateChange = (data: any) => {
+    let bsStr = "";
+    let adDateObj: Date | null = null;
+
+    if (typeof data === "string") {
+      bsStr = data;
+    } else if (data && typeof data === "object") {
+      bsStr = data.bsDate || "";
+      if (data.adDate) {
+        // adDate may be ISO string or YYYY-MM-DD
+        adDateObj = new Date(data.adDate);
+      }
+    }
+
+    if (bsStr) {
+      setBsDateStr(bsStr);
+      try {
+        if (adDateObj && !isNaN(adDateObj.getTime())) {
+          onChange(adDateObj);
+        } else {
+          const nd = new NepaliDate(bsStr);
+          const timestamp = nd.getTime();
+          if (!isNaN(timestamp)) {
+            onChange(new Date(timestamp));
+          }
+        }
+      } catch (e) {
+        console.error("NepaliDate conversion error:", e);
+      }
     }
   };
 

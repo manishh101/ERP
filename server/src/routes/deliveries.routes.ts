@@ -85,6 +85,7 @@ deliveriesRouter.post(
   validate(deliverySchema),
   asyncHandler(async (request, response) => {
     const body = request.validated?.body as ReturnType<typeof deliverySchema.parse>;
+    const driverId = body.driverId && body.driverId.trim() !== "" ? body.driverId : undefined;
 
     const delivery = await prisma.$transaction(async (tx) => {
       const order = await tx.salesOrder.findFirst({
@@ -92,9 +93,17 @@ deliveriesRouter.post(
       });
       if (!order) throw new ApiError(404, "Sales Order not found");
 
+      if (driverId) {
+        const driverUser = await tx.user.findFirst({
+          where: { id: driverId, tenantId: request.user!.tenantId },
+        });
+        if (!driverUser) throw new ApiError(400, "Selected driver user was not found");
+      }
+
       const created = await tx.delivery.create({
         data: {
           ...body,
+          driverId: driverId ?? null,
           tenantId: request.user!.tenantId,
         },
         include: {
@@ -107,12 +116,21 @@ deliveriesRouter.post(
         },
       });
 
-      await tx.salesOrder.update({
-        where: { id: body.soId },
-        data: {
-          status: "DISPATCHED",
-        },
-      });
+      if (body.status === "OUT_FOR_DELIVERY" || body.status === "DELIVERED") {
+        await tx.salesOrder.update({
+          where: { id: body.soId },
+          data: {
+            status: body.status === "DELIVERED" ? "DELIVERED" : "OUT_FOR_DELIVERY",
+          },
+        });
+      } else if (order.status === "CONFIRMED" || order.status === "DEPOSIT_PAID" || order.status === "PAID") {
+        await tx.salesOrder.update({
+          where: { id: body.soId },
+          data: {
+            status: "IN_WAREHOUSE",
+          },
+        });
+      }
 
       return created;
     });
@@ -236,6 +254,13 @@ deliveriesRouter.patch(
             status: body.status === "DELIVERED" ? "DELIVERED" : "OUT_FOR_DELIVERY",
           },
         });
+      } else if (body.status === "SCHEDULED" && existing.status !== "SCHEDULED") {
+        await tx.salesOrder.update({
+          where: { id: updated.soId },
+          data: {
+            status: "IN_WAREHOUSE",
+          },
+        });
       }
 
       return updated;
@@ -255,25 +280,36 @@ deliveriesRouter.post(
     const params = request.validated?.params as { id: string };
     const body = request.validated?.body as ReturnType<typeof failedDeliverySchema.parse>;
 
-    const delivery = await prisma.delivery.findFirst({
-      where: { id: params.id, tenantId: request.user!.tenantId },
-    });
+    const updated = await prisma.$transaction(async (tx) => {
+      const delivery = await tx.delivery.findFirst({
+        where: { id: params.id, tenantId: request.user!.tenantId },
+      });
 
-    if (!delivery) {
-      throw new ApiError(404, "Delivery not found");
-    }
+      if (!delivery) {
+        throw new ApiError(404, "Delivery not found");
+      }
 
-    if (request.user?.role === "DRIVER" && delivery.driverId !== request.user.id) {
-      throw new ApiError(403, "Access denied: cannot mark failure on delivery assigned to another driver");
-    }
+      if (request.user?.role === "DRIVER" && delivery.driverId !== request.user.id) {
+        throw new ApiError(403, "Access denied: cannot mark failure on delivery assigned to another driver");
+      }
 
-    const updated = await prisma.delivery.update({
-      where: { id: params.id },
-      data: {
-        status: "FAILED_ATTEMPT",
-        failureReason: body.failureReason,
-        scheduledDate: body.scheduledDate ?? delivery.scheduledDate,
-      },
+      const updatedDelivery = await tx.delivery.update({
+        where: { id: params.id },
+        data: {
+          status: "FAILED_ATTEMPT",
+          failureReason: body.failureReason,
+          scheduledDate: body.scheduledDate ?? delivery.scheduledDate,
+        },
+      });
+
+      await tx.salesOrder.update({
+        where: { id: delivery.soId },
+        data: {
+          status: "IN_WAREHOUSE",
+        },
+      });
+
+      return updatedDelivery;
     });
 
     await invalidateDashboardCache(request.user!.tenantId);

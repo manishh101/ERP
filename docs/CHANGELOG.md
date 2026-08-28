@@ -1,5 +1,22 @@
 # Change Log
 
+## [2026-08-28] - Phase Delivery Sync: Sales Order & Delivery Workflow Alignment
+
+### Phase
+Phase Delivery Sync — Sales Order & Delivery Workflow Alignment
+
+### Major Changes
+- **Atomic Two-Way State Synchronization**:
+  - `POST /deliveries`: Creating a delivery automatically advances linked `SalesOrder.status` from `CONFIRMED` to `IN_WAREHOUSE`.
+  - `PATCH /deliveries/:id`: Updating delivery status to `OUT_FOR_DELIVERY` or `DELIVERED` automatically updates linked `SalesOrder.status`.
+  - `PATCH /sales-orders/:id`: Updating sales order status to `DELIVERED` or `OUT_FOR_DELIVERY` atomically updates linked `Delivery.status` within a single `prisma.$transaction` block.
+  - `cancelOrder`: Order cancellation automatically sets linked active `Delivery` records to `CANCELLED` within the transaction, eliminating orphaned dispatches.
+- **Frontend Guardrails & Workflow Stepper**:
+  - `SalesOrderDetailPage.tsx`: Visual OTC Stepper accurately maps `IN_WAREHOUSE`, `DISPATCHED` (`OUT_FOR_DELIVERY`), and `DELIVERED` steps.
+  - Disabled illegal status jumps (e.g. marking `DELIVERED` directly from `IN_WAREHOUSE` without vehicle dispatch).
+- **Cache Synchronization**:
+  - React Query invalidation in `use-queries.ts` ensures instant synchronization between Sales, Delivery Challan Register, and Driver Workspaces.
+
 ## [2026-08-28] - Phase 18: Final Production Readiness Audit
 
 ### Phase

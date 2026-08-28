@@ -220,35 +220,56 @@ salesOrdersRouter.patch(
       return;
     }
 
-    const salesOrder = await prisma.salesOrder.update({
-      where: { id: params.id },
-      data: {
-        customerId: body.customerId,
-        assignedWarehouseId: body.assignedWarehouseId,
-        salespersonId: body.salespersonId,
-        status: body.status,
-        orderAmount: newOrderAmount,
-        depositAmount: body.depositAmount,
-        paidAmount: syncedPaidAmount,
-        balanceDue: syncedBalanceDue,
-        deliveryDate: body.deliveryDate,
-        notes: body.notes,
-        ...(body.lineItems
-          ? {
-              lineItems: {
-                deleteMany: {},
-                create: body.lineItems.map((item) => ({
-                  ...item,
-                  tenantId: request.user!.tenantId,
-                })),
-              },
-            }
-          : {}),
-      },
-      include: {
-        customer: true,
-        lineItems: true,
-      },
+    const salesOrder = await prisma.$transaction(async (tx) => {
+      const updatedOrder = await tx.salesOrder.update({
+        where: { id: params.id },
+        data: {
+          customerId: body.customerId,
+          assignedWarehouseId: body.assignedWarehouseId,
+          salespersonId: body.salespersonId,
+          status: body.status,
+          orderAmount: newOrderAmount,
+          depositAmount: body.depositAmount,
+          paidAmount: syncedPaidAmount,
+          balanceDue: syncedBalanceDue,
+          deliveryDate: body.deliveryDate,
+          notes: body.notes,
+          ...(body.lineItems
+            ? {
+                lineItems: {
+                  deleteMany: {},
+                  create: body.lineItems.map((item) => ({
+                    ...item,
+                    tenantId: request.user!.tenantId,
+                  })),
+                },
+              }
+            : {}),
+        },
+        include: {
+          customer: true,
+          lineItems: true,
+        },
+      });
+
+      if (body.status === "DELIVERED") {
+        await tx.delivery.updateMany({
+          where: { soId: params.id, tenantId: request.user!.tenantId, status: { not: "DELIVERED" } },
+          data: { status: "DELIVERED", completedAt: new Date() },
+        });
+      } else if (body.status === "OUT_FOR_DELIVERY" || body.status === "DISPATCHED") {
+        await tx.delivery.updateMany({
+          where: { soId: params.id, tenantId: request.user!.tenantId, status: "SCHEDULED" },
+          data: { status: "OUT_FOR_DELIVERY" },
+        });
+      } else if (body.status === "IN_WAREHOUSE") {
+        await tx.delivery.updateMany({
+          where: { soId: params.id, tenantId: request.user!.tenantId, status: "OUT_FOR_DELIVERY" },
+          data: { status: "SCHEDULED" },
+        });
+      }
+
+      return updatedOrder;
     });
 
     await invalidateDashboardCache(request.user!.tenantId);

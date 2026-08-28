@@ -5,6 +5,7 @@ import {
   useCancelSalesOrderMutation,
   useCreateInvoiceMutation,
   useCreateDeliveryMutation,
+  useUpdateDeliveryMutation,
   useConfirmSalesOrderMutation,
   useUpdateSalesOrderStatusMutation,
 } from "@/hooks/use-queries";
@@ -47,6 +48,7 @@ import { RecordDepositModal } from "@/components/sales/record-deposit-modal";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { CreateInvoiceForm } from "@/components/invoicing/create-invoice-form";
 import { NepaliDatePickerInput } from "@/components/ui/nepali-date-picker-input";
+import { ScheduleDeliveryForm } from "@/components/delivery/schedule-delivery-form";
 
 export function SalesOrderDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -56,14 +58,15 @@ export function SalesOrderDetailPage() {
 
   const cancelMutation = useCancelSalesOrderMutation();
   const createInvoiceMutation = useCreateInvoiceMutation();
-  const createDeliveryMutation = useCreateDeliveryMutation();
   const confirmOrderMutation = useConfirmSalesOrderMutation();
   const updateStatusMutation = useUpdateSalesOrderStatusMutation();
+  const updateDeliveryMutation = useUpdateDeliveryMutation();
 
   const [depositModalOpen, setDepositModalOpen] = useState(false);
   const [createInvoiceOpen, setCreateInvoiceOpen] = useState(false);
   const [invoiceTypeToCreate, setInvoiceTypeToCreate] = useState<"VAT" | "ESTIMATE">("VAT");
   const [deliverModalOpen, setDeliverModalOpen] = useState(false);
+  const [scheduleDeliveryModalOpen, setScheduleDeliveryModalOpen] = useState(false);
   const [deliverDate, setDeliverDate] = useState<string>(new Date().toISOString().split("T")[0]);
 
   if (isLoading) {
@@ -195,21 +198,7 @@ export function SalesOrderDetailPage() {
   };
 
   const handleScheduleDelivery = () => {
-    if (!id || !customer) return;
-    createDeliveryMutation.mutate(
-      {
-        soId: id,
-        status: "SCHEDULED",
-        scheduledDate: new Date().toISOString(),
-        deliveryAddress: customer.address ?? "Customer address",
-      },
-      {
-        onSuccess: () => {
-          toast.success("Delivery scheduled", { description: "Delivery registered for this order." });
-        },
-        onError: (error) => toast.error("Delivery failed", { description: getErrorMessage(error) }),
-      }
-    );
+    setScheduleDeliveryModalOpen(true);
   };
 
   const handleStatusChange = (nextStatus: string, label: string) => {
@@ -891,12 +880,9 @@ export function SalesOrderDetailPage() {
                   variant="default"
                   className="w-full justify-start rounded-xl font-semibold bg-primary text-primary-foreground text-xs"
                   onClick={handleScheduleDelivery}
-                  disabled={createDeliveryMutation.isPending}
                 >
                   <Truck className="mr-2 h-4 w-4" />
-                  {createDeliveryMutation.isPending
-                    ? "Scheduling..."
-                    : "Schedule Delivery & Create Challan"}
+                  Schedule Delivery & Create Challan
                 </Button>
               )}
 
@@ -913,29 +899,66 @@ export function SalesOrderDetailPage() {
                   </div>
                   <p className="text-foreground flex items-center gap-1.5 pt-0.5">
                     <Truck className="h-3.5 w-3.5 text-primary shrink-0" />
-                    Scheduled: {formatDate(delivery.scheduledDate)}
+                    Scheduled Dispatch: {formatDate(delivery.scheduledDate)}
                   </p>
                 </div>
               )}
 
-              {/* Mark Delivered & Complete */}
+              {/* Action 1: Dispatch Vehicle (Out for Delivery) if delivery is SCHEDULED */}
+              {delivery &&
+                delivery.status === "SCHEDULED" &&
+                rawStatus !== "DELIVERED" &&
+                rawStatus !== "CANCELLED" && (
+                  <Button
+                    variant="default"
+                    className="w-full justify-start rounded-xl font-bold bg-amber-600 hover:bg-amber-700 text-white text-xs"
+                    onClick={() => {
+                      updateDeliveryMutation.mutate(
+                        { id: delivery.id, status: "OUT_FOR_DELIVERY" },
+                        {
+                          onSuccess: () => toast.success("Order Dispatched (Out for Delivery)"),
+                          onError: (err) =>
+                            toast.error("Dispatch update failed", { description: getErrorMessage(err) }),
+                        }
+                      );
+                    }}
+                    disabled={updateDeliveryMutation.isPending}
+                  >
+                    <Truck className="mr-2 h-4 w-4" />
+                    {updateDeliveryMutation.isPending ? "Dispatching..." : "Dispatch Vehicle (Out for Delivery)"}
+                  </Button>
+                )}
+
+              {/* Action 2: Mark Delivered & Complete */}
               {rawStatus !== "DELIVERED" &&
                 rawStatus !== "CANCELLED" &&
                 rawStatus !== "DRAFT" &&
                 rawStatus !== "QUOTE" && (
                   <Button
                     variant={
-                      delivery || rawStatus === "DISPATCHED" || rawStatus === "OUT_FOR_DELIVERY"
+                      delivery?.status === "OUT_FOR_DELIVERY" || rawStatus === "DISPATCHED" || rawStatus === "OUT_FOR_DELIVERY"
                         ? "default"
                         : "outline"
                     }
                     className={`w-full justify-start rounded-xl font-bold text-xs ${
-                      delivery || rawStatus === "DISPATCHED" || rawStatus === "OUT_FOR_DELIVERY"
-                        ? "bg-emerald-600 hover:bg-emerald-700 text-white"
-                        : "border-muted-foreground/30 text-muted-foreground"
+                      delivery?.status === "OUT_FOR_DELIVERY" || rawStatus === "DISPATCHED" || rawStatus === "OUT_FOR_DELIVERY"
+                        ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
+                        : "border-muted-foreground/30 text-muted-foreground opacity-60"
                     }`}
                     onClick={() => setDeliverModalOpen(true)}
-                    disabled={updateStatusMutation.isPending}
+                    disabled={
+                      updateStatusMutation.isPending ||
+                      (rawStatus !== "OUT_FOR_DELIVERY" &&
+                        rawStatus !== "DISPATCHED" &&
+                        delivery?.status !== "OUT_FOR_DELIVERY")
+                    }
+                    title={
+                      rawStatus !== "OUT_FOR_DELIVERY" &&
+                      rawStatus !== "DISPATCHED" &&
+                      delivery?.status !== "OUT_FOR_DELIVERY"
+                        ? "Dispatch vehicle (Out for Delivery) prior to marking order delivered"
+                        : ""
+                    }
                   >
                     <CheckCircle className="mr-2 h-4 w-4" />
                     {updateStatusMutation.isPending ? "Updating..." : "Mark Delivered & Complete"}
@@ -1050,6 +1073,15 @@ export function SalesOrderDetailPage() {
               {updateStatusMutation.isPending ? "Updating..." : "Confirm Delivered"}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={scheduleDeliveryModalOpen} onOpenChange={setScheduleDeliveryModalOpen}>
+        <DialogContent className="max-w-2xl p-0 overflow-hidden rounded-3xl border">
+          <ScheduleDeliveryForm
+            defaultSoId={id}
+            onClose={() => setScheduleDeliveryModalOpen(false)}
+          />
         </DialogContent>
       </Dialog>
     </div>

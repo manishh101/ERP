@@ -317,9 +317,9 @@ export function InvoicingPage() {
             )}
           </CardTitle>
         </CardHeader>
-        <CardContent className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
+        <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
           {/* Search */}
-          <div className="space-y-1 md:col-span-2">
+          <div className="space-y-1 sm:col-span-2 lg:col-span-2">
             <label className="text-[11px] font-semibold text-muted-foreground uppercase">
               Search Invoice / Customer
             </label>
@@ -332,7 +332,7 @@ export function InvoicingPage() {
           </div>
 
           {/* Invoice Type */}
-          <div className="space-y-1">
+          <div className="space-y-1 sm:col-span-1 lg:col-span-1">
             <label className="text-[11px] font-semibold text-muted-foreground uppercase">
               Invoice Type
             </label>
@@ -349,7 +349,7 @@ export function InvoicingPage() {
           </div>
 
           {/* Status */}
-          <div className="space-y-1">
+          <div className="space-y-1 sm:col-span-1 lg:col-span-1">
             <label className="text-[11px] font-semibold text-muted-foreground uppercase">
               Status
             </label>
@@ -366,7 +366,10 @@ export function InvoicingPage() {
           </div>
 
           {/* Year/Month */}
-          <div className="space-y-1 flex items-end">
+          <div className="space-y-1 sm:col-span-2 lg:col-span-2 min-w-0">
+            <label className="text-[11px] font-semibold text-muted-foreground uppercase block">
+              BS Period Filter
+            </label>
             <YearMonthFilter
               year={filterYear}
               month={filterMonth}

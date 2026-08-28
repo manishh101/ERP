@@ -424,6 +424,12 @@ export async function cancelOrder(tenantId: string, orderId: string) {
       }, tx);
     }
 
+    // 5. Cancel any active linked delivery records
+    await tx.delivery.updateMany({
+      where: { soId: orderId, tenantId: order.tenantId, status: { notIn: ["DELIVERED", "CANCELLED"] } },
+      data: { status: "CANCELLED" },
+    });
+
     return tx.salesOrder.update({
       where: { id: orderId },
       data: { status: "CANCELLED" }

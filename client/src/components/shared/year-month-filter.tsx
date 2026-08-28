@@ -27,11 +27,11 @@ type Props = {
 
 export function YearMonthFilter({ year, month, onYearChange, onMonthChange }: Props) {
   return (
-    <div className="flex items-center gap-2">
-      <CalendarDays className="h-4 w-4 text-muted-foreground shrink-0" />
+    <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap max-w-full">
+      <CalendarDays className="h-4 w-4 text-muted-foreground shrink-0 hidden xs:block" />
 
       {/* Year */}
-      <div className="relative">
+      <div className="relative shrink-0">
         <select
           value={year}
           onChange={(e) => {
@@ -39,7 +39,7 @@ export function YearMonthFilter({ year, month, onYearChange, onMonthChange }: Pr
             // reset month when year changes
             if (!e.target.value) onMonthChange("");
           }}
-          className="h-9 appearance-none rounded-lg border border-border bg-white pl-3 pr-8 text-sm font-medium text-foreground shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer"
+          className="h-10 appearance-none rounded-xl border border-border bg-white pl-3 pr-8 text-xs font-medium text-foreground shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer"
         >
           <option value="">All Years</option>
           {NEPALI_YEARS.map((y) => (
@@ -48,16 +48,16 @@ export function YearMonthFilter({ year, month, onYearChange, onMonthChange }: Pr
             </option>
           ))}
         </select>
-        <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+        <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
       </div>
 
       {/* Month — only shown when a year is selected */}
       {year && (
-        <div className="relative">
+        <div className="relative min-w-0 max-w-full">
           <select
             value={month}
             onChange={(e) => onMonthChange(e.target.value)}
-            className="h-9 appearance-none rounded-lg border border-border bg-white pl-3 pr-8 text-sm font-medium text-foreground shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer"
+            className="h-10 appearance-none rounded-xl border border-border bg-white pl-3 pr-8 text-xs font-medium text-foreground shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer truncate"
           >
             <option value="">All Months</option>
             {NEPALI_MONTHS.map((m) => (
@@ -66,7 +66,7 @@ export function YearMonthFilter({ year, month, onYearChange, onMonthChange }: Pr
               </option>
             ))}
           </select>
-          <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
         </div>
       )}
     </div>

@@ -1,214 +1,193 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { useCreateDeliveryMutation, useSalesOrdersQuery } from "@/hooks/use-queries";
+import { useCreateDeliveryMutation, useSalesOrdersQuery, useUsersQuery } from "@/hooks/use-queries";
 import { getErrorMessage } from "@/lib/api";
 import { NepaliDatePickerInput } from "@/components/ui/nepali-date-picker-input";
+import { Truck } from "lucide-react";
 
 type ScheduleDeliveryFormProps = {
   onClose: () => void;
+  defaultSoId?: string;
 };
 
-export function ScheduleDeliveryForm({ onClose }: ScheduleDeliveryFormProps) {
-  
+export function ScheduleDeliveryForm({ onClose, defaultSoId }: ScheduleDeliveryFormProps) {
   const createDelivery = useCreateDeliveryMutation();
   const salesOrders = useSalesOrdersQuery();
-  
-  const [formData, setFormData] = useState({
-    soId: "",
-    driverId: "",
-    vehicle: "",
-    status: "SCHEDULED",
-    scheduledDate: new Date().toISOString().split("T")[0],
-    deliveryAddress: "",
-    notes: "",
-    floor: "",
-    assemblyNote: "",
-    assemblyCharge: "0",
-    deliveryCharge: "0",
-    floorDelivery: false,
-    assemblyService: false,
+  const users = useUsersQuery();
+
+  const driversList = users.data?.items.filter((u) => u.role === "DRIVER" || u.role === "ADMIN") ?? [];
+
+  const [soId, setSoId] = useState(defaultSoId ?? "");
+  const [driverId, setDriverId] = useState("");
+  const [vehicle, setVehicle] = useState("");
+  const [scheduledDate, setScheduledDate] = useState(() => {
+    const today = new Date();
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
   });
+  const [deliveryAddress, setDeliveryAddress] = useState("");
+  const [notes, setNotes] = useState("");
+
+  // Auto-fill delivery address when sales order changes
+  useEffect(() => {
+    if (soId) {
+      const selectedOrder = salesOrders.data?.items.find((so) => so.id === soId);
+      if (selectedOrder?.customer && !deliveryAddress) {
+        setDeliveryAddress(`${selectedOrder.customer} - Local Delivery`);
+      }
+    }
+  }, [soId, salesOrders.data]);
 
   const handleSubmit = async () => {
-    if (!formData.soId || !formData.deliveryAddress) {
-      toast("Validation failed", { description: "Please select a Sales Order and enter a Delivery Address." });
+    if (!soId) {
+      toast.error("Please select a Sales Order.");
+      return;
+    }
+    if (!deliveryAddress || deliveryAddress.length < 4) {
+      toast.error("Please enter a delivery address (min 4 characters).");
       return;
     }
 
     try {
       await createDelivery.mutateAsync({
-        soId: formData.soId,
-        driverId: formData.driverId || undefined,
-        vehicle: formData.vehicle || undefined,
-        status: formData.status,
-        scheduledDate: formData.scheduledDate ? new Date(formData.scheduledDate).toISOString() : new Date().toISOString(),
-        deliveryAddress: formData.deliveryAddress,
-        notes: formData.notes || undefined,
-        floor: formData.floor ? Number(formData.floor) : undefined,
-        assemblyNote: formData.assemblyNote || undefined,
-        assemblyCharge: Number(formData.assemblyCharge),
-        deliveryCharge: Number(formData.deliveryCharge),
-        floorDelivery: formData.floorDelivery,
-        assemblyService: formData.assemblyService,
+        soId,
+        driverId: driverId.trim() || undefined,
+        vehicle: vehicle.trim() || undefined,
+        status: "SCHEDULED",
+        scheduledDate: scheduledDate ? new Date(`${scheduledDate}T12:00:00Z`).toISOString() : new Date().toISOString(),
+        deliveryAddress,
+        notes: notes.trim() || undefined,
       });
-      
-      toast("Delivery Scheduled", { description: `The delivery route has been successfully scheduled.` });
+
+      toast.success("Delivery Challan Created", {
+        description: "The delivery has been scheduled. You can now assign a driver and dispatch.",
+      });
       onClose();
     } catch (error) {
       toast.error("Scheduling failed", { description: getErrorMessage(error) });
     }
   };
 
+  const selectedOrderLabel = salesOrders.data?.items.find((so) => so.id === soId);
+
   return (
-    <Card className="mb-6 border-primary/20 bg-primary/5">
-      <CardHeader>
-        <div>
-          <CardTitle>Schedule Delivery</CardTitle>
-          <CardDescription>Assign a sales order to a delivery route and driver.</CardDescription>
+    <Card className="border-0 shadow-none bg-background">
+      <CardHeader className="pb-3 border-b">
+        <div className="flex items-center gap-2">
+          <Truck className="h-5 w-5 text-primary" />
+          <div>
+            <CardTitle className="text-base font-bold">Schedule Delivery Challan</CardTitle>
+            <CardDescription className="text-xs">
+              Pick the order, date, and optionally assign a driver. You can always reassign later.
+            </CardDescription>
+          </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          <div className="space-y-2 lg:col-span-2">
+      <CardContent className="space-y-4">
+        <div className="grid gap-4 md:grid-cols-2">
+          {/* Sales Order */}
+          <div className="space-y-1.5 md:col-span-2">
             <label className="text-sm font-medium">Sales Order *</label>
-            <select 
-              className="flex h-11 w-full rounded-2xl border border-border bg-white/90 px-4 text-sm"
-              value={formData.soId}
+            <select
+              className="flex h-10 w-full rounded-xl border border-border bg-white dark:bg-zinc-900 px-3 text-sm font-medium"
+              value={soId}
               onChange={(e) => {
-                const soId = e.target.value;
-                setFormData({ ...formData, soId });
+                setSoId(e.target.value);
+                const order = salesOrders.data?.items.find((so) => so.id === e.target.value);
+                if (order?.customer) {
+                  setDeliveryAddress(`${order.customer} - Local Delivery`);
+                }
               }}
             >
-              <option value="">Select a ready sales order</option>
-              {salesOrders.data?.items.filter(so => so.rawStatus !== "QUOTE" && so.rawStatus !== "CANCELLED" && so.rawStatus !== "DELIVERED").map(so => (
-                <option key={so.id} value={so.id}>{so.id} - {so.customer}</option>
+              <option value="">-- Select sales order --</option>
+              {salesOrders.data?.items
+                .filter((so) => so.rawStatus !== "QUOTE" && so.rawStatus !== "CANCELLED" && so.rawStatus !== "DELIVERED")
+                .map((so) => (
+                  <option key={so.id} value={so.id}>
+                    {so.customer} — {so.status}
+                  </option>
+                ))}
+            </select>
+            {selectedOrderLabel && (
+              <p className="text-[10px] text-muted-foreground">
+                Order ID: <span className="font-mono">{soId}</span>
+              </p>
+            )}
+          </div>
+
+          {/* Scheduled Date */}
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">Delivery Date *</label>
+            <NepaliDatePickerInput
+              value={scheduledDate}
+              onChange={(date) => {
+                const yyyy = date.getFullYear();
+                const mm = String(date.getMonth() + 1).padStart(2, "0");
+                const dd = String(date.getDate()).padStart(2, "0");
+                setScheduledDate(`${yyyy}-${mm}-${dd}`);
+              }}
+            />
+          </div>
+
+          {/* Delivery Address */}
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">Delivery Address *</label>
+            <Input
+              placeholder="Customer delivery location"
+              value={deliveryAddress}
+              onChange={(e) => setDeliveryAddress(e.target.value)}
+              className="h-10 rounded-xl"
+            />
+          </div>
+
+          {/* Driver */}
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">Driver <span className="text-muted-foreground font-normal">(optional)</span></label>
+            <select
+              className="flex h-10 w-full rounded-xl border border-border bg-white dark:bg-zinc-900 px-3 text-sm font-medium"
+              value={driverId}
+              onChange={(e) => setDriverId(e.target.value)}
+            >
+              <option value="">-- Assign later --</option>
+              {driversList.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name} ({d.role})
+                </option>
               ))}
             </select>
           </div>
-          
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Scheduled Date *</label>
-            <NepaliDatePickerInput 
-              value={formData.scheduledDate} 
-              onChange={(date) => setFormData({ ...formData, scheduledDate: date.toISOString().split("T")[0] })} 
+
+          {/* Vehicle */}
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">Vehicle <span className="text-muted-foreground font-normal">(optional)</span></label>
+            <Input
+              placeholder="e.g. Ba 2 Cha 4567"
+              value={vehicle}
+              onChange={(e) => setVehicle(e.target.value)}
+              className="h-10 rounded-xl"
             />
           </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Driver Assignment</label>
-            <Input 
-              placeholder="Driver's Name or ID" 
-              value={formData.driverId} 
-              onChange={(e) => setFormData({ ...formData, driverId: e.target.value })} 
+          {/* Notes */}
+          <div className="space-y-1.5 md:col-span-2">
+            <label className="text-sm font-medium">Notes <span className="text-muted-foreground font-normal">(optional)</span></label>
+            <Input
+              placeholder="Any special delivery instructions..."
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              className="h-10 rounded-xl"
             />
           </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Vehicle / Route</label>
-            <Input 
-              placeholder="e.g. Van 2 - North Route" 
-              value={formData.vehicle} 
-              onChange={(e) => setFormData({ ...formData, vehicle: e.target.value })} 
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Status</label>
-            <select 
-              className="flex h-11 w-full rounded-2xl border border-border bg-white/90 px-4 text-sm"
-              value={formData.status}
-              onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-            >
-              <option value="SCHEDULED">SCHEDULED</option>
-              <option value="OUT_FOR_DELIVERY">OUT FOR DELIVERY</option>
-              <option value="DELIVERED">DELIVERED</option>
-            </select>
-          </div>
-
-          <div className="space-y-2 lg:col-span-3">
-            <label className="text-sm font-medium">Delivery Address *</label>
-            <Input 
-              placeholder="Full shipping address" 
-              value={formData.deliveryAddress} 
-              onChange={(e) => setFormData({ ...formData, deliveryAddress: e.target.value })} 
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Delivery Floor</label>
-            <Input 
-              type="number"
-              value={formData.floor} 
-              onChange={(e) => setFormData({ ...formData, floor: e.target.value })} 
-              placeholder="e.g. 3"
-            />
-          </div>
-
-          <div className="space-y-4 md:col-span-2 lg:col-span-2 border rounded-2xl p-4 bg-white/50">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <input 
-                  type="checkbox" 
-                  id="floorDelivery"
-                  checked={formData.floorDelivery} 
-                  onChange={(e) => setFormData({ ...formData, floorDelivery: e.target.checked })} 
-                />
-                <label htmlFor="floorDelivery" className="text-sm font-medium">Floor Delivery Service</label>
-              </div>
-              <div className="flex items-center gap-2">
-                <input 
-                  type="checkbox" 
-                  id="assemblyService"
-                  checked={formData.assemblyService} 
-                  onChange={(e) => setFormData({ ...formData, assemblyService: e.target.checked })} 
-                />
-                <label htmlFor="assemblyService" className="text-sm font-medium">Assembly Service</label>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <label className="text-xs text-muted-foreground">Delivery Charge</label>
-                <Input 
-                  type="number"
-                  value={formData.deliveryCharge} 
-                  onChange={(e) => setFormData({ ...formData, deliveryCharge: e.target.value })} 
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs text-muted-foreground">Assembly Charge</label>
-                <Input 
-                  type="number"
-                  value={formData.assemblyCharge} 
-                  onChange={(e) => setFormData({ ...formData, assemblyCharge: e.target.value })} 
-                />
-              </div>
-            </div>
-          </div>
-
-          <Input 
-            className="md:col-span-1 lg:col-span-1"
-            placeholder="Assembly Instructions" 
-            value={formData.assemblyNote} 
-            onChange={(e) => setFormData({ ...formData, assemblyNote: e.target.value })} 
-          />
-          <Input 
-            className="md:col-span-2 lg:col-span-2"
-            placeholder="General Delivery Notes" 
-            value={formData.notes} 
-            onChange={(e) => setFormData({ ...formData, notes: e.target.value })} 
-          />
         </div>
 
-        <div className="flex gap-3 justify-end mt-6 border-t border-border pt-4">
-          <Button variant="outline" onClick={onClose} disabled={createDelivery.isPending}>
+        <div className="flex gap-3 justify-end pt-2 border-t border-border">
+          <Button variant="outline" onClick={onClose} disabled={createDelivery.isPending} className="rounded-xl">
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={createDelivery.isPending}>
-            {createDelivery.isPending ? "Scheduling..." : "Schedule Delivery"}
+          <Button onClick={handleSubmit} disabled={createDelivery.isPending} className="rounded-xl font-bold">
+            {createDelivery.isPending ? "Creating..." : "Create Delivery Challan"}
           </Button>
         </div>
       </CardContent>
