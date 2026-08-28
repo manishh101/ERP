@@ -118,7 +118,7 @@ export default function ArLedgerPage() {
             {ledger.isLoading ? (
               <Skeleton className="h-[400px]" />
             ) : ledger.data ? (
-              <div className="rounded-2xl border border-border overflow-hidden">
+              <div className="rounded-2xl border border-border overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>

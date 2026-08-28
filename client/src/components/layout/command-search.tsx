@@ -173,7 +173,7 @@ export function CommandSearch({
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
-      if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
+      if ((e.key === "k" || e.key === "K") && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
         onOpenChange(!open);
       }
@@ -258,13 +258,17 @@ export function CommandSearch({
           onValueChange={setSearch}
           className="h-14 text-base"
         />
-        <div className="flex items-center justify-between px-4 pb-3 text-xs text-muted-foreground">
+        <div
+          className="flex items-center justify-between px-4 pb-3 text-xs text-muted-foreground"
+          aria-live="polite"
+          aria-atomic="true"
+        >
           <span>
             {queryEnabled
               ? `${accessibleResults.length} results`
               : `Type ${MIN_SEARCH_LENGTH}+ characters to search`}
           </span>
-          {(isFetching || searchIsSettling) && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+          {(isFetching || searchIsSettling) && <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />}
         </div>
       </div>
 

@@ -387,7 +387,7 @@ export function PurchaseOrderDetailPage() {
                   No line items attached to this purchase order.
                 </p>
               ) : (
-                <div className="rounded-xl border overflow-hidden">
+                <div className="rounded-xl border overflow-x-auto">
                   <Table>
                     <TableHeader className="bg-muted/50">
                       <TableRow>

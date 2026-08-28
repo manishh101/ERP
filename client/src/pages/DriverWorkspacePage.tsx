@@ -486,10 +486,11 @@ export function DriverWorkspacePage() {
 
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <Label className="text-xs font-bold text-foreground flex items-center gap-1.5">
+              <Label htmlFor="pod-driver-notes" className="text-xs font-bold text-foreground flex items-center gap-1.5">
                 <FileText className="h-4 w-4 text-primary" /> Delivery Particulars / Receiver Notes
               </Label>
               <Textarea
+                id="pod-driver-notes"
                 placeholder="e.g. Received by Gate Manager Ramesh. Checked all 10 items undamaged."
                 value={driverNotes}
                 onChange={(e) => setDriverNotes(e.target.value)}
@@ -498,10 +499,11 @@ export function DriverWorkspacePage() {
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs font-bold text-foreground flex items-center gap-1.5">
+              <Label htmlFor="pod-photo-url" className="text-xs font-bold text-foreground flex items-center gap-1.5">
                 <Camera className="h-4 w-4 text-primary" /> Proof Photo / Signature URL (Optional)
               </Label>
               <Input
+                id="pod-photo-url"
                 placeholder="Photo URL or attachment string"
                 value={proofPhotoUrl}
                 onChange={(e) => setProofPhotoUrl(e.target.value)}

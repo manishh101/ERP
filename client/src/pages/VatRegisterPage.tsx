@@ -231,7 +231,7 @@ export default function VatRegisterPage() {
           {vatRegister.isLoading ? (
             <Skeleton className="h-[400px] rounded-2xl" />
           ) : vatRegister.data ? (
-            <div className="rounded-2xl border border-border overflow-hidden">
+            <div className="rounded-2xl border border-border overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-slate-100/70 border-b border-border">

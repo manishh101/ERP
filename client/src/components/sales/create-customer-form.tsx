@@ -74,15 +74,23 @@ export function CreateCustomerForm({ onClose, initialData }: CreateCustomerFormP
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          <Input 
-            placeholder="Customer Name *" 
-            value={formData.name} 
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })} 
-          />
-          <div className="space-y-2">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="space-y-1">
+            <label htmlFor="customer-name" className="text-xs font-semibold text-muted-foreground">Customer Name *</label>
+            <Input 
+              id="customer-name"
+              placeholder="Customer Name *" 
+              aria-label="Customer Name"
+              value={formData.name} 
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })} 
+            />
+          </div>
+          <div className="space-y-1">
+            <label htmlFor="customer-type" className="text-xs font-semibold text-muted-foreground">Customer Type</label>
             <select 
-              className="flex h-11 w-full rounded-2xl border border-border bg-white/90 px-4 text-sm"
+              id="customer-type"
+              aria-label="Customer Type"
+              className="flex h-11 w-full rounded-2xl border border-border bg-white/90 px-4 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:bg-zinc-800"
               value={formData.type}
               onChange={(e) => setFormData({ ...formData, type: e.target.value })}
             >
@@ -90,53 +98,95 @@ export function CreateCustomerForm({ onClose, initialData }: CreateCustomerFormP
               <option value="SHOWROOM">SHOWROOM</option>
             </select>
           </div>
-          <Input 
-            placeholder="Credit Limit *" 
-            type="number"
-            step="0.01"
-            value={formData.creditLimit} 
-            onChange={(e) => setFormData({ ...formData, creditLimit: e.target.value })} 
-          />
-          <Input 
-            placeholder="Email Address" 
-            type="email"
-            value={formData.email} 
-            onChange={(e) => setFormData({ ...formData, email: e.target.value })} 
-          />
-          <Input 
-            placeholder="Phone Number" 
-            value={formData.phone} 
-            onChange={(e) => setFormData({ ...formData, phone: e.target.value })} 
-          />
-          <Input 
-            className="md:col-span-1 lg:col-span-1"
-            placeholder="Full Address *" 
-            value={formData.address} 
-            onChange={(e) => setFormData({ ...formData, address: e.target.value })} 
-          />
-          <Input 
-            placeholder="District" 
-            value={formData.district} 
-            onChange={(e) => setFormData({ ...formData, district: e.target.value })} 
-          />
-          <Input 
-            placeholder="Ward No." 
-            value={formData.ward} 
-            onChange={(e) => setFormData({ ...formData, ward: e.target.value })} 
-          />
-          <Input 
-            placeholder="PAN Number" 
-            value={formData.panNo} 
-            onChange={(e) => setFormData({ ...formData, panNo: e.target.value })} 
-          />
-          <Input 
-            placeholder="VAT Number" 
-            value={formData.vatNo} 
-            onChange={(e) => setFormData({ ...formData, vatNo: e.target.value })} 
-          />
-          <div className="space-y-2">
+          <div className="space-y-1">
+            <label htmlFor="customer-credit-limit" className="text-xs font-semibold text-muted-foreground">Credit Limit *</label>
+            <Input 
+              id="customer-credit-limit"
+              placeholder="Credit Limit *" 
+              aria-label="Credit Limit"
+              type="number"
+              step="0.01"
+              value={formData.creditLimit} 
+              onChange={(e) => setFormData({ ...formData, creditLimit: e.target.value })} 
+            />
+          </div>
+          <div className="space-y-1">
+            <label htmlFor="customer-email" className="text-xs font-semibold text-muted-foreground">Email Address</label>
+            <Input 
+              id="customer-email"
+              placeholder="Email Address" 
+              aria-label="Email Address"
+              type="email"
+              value={formData.email} 
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })} 
+            />
+          </div>
+          <div className="space-y-1">
+            <label htmlFor="customer-phone" className="text-xs font-semibold text-muted-foreground">Phone Number</label>
+            <Input 
+              id="customer-phone"
+              placeholder="Phone Number" 
+              aria-label="Phone Number"
+              value={formData.phone} 
+              onChange={(e) => setFormData({ ...formData, phone: e.target.value })} 
+            />
+          </div>
+          <div className="space-y-1 sm:col-span-2 lg:col-span-1">
+            <label htmlFor="customer-address" className="text-xs font-semibold text-muted-foreground">Full Address *</label>
+            <Input 
+              id="customer-address"
+              placeholder="Full Address *" 
+              aria-label="Full Address"
+              value={formData.address} 
+              onChange={(e) => setFormData({ ...formData, address: e.target.value })} 
+            />
+          </div>
+          <div className="space-y-1">
+            <label htmlFor="customer-district" className="text-xs font-semibold text-muted-foreground">District</label>
+            <Input 
+              id="customer-district"
+              placeholder="District" 
+              aria-label="District"
+              value={formData.district} 
+              onChange={(e) => setFormData({ ...formData, district: e.target.value })} 
+            />
+          </div>
+          <div className="space-y-1">
+            <label htmlFor="customer-ward" className="text-xs font-semibold text-muted-foreground">Ward No.</label>
+            <Input 
+              id="customer-ward"
+              placeholder="Ward No." 
+              aria-label="Ward Number"
+              value={formData.ward} 
+              onChange={(e) => setFormData({ ...formData, ward: e.target.value })} 
+            />
+          </div>
+          <div className="space-y-1">
+            <label htmlFor="customer-pan" className="text-xs font-semibold text-muted-foreground">PAN Number</label>
+            <Input 
+              id="customer-pan"
+              placeholder="PAN Number" 
+              aria-label="PAN Number"
+              value={formData.panNo} 
+              onChange={(e) => setFormData({ ...formData, panNo: e.target.value })} 
+            />
+          </div>
+          <div className="space-y-1">
+            <label htmlFor="customer-vat" className="text-xs font-semibold text-muted-foreground">VAT Number</label>
+            <Input 
+              id="customer-vat"
+              placeholder="VAT Number" 
+              aria-label="VAT Number"
+              value={formData.vatNo} 
+              onChange={(e) => setFormData({ ...formData, vatNo: e.target.value })} 
+            />
+          </div>
+          <div className="space-y-1">
+            <label htmlFor="customer-invoice-pref" className="text-xs font-semibold text-muted-foreground">Tax Preference</label>
             <select 
-              className="flex h-11 w-full rounded-2xl border border-border bg-white/90 px-4 text-sm"
+              id="customer-invoice-pref"
+              aria-label="Invoice Preference"
+              className="flex h-11 w-full rounded-2xl border border-border bg-white/90 px-4 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:bg-zinc-800"
               value={formData.invoicePref}
               onChange={(e) => setFormData({ ...formData, invoicePref: e.target.value })}
             >

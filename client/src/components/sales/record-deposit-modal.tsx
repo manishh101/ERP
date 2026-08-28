@@ -106,7 +106,7 @@ export function RecordDepositModal({
           {/* Amount and Presets */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-semibold text-foreground">Payment Amount (Rs.) *</label>
+              <label htmlFor="deposit-amount-input" className="text-xs font-semibold text-foreground">Payment Amount (Rs.) *</label>
               {maxOutstanding > 0 && (
                 <div className="flex items-center gap-1">
                   <Button
@@ -141,10 +141,12 @@ export function RecordDepositModal({
             </div>
 
             <Input
+              id="deposit-amount-input"
               type="number"
               step="0.01"
               autoFocus
               placeholder="0.00"
+              aria-label="Payment Amount"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               onKeyDown={(e) => {
@@ -162,10 +164,12 @@ export function RecordDepositModal({
           </div>
 
           {/* Payment Method & Reference */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <label className="text-xs font-medium">Payment Mode *</label>
+              <label htmlFor="deposit-payment-mode" className="text-xs font-medium">Payment Mode *</label>
               <select
+                id="deposit-payment-mode"
+                aria-label="Payment Mode"
                 className="flex h-11 w-full rounded-xl border border-input bg-background px-3 text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                 value={method}
                 onChange={(e) => setMethod(e.target.value)}
@@ -179,9 +183,11 @@ export function RecordDepositModal({
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-medium">Reference / Note</label>
+              <label htmlFor="deposit-reference-input" className="text-xs font-medium">Reference / Note</label>
               <Input
+                id="deposit-reference-input"
                 placeholder="Cheque #, txn ref, note"
+                aria-label="Reference or Note"
                 value={reference}
                 onChange={(e) => setReference(e.target.value)}
                 className="h-11 rounded-xl text-xs"

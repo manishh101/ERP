@@ -392,7 +392,8 @@ export function DeliveryPage() {
               </div>
             </div>
 
-            <table className="w-full text-xs text-left border-collapse border">
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs text-left border-collapse border">
               <thead>
                 <tr className="bg-muted/50 border-b">
                   <th className="p-2 border">Challan #</th>
@@ -422,6 +423,7 @@ export function DeliveryPage() {
                 ))}
               </tbody>
             </table>
+            </div>
 
             <div className="pt-6 border-t flex justify-between text-xs text-muted-foreground">
               <div>
