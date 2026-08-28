@@ -12,10 +12,68 @@ import {
   manifestQuerySchema,
 } from "../schemas/domain";
 import { ApiError } from "../utils/api-error";
+import { normalizeName } from "../utils/identity";
 import { getPagination } from "../utils/pagination";
 import { invalidateDashboardCache } from "../config/redis";
 
 export const deliveriesRouter = Router();
+
+async function resolveDriverId(
+  tx: any,
+  tenantId: string,
+  driverId?: string,
+  newDriverName?: string,
+  newDriverPhone?: string,
+): Promise<string | undefined> {
+  if (newDriverName && newDriverName.trim() !== "") {
+    const normName = normalizeName(newDriverName);
+    const normPhone = newDriverPhone ? newDriverPhone.trim() : null;
+
+    let existingDriver = await tx.user.findFirst({
+      where: {
+        tenantId,
+        role: "DRIVER",
+        OR: [
+          ...(normPhone ? [{ phone: normPhone }] : []),
+          { name: { equals: normName, mode: "insensitive" } },
+        ],
+      },
+    });
+
+    if (!existingDriver) {
+      const phoneSlug = normPhone ? normPhone.replace(/\D/g, "") : Date.now().toString();
+      const generatedEmail = `driver.${phoneSlug}.${Math.random().toString(36).substring(2, 6)}@erp.local`;
+
+      existingDriver = await tx.user.create({
+        data: {
+          tenantId,
+          name: normName,
+          phone: normPhone,
+          email: generatedEmail,
+          role: "DRIVER",
+          isActive: true,
+        },
+      });
+    } else if (normPhone && !existingDriver.phone) {
+      existingDriver = await tx.user.update({
+        where: { id: existingDriver.id },
+        data: { phone: normPhone },
+      });
+    }
+
+    return existingDriver.id;
+  }
+
+  if (driverId && driverId.trim() !== "") {
+    const driverUser = await tx.user.findFirst({
+      where: { id: driverId, tenantId },
+    });
+    if (!driverUser) throw new ApiError(400, "Selected driver user was not found");
+    return driverUser.id;
+  }
+
+  return undefined;
+}
 
 deliveriesRouter.use(requireAuth);
 
@@ -85,7 +143,7 @@ deliveriesRouter.post(
   validate(deliverySchema),
   asyncHandler(async (request, response) => {
     const body = request.validated?.body as ReturnType<typeof deliverySchema.parse>;
-    const driverId = body.driverId && body.driverId.trim() !== "" ? body.driverId : undefined;
+    const { newDriverName, newDriverPhone, ...deliveryBody } = body;
 
     const delivery = await prisma.$transaction(async (tx) => {
       const order = await tx.salesOrder.findFirst({
@@ -93,20 +151,21 @@ deliveriesRouter.post(
       });
       if (!order) throw new ApiError(404, "Sales Order not found");
 
-      if (driverId) {
-        const driverUser = await tx.user.findFirst({
-          where: { id: driverId, tenantId: request.user!.tenantId },
-        });
-        if (!driverUser) throw new ApiError(400, "Selected driver user was not found");
-      }
+      const resolvedDriverId = await resolveDriverId(
+        tx,
+        request.user!.tenantId,
+        body.driverId,
+        newDriverName,
+        newDriverPhone,
+      );
 
       const now = new Date();
       const actualDeliveryDate = body.actualDeliveryDate || (body.status === "DELIVERED" ? now : undefined);
 
       const created = await tx.delivery.create({
         data: {
-          ...body,
-          driverId: driverId ?? null,
+          ...deliveryBody,
+          driverId: resolvedDriverId ?? null,
           actualDeliveryDate,
           completedAt: body.status === "DELIVERED" ? now : undefined,
           tenantId: request.user!.tenantId,
@@ -252,6 +311,7 @@ deliveriesRouter.patch(
   asyncHandler(async (request, response) => {
     const params = request.validated?.params as { id: string };
     const body = request.validated?.body as ReturnType<typeof deliveryUpdateSchema.parse>;
+    const { newDriverName, newDriverPhone, ...deliveryBody } = body;
 
     const delivery = await prisma.$transaction(async (tx) => {
       const existing = await tx.delivery.findFirst({
@@ -264,6 +324,17 @@ deliveriesRouter.patch(
         throw new ApiError(403, "Access denied: cannot update delivery assigned to another driver");
       }
 
+      let updatedDriverId: string | undefined | null = existing.driverId;
+      if (newDriverName || body.driverId !== undefined) {
+        updatedDriverId = (await resolveDriverId(
+          tx,
+          request.user!.tenantId,
+          body.driverId,
+          newDriverName,
+          newDriverPhone,
+        )) ?? null;
+      }
+
       const now = new Date();
       const isBecomingDelivered = body.status === "DELIVERED";
       const actualDeliveryDate = body.actualDeliveryDate || (isBecomingDelivered ? now : existing.actualDeliveryDate);
@@ -271,7 +342,8 @@ deliveriesRouter.patch(
       const updated = await tx.delivery.update({
         where: { id: params.id },
         data: {
-          ...body,
+          ...deliveryBody,
+          driverId: updatedDriverId,
           actualDeliveryDate,
           completedAt: isBecomingDelivered ? (existing.completedAt || now) : body.status ? undefined : existing.completedAt,
         },

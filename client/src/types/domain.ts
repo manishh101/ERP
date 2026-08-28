@@ -634,6 +634,7 @@ export type UserRow = {
   id: string;
   name: string;
   email: string;
+  phone?: string | null;
   role: string;
   rawRole: UserRole;
   isActive: boolean;

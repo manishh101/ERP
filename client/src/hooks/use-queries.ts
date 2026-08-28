@@ -2310,6 +2310,8 @@ export function useEstimateBillsQuery() {
 export type DeliveryCreatePayload = {
   soId: string;
   driverId?: string;
+  newDriverName?: string;
+  newDriverPhone?: string;
   status: string;
   scheduledDate: string;
   vehicle?: string;
@@ -2340,6 +2342,7 @@ export function useCreateDeliveryMutation() {
       queryClient.invalidateQueries({ queryKey: ["sales-order"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["inventory"] });
+      queryClient.invalidateQueries({ queryKey: ["users"] });
     },
   });
 }
@@ -2351,6 +2354,8 @@ export type DeliveryUpdatePayload = {
   notes?: string;
   proofPhotoUrl?: string;
   driverId?: string;
+  newDriverName?: string;
+  newDriverPhone?: string;
   vehicle?: string;
   receiverName?: string;
   receiverPhone?: string;
@@ -2376,6 +2381,7 @@ export function useUpdateDeliveryMutation() {
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["ar-ledger"] });
       queryClient.invalidateQueries({ queryKey: ["inventory"] });
+      queryClient.invalidateQueries({ queryKey: ["users"] });
     },
   });
 }

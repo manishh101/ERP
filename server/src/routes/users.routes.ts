@@ -12,10 +12,10 @@ import { getPagination } from "../utils/pagination";
 export const usersRouter = Router();
 
 usersRouter.use(requireAuth);
-usersRouter.use(requireRole(["ADMIN"]));
 
 usersRouter.get(
   "/",
+  requireRole(["ADMIN", "WAREHOUSE", "SALES", "ACCOUNTANT"]),
   validate(listQuerySchema, "query"),
   asyncHandler(async (request, response) => {
     const query = request.validated?.query as { page: number; pageSize: number; search?: string };
@@ -45,6 +45,7 @@ usersRouter.get(
           id: true,
           name: true,
           email: true,
+          phone: true,
           role: true,
           isActive: true,
           createdAt: true,
@@ -64,6 +65,7 @@ usersRouter.get(
 
 usersRouter.post(
   "/invite",
+  requireRole(["ADMIN"]),
   validate(userSchema),
   asyncHandler(async (request, response) => {
     const body = request.validated?.body as ReturnType<typeof userSchema.parse>;
@@ -95,6 +97,7 @@ usersRouter.post(
 
 usersRouter.patch(
   "/:id",
+  requireRole(["ADMIN"]),
   validate(idParamSchema, "params"),
   validate(userUpdateSchema),
   asyncHandler(async (request, response) => {
@@ -129,6 +132,7 @@ usersRouter.patch(
 
 usersRouter.post(
   "/clear-database",
+  requireRole(["ADMIN"]),
   asyncHandler(async (request, response) => {
     // Delete only active tenant's records using model deleteMany (which is auto-filtered by Prisma Client Extension)
     // We execute them in order of dependency to avoid foreign key violations

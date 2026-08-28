@@ -61,6 +61,9 @@ export function DeliveryPage() {
   const [isAssigningDriver, setIsAssigningDriver] = useState(false);
   const [editDriverId, setEditDriverId] = useState("");
   const [editVehicle, setEditVehicle] = useState("");
+  const [isNewDriverMode, setIsNewDriverMode] = useState(false);
+  const [newDriverName, setNewDriverName] = useState("");
+  const [newDriverPhone, setNewDriverPhone] = useState("");
 
   // Auto-open form when navigated from Order page with ?scheduleFor=<soId>
   useEffect(() => {
@@ -144,13 +147,29 @@ export function DeliveryPage() {
   const handleAssignDriver = async () => {
     if (!selectedDeliveryId) return;
     try {
-      await updateDelivery.mutateAsync({
-        id: selectedDeliveryId,
-        driverId: editDriverId || undefined,
-        vehicle: editVehicle.trim() || undefined,
-      });
-      toast.success("Driver and vehicle reassigned successfully!");
+      if (isNewDriverMode) {
+        if (!newDriverName.trim()) {
+          toast.error("Please enter the driver's name");
+          return;
+        }
+        await updateDelivery.mutateAsync({
+          id: selectedDeliveryId,
+          newDriverName: newDriverName.trim(),
+          newDriverPhone: newDriverPhone.trim() || undefined,
+          vehicle: editVehicle.trim() || undefined,
+        });
+      } else {
+        await updateDelivery.mutateAsync({
+          id: selectedDeliveryId,
+          driverId: editDriverId || undefined,
+          vehicle: editVehicle.trim() || undefined,
+        });
+      }
+      toast.success("Driver and vehicle assigned successfully!");
       setIsAssigningDriver(false);
+      setIsNewDriverMode(false);
+      setNewDriverName("");
+      setNewDriverPhone("");
     } catch (err) {
       toast.error("Driver assignment failed", { description: getErrorMessage(err) });
     }
@@ -521,25 +540,78 @@ export function DeliveryPage() {
                 {/* Quick Driver Assignment Inline Editor */}
                 {isAssigningDriver ? (
                   <div className="p-3 bg-primary/5 rounded-2xl border border-primary/20 space-y-3">
-                    <p className="text-xs font-bold text-primary flex items-center gap-1.5">
-                      <UserCheck className="h-4 w-4" /> Assign Driver & Vehicle
-                    </p>
-                    <div className="space-y-2 text-xs">
-                      <div>
-                        <Label className="text-[11px]">Driver</Label>
-                        <select
-                          className="w-full h-9 rounded-xl border border-border bg-white text-xs px-2.5 font-medium"
-                          value={editDriverId}
-                          onChange={(e) => setEditDriverId(e.target.value)}
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-bold text-primary flex items-center gap-1.5">
+                        <UserCheck className="h-4 w-4" /> Assign Driver & Vehicle
+                      </p>
+                      {!isNewDriverMode ? (
+                        <button
+                          type="button"
+                          onClick={() => setIsNewDriverMode(true)}
+                          className="text-[11px] font-bold text-primary hover:underline"
                         >
-                          <option value="">-- Select Driver --</option>
-                          {driversList.map((d) => (
-                            <option key={d.id} value={d.id}>
-                              {d.name} ({d.role})
+                          + Write New Driver
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setIsNewDriverMode(false)}
+                          className="text-[11px] text-muted-foreground hover:underline"
+                        >
+                          Select Existing Driver
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="space-y-2 text-xs">
+                      {!isNewDriverMode ? (
+                        <div>
+                          <Label className="text-[11px]">Driver</Label>
+                          <select
+                            className="w-full h-9 rounded-xl border border-border bg-white text-xs px-2.5 font-medium"
+                            value={editDriverId}
+                            onChange={(e) => {
+                              if (e.target.value === "NEW_DRIVER") {
+                                setIsNewDriverMode(true);
+                                setEditDriverId("");
+                              } else {
+                                setEditDriverId(e.target.value);
+                              }
+                            }}
+                          >
+                            <option value="">-- Select Driver --</option>
+                            {driversList.map((d) => (
+                              <option key={d.id} value={d.id}>
+                                {d.name} {d.phone ? `(${d.phone})` : ""}
+                              </option>
+                            ))}
+                            <option value="NEW_DRIVER" className="font-bold text-primary">
+                              + Write New Driver Name & Phone
                             </option>
-                          ))}
-                        </select>
-                      </div>
+                          </select>
+                        </div>
+                      ) : (
+                        <div className="space-y-2 pt-1 border-t border-primary/10">
+                          <div>
+                            <Label className="text-[11px]">Driver Name *</Label>
+                            <Input
+                              placeholder="e.g. Ram Bahadur Shrestha"
+                              value={newDriverName}
+                              onChange={(e) => setNewDriverName(e.target.value)}
+                              className="h-8 text-xs rounded-lg mt-0.5 bg-white"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-[11px]">Phone Number</Label>
+                            <Input
+                              placeholder="e.g. 9841234567"
+                              value={newDriverPhone}
+                              onChange={(e) => setNewDriverPhone(e.target.value)}
+                              className="h-8 text-xs rounded-lg mt-0.5 bg-white"
+                            />
+                          </div>
+                        </div>
+                      )}
 
                       <div>
                         <Label className="text-[11px]">Vehicle Number</Label>
@@ -565,7 +637,10 @@ export function DeliveryPage() {
                         size="sm"
                         variant="ghost"
                         className="h-8 text-xs rounded-xl"
-                        onClick={() => setIsAssigningDriver(false)}
+                        onClick={() => {
+                          setIsAssigningDriver(false);
+                          setIsNewDriverMode(false);
+                        }}
                       >
                         Cancel
                       </Button>

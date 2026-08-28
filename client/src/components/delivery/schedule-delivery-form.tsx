@@ -22,6 +22,9 @@ export function ScheduleDeliveryForm({ onClose, defaultSoId }: ScheduleDeliveryF
 
   const [soId, setSoId] = useState(defaultSoId ?? "");
   const [driverId, setDriverId] = useState("");
+  const [isNewDriverMode, setIsNewDriverMode] = useState(false);
+  const [newDriverName, setNewDriverName] = useState("");
+  const [newDriverPhone, setNewDriverPhone] = useState("");
   const [vehicle, setVehicle] = useState("");
   const [scheduledDate, setScheduledDate] = useState(() => {
     const today = new Date();
@@ -49,11 +52,17 @@ export function ScheduleDeliveryForm({ onClose, defaultSoId }: ScheduleDeliveryF
       toast.error("Please enter a delivery address (min 4 characters).");
       return;
     }
+    if (isNewDriverMode && !newDriverName.trim()) {
+      toast.error("Please enter the driver's name.");
+      return;
+    }
 
     try {
       await createDelivery.mutateAsync({
         soId,
-        driverId: driverId.trim() || undefined,
+        driverId: isNewDriverMode ? undefined : driverId.trim() || undefined,
+        newDriverName: isNewDriverMode ? newDriverName.trim() : undefined,
+        newDriverPhone: isNewDriverMode ? (newDriverPhone.trim() || undefined) : undefined,
         vehicle: vehicle.trim() || undefined,
         status: "SCHEDULED",
         scheduledDate: scheduledDate ? new Date(`${scheduledDate}T12:00:00Z`).toISOString() : new Date().toISOString(),
@@ -62,7 +71,9 @@ export function ScheduleDeliveryForm({ onClose, defaultSoId }: ScheduleDeliveryF
       });
 
       toast.success("Delivery Challan Created", {
-        description: "The delivery has been scheduled. You can now assign a driver and dispatch.",
+        description: isNewDriverMode
+          ? "Driver saved to system and delivery scheduled successfully!"
+          : "The delivery has been scheduled. You can now dispatch.",
       });
       onClose();
     } catch (error) {
@@ -80,7 +91,7 @@ export function ScheduleDeliveryForm({ onClose, defaultSoId }: ScheduleDeliveryF
           <div>
             <CardTitle className="text-base font-bold">Schedule Delivery Challan</CardTitle>
             <CardDescription className="text-xs">
-              Pick the order, date, and optionally assign a driver. You can always reassign later.
+              Pick the order, date, and assign or enter a new driver.
             </CardDescription>
           </div>
         </div>
@@ -143,25 +154,87 @@ export function ScheduleDeliveryForm({ onClose, defaultSoId }: ScheduleDeliveryF
           </div>
 
           {/* Driver */}
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">Driver <span className="text-muted-foreground font-normal">(optional)</span></label>
-            <select
-              className="flex h-10 w-full rounded-xl border border-border bg-white dark:bg-zinc-900 px-3 text-sm font-medium"
-              value={driverId}
-              onChange={(e) => setDriverId(e.target.value)}
-            >
-              <option value="">-- Assign later --</option>
-              {driversList.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name} ({d.role})
+          <div className="space-y-1.5 md:col-span-2">
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium">Driver <span className="text-muted-foreground font-normal">(optional)</span></label>
+              {!isNewDriverMode ? (
+                <button
+                  type="button"
+                  onClick={() => setIsNewDriverMode(true)}
+                  className="text-xs text-primary font-semibold hover:underline"
+                >
+                  + Add New Driver
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsNewDriverMode(false);
+                    setNewDriverName("");
+                    setNewDriverPhone("");
+                  }}
+                  className="text-xs text-muted-foreground hover:underline"
+                >
+                  Select Existing Driver
+                </button>
+              )}
+            </div>
+
+            {!isNewDriverMode ? (
+              <select
+                className="flex h-10 w-full rounded-xl border border-border bg-white dark:bg-zinc-900 px-3 text-sm font-medium"
+                value={driverId}
+                onChange={(e) => {
+                  if (e.target.value === "NEW_DRIVER") {
+                    setIsNewDriverMode(true);
+                    setDriverId("");
+                  } else {
+                    setDriverId(e.target.value);
+                  }
+                }}
+              >
+                <option value="">-- Assign later --</option>
+                {driversList.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name} {d.phone ? `(${d.phone})` : ""}
+                  </option>
+                ))}
+                <option value="NEW_DRIVER" className="font-bold text-primary">
+                  + Add New Driver (Write Name & Phone)
                 </option>
-              ))}
-            </select>
+              </select>
+            ) : (
+              <div className="p-3 bg-primary/5 rounded-xl border border-primary/20 space-y-3">
+                <p className="text-xs font-bold text-primary">
+                  New Driver Information (Will be saved as Driver in System)
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground">Driver Name *</label>
+                    <Input
+                      placeholder="e.g. Ram Bahadur Shrestha"
+                      value={newDriverName}
+                      onChange={(e) => setNewDriverName(e.target.value)}
+                      className="h-9 text-xs rounded-lg mt-1"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground">Phone Number</label>
+                    <Input
+                      placeholder="e.g. 9841234567"
+                      value={newDriverPhone}
+                      onChange={(e) => setNewDriverPhone(e.target.value)}
+                      className="h-9 text-xs rounded-lg mt-1"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Vehicle */}
           <div className="space-y-1.5">
-            <label className="text-sm font-medium">Vehicle <span className="text-muted-foreground font-normal">(optional)</span></label>
+            <label className="text-sm font-medium">Vehicle Number <span className="text-muted-foreground font-normal">(optional)</span></label>
             <Input
               placeholder="e.g. Ba 2 Cha 4567"
               value={vehicle}

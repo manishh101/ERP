@@ -338,6 +338,8 @@ export const journalEntrySchema = z
 export const deliverySchema = z.object({
   soId: z.string().min(1),
   driverId: z.string().optional(),
+  newDriverName: z.string().optional(),
+  newDriverPhone: z.string().optional(),
   status: z.nativeEnum(DeliveryStatus).default(DeliveryStatus.SCHEDULED),
   scheduledDate: z.coerce.date(),
   vehicle: z.string().optional(),
@@ -399,6 +401,7 @@ export const invoiceTemplateSchema = z.object({
 export const userSchema = z.object({
   name: z.string().min(2),
   email: z.string().email(),
+  phone: z.string().optional(),
   password: z.string().min(8),
   role: z.nativeEnum(UserRole),
   isActive: z.boolean().default(true),

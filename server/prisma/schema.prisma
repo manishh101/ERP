@@ -827,6 +827,7 @@ model User {
   tenant                Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   name                  String
   email                 String          @unique
+  phone                 String?
   passwordHash          String?         @map("password_hash")
   googleId              String?         @unique @map("google_id")
   role                  UserRole
