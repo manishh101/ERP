@@ -116,6 +116,22 @@ customersRouter.get(
             orderDate: "desc",
           },
         },
+        taxInvoices: {
+          orderBy: { issueDate: "desc" },
+        },
+        deliveries: {
+          include: {
+            driver: true,
+          },
+          orderBy: { scheduledDate: "desc" },
+        },
+        activityLog: {
+          include: {
+            user: true,
+          },
+          orderBy: { timestamp: "desc" },
+          take: 100,
+        },
       },
     });
 

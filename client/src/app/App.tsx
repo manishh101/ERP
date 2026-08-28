@@ -28,6 +28,7 @@ import { SuppliersPage } from "@/pages/SuppliersPage";
 import { SupplierProfilePage } from "@/pages/SupplierProfilePage";
 import { SupplierInvoicesPage } from "@/pages/SupplierInvoicesPage";
 import { UsersPage } from "@/pages/UsersPage";
+import { CustomerWorkspacePage } from "@/pages/CustomerWorkspacePage";
 
 function PageLoader() {
   return (
@@ -76,6 +77,7 @@ export function App() {
             {/* Parties directory */}
             <Route path="/parties" element={<PartiesPage />} />
             <Route path="/parties/:id" element={<PartyProfilePage />} />
+            <Route path="/customers/:id" element={<CustomerWorkspacePage />} />
             <Route path="/suppliers" element={<SuppliersPage />} />
             <Route path="/suppliers/:id" element={<SupplierProfilePage />} />
             <Route path="/sales" element={<SalesPage />} />

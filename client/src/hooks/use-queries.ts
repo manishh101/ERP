@@ -1708,11 +1708,45 @@ export type RawCustomerProfile = RawCustomer & {
   salesOrders: Array<{
     id: string;
     status: string;
+    rawStatus?: string;
     orderDate: string;
-    grandTotal: number | string;
+    bsDate?: string;
+    orderAmount?: number | string;
+    total?: number | string;
+    grandTotal?: number | string;
     balanceDue: number | string;
-    taxInvoices: Array<{ id: string; invoiceNo: string; totalInvoiceAmount: number; status: string }>;
-    payments: Array<{ id: string; amount: number; paymentDate: string; method: string }>;
+    paidAmount?: number | string;
+    lineItems?: Array<any>;
+    taxInvoices?: Array<any>;
+    payments?: Array<any>;
+  }>;
+  taxInvoices?: Array<{
+    id: string;
+    invoiceNumber?: string;
+    issueDate?: string;
+    invoiceDate?: string;
+    dueDate?: string | null;
+    status: string;
+    invoiceAmount?: number | string;
+    total?: number | string;
+    taxAmount?: number | string;
+    balanceDue?: number | string;
+    bsDate?: string;
+  }>;
+  deliveries?: Array<{
+    id: string;
+    scheduledDate: string;
+    status: string;
+    deliveryAddress: string;
+    driver?: { name: string } | null;
+  }>;
+  activityLog?: Array<{
+    id: string;
+    timestamp: string;
+    action: string;
+    entityType: string;
+    entityId: string;
+    user?: { name: string } | null;
   }>;
 };
 

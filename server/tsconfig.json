@@ -8,7 +8,7 @@
     "outDir": "dist",
     "rootDir": "src",
     "strict": true,
-    "moduleResolution": "Node",
+    "moduleResolution": "node",
     "ignoreDeprecations": "6.0",
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,

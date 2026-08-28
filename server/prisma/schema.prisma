@@ -439,6 +439,9 @@ model Customer {
   createdAt          DateTime      @default(now()) @map("created_at")
   updatedAt          DateTime      @updatedAt @map("updated_at")
   salesOrders        SalesOrder[]
+  taxInvoices        TaxInvoice[]  @relation("CustomerTaxInvoices")
+  deliveries         Delivery[]    @relation("CustomerDeliveries")
+  activityLog        AuditLog[]    @relation("CustomerActivityLog")
   arLedger           ArLedger[]
   vatRegister        VatRegister[]
 
@@ -528,6 +531,8 @@ model TaxInvoice {
   salesOrder    SalesOrder           @relation(fields: [soId], references: [id], onDelete: Cascade)
   vatRegister   VatRegister?
   lineItems     TaxInvoiceLineItem[]
+  customer      Customer?            @relation("CustomerTaxInvoices", fields: [customerId], references: [id])
+  customerId    String?              @map("customer_id")
 
   @@unique([invoiceNumber, tenantId])
   @@index([soId])
@@ -670,6 +675,8 @@ model Delivery {
   updatedAt       DateTime       @updatedAt @map("updated_at")
   salesOrder      SalesOrder     @relation(fields: [soId], references: [id], onDelete: Cascade)
   driver          User?          @relation(fields: [driverId], references: [id])
+  customer        Customer?      @relation("CustomerDeliveries", fields: [customerId], references: [id])
+  customerId      String?        @map("customer_id")
 
   @@index([driverId, status])
   @@map("deliveries")
@@ -897,15 +904,16 @@ model AuditLog {
   tenantId      String   @map("tenant_id")
   tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   userId        String   @map("user_id")
-  action        String // e.g. CREATE_INVOICE | RECORD_PAYMENT | CREATE_SALES_ORDER | UPDATE_INVOICE
+  action        String   // e.g. CREATE_INVOICE | RECORD_PAYMENT | CREATE_SALES_ORDER | UPDATE_INVOICE
   entityType    String   @map("entity_type") // e.g. TaxInvoice | Payment | SalesOrder
   entityId      String   @map("entity_id")
   previousState Json?    @map("previous_state") // snapshot before mutation (null for creates)
   newState      Json?    @map("new_state") // snapshot after mutation (null for deletes)
   timestamp     DateTime @default(now())
   ipAddress     String?  @map("ip_address")
-
-  user User @relation(fields: [userId], references: [id])
+  customer      Customer? @relation("CustomerActivityLog", fields: [customerId], references: [id])
+  customerId    String?   @map("customer_id")
+  user          User     @relation(fields: [userId], references: [id])
 
   @@index([entityType, entityId])
   @@index([userId, timestamp])
