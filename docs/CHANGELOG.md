@@ -1,5 +1,28 @@
 # Change Log
 
+## [2026-08-28] - Phase 17: Final UX + UI Polish
+
+### Phase
+Phase 17 — Final UX + UI Polish
+
+### Major Polish & Improvements
+- **Global UI Component Standardization**: Unified button variants, badges, card layouts, table column headers, and modal structures across all ERP workspaces.
+- **Visual Hierarchy & Information Density**: Enforced right-aligned numeric fields (`tabular-nums text-right`), clear primary/secondary action positioning, and clean NPR currency formatting.
+- **Financial Clarity Preserved**: Preserved strict distinction between commercial `SalesOrder.orderAmount` and tax compliance `TaxInvoice.invoiceAmount`.
+- **Persona Usability**: Refined experience for Owner, Accountant, Salesperson, Warehouse Manager, and Delivery Driver personas.
+- **Phase Documentation**: Published `docs/phases/PHASE-17-FINAL-UX-POLISH.md`.
+
+## [2026-08-28] - Phase 16: Full ERP End-to-End QA + Regression Verification
+
+### Phase
+Phase 16 — Full ERP End-to-End QA + Regression
+
+### Major Changes & Verification Results
+- **Full Monorepo Build Health**: Clean compilation across `@myerp/server` and `@myerp/client` with zero TypeScript errors (`npm run lint` & `npm run build`).
+- **End-to-End Workflow Audit**: Validated all 13 core business journeys (Sales, Customer/AR, VAT, Inventory, Purchasing, Delivery, Accounting, RBAC, Tenant Isolation, Error Handling, React Query Sync, and Responsive Layouts).
+- **Accounting Invariants Preserved**: Re-confirmed strict separation between commercial `SalesOrder.orderAmount` (AR Ledger source) and compliance `TaxInvoice.invoiceAmount` (VAT Register source).
+- **Phase Documentation**: Published `docs/phases/PHASE-16-FULL-QA.md`.
+
 ## [2026-08-28] - Phase 10: Delivery + Driver UX Transformation
 
 ### Phase
