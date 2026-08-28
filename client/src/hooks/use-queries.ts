@@ -489,7 +489,7 @@ type RawSettingsPayload = {
   }>;
 };
 
-type RawAccount = {
+export type RawAccount = {
   id: string;
   code: string;
   name: string;
@@ -497,15 +497,33 @@ type RawAccount = {
   balance: number | string;
 };
 
-type RawJournalEntryList = PaginatedResponse<{
+export type RawJournalEntryLineItem = {
+  id: string;
+  accountId: string;
+  debit: number | string;
+  credit: number | string;
+  account?: {
+    id: string;
+    code: string;
+    name: string;
+    type: string;
+  } | null;
+};
+
+export type RawJournalEntryDetailed = {
   id: string;
   date: string;
   description: string;
   reference?: string | null;
+  sourceType?: string | null;
+  sourceId?: string | null;
   createdBy?: {
     name: string;
   } | null;
-}>;
+  lines: RawJournalEntryLineItem[];
+};
+
+type RawJournalEntryList = PaginatedResponse<RawJournalEntryDetailed>;
 
 type RawProfitAndLoss = {
   accounts: Array<{
@@ -2805,6 +2823,68 @@ export function useCreateJournalEntryMutation() {
   return useMutation({
     mutationFn: async (payload: JournalEntryCreatePayload) => {
       return apiRequest<any>("/accounting/journal-entries", {
+        method: "POST",
+        token: token!,
+        body: payload,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["accounting-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["journal-entries-list"] });
+    },
+  });
+}
+
+export function useJournalEntriesListQuery(page = 1, pageSize = 20) {
+  const { token, user } = useAuth();
+  const enabled = Boolean(token) && (user?.role === "ADMIN" || user?.role === "ACCOUNTANT");
+
+  return useQuery({
+    queryKey: ["journal-entries-list", page, pageSize, token],
+    enabled,
+    queryFn: async () => {
+      return apiRequest<RawJournalEntryList>("/accounting/journal-entries", {
+        token: token!,
+        query: { page, pageSize },
+      });
+    },
+  });
+}
+
+export type AccountCreatePayload = {
+  code: string;
+  name: string;
+  type: "ASSET" | "LIABILITY" | "EQUITY" | "INCOME" | "EXPENSE";
+  description?: string;
+};
+
+export function useCreateAccountMutation() {
+  const { token } = useAuth();
+  return useMutation({
+    mutationFn: async (payload: AccountCreatePayload) => {
+      return apiRequest<any>("/accounting/accounts", {
+        method: "POST",
+        token: token!,
+        body: payload,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["accounts"] });
+      queryClient.invalidateQueries({ queryKey: ["accounting-summary"] });
+    },
+  });
+}
+
+export type BankImportPayload = {
+  fileName: string;
+  csvContent: string;
+};
+
+export function useBankImportMutation() {
+  const { token } = useAuth();
+  return useMutation({
+    mutationFn: async (payload: BankImportPayload) => {
+      return apiRequest<any>("/accounting/reconcile/import", {
         method: "POST",
         token: token!,
         body: payload,

@@ -82,3 +82,36 @@
   margin-top: 4px;
 }
 
+/* ── Print styles for financial reports and invoices ──────────────────── */
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+  }
+
+  aside,
+  header,
+  nav,
+  .no-print,
+  button:not(.print-keep),
+  .print-hide {
+    display: none !important;
+  }
+
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+  }
+
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+
+  th, td {
+    border: 1px solid #e2e8f0 !important;
+    padding: 6px 8px !important;
+  }
+}
+

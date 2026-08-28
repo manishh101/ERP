@@ -133,29 +133,40 @@ export default function ArLedgerPage() {
                   <TableBody>
                     <TableRow className="bg-muted/50 font-medium">
                       <TableCell colSpan={5}>Opening Balance</TableCell>
-                      <TableCell className="text-right">{formatCurrency(filterYear ? filteredOpeningBalance : ledger.data.openingBalance)}</TableCell>
+                      <TableCell className="text-right font-mono font-bold tabular-nums">{formatCurrency(filterYear ? filteredOpeningBalance : ledger.data.openingBalance)}</TableCell>
                     </TableRow>
                     {filteredEntries.map((entry: any) => (
-                      <TableRow key={entry.id}>
-                        <TableCell className="whitespace-nowrap">{formatDate(entry.entryDate)}</TableCell>
-                        <TableCell className="max-w-xs truncate">{entry.narration || entry.entryType.replace(/_/g, " ")}</TableCell>
-                        <TableCell className="font-mono text-xs">{entry.referenceId}</TableCell>
-                        <TableCell className="text-right">
+                      <TableRow key={entry.id} className="hover:bg-secondary/20 transition-colors">
+                        <TableCell className="whitespace-nowrap text-xs">
+                          <div className="font-medium">{formatDate(entry.entryDate)}</div>
+                          {entry.bsDate && <div className="text-[11px] text-muted-foreground font-mono">BS {entry.bsDate}</div>}
+                        </TableCell>
+                        <TableCell className="max-w-xs truncate font-medium">{entry.narration || entry.entryType.replace(/_/g, " ")}</TableCell>
+                        <TableCell className="font-mono text-xs">
+                          {entry.referenceId ? (
+                            <span className="px-2 py-0.5 rounded bg-secondary font-medium text-foreground">
+                              Ref: {entry.referenceId}
+                            </span>
+                          ) : (
+                            "-"
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right font-mono font-semibold text-emerald-700 tabular-nums">
                           {entry.debit > 0 ? formatCurrency(entry.debit) : "-"}
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="text-right font-mono font-semibold text-blue-700 tabular-nums">
                           {entry.credit > 0 ? formatCurrency(entry.credit) : "-"}
                         </TableCell>
-                        <TableCell className="text-right font-semibold">
+                        <TableCell className="text-right font-mono font-bold tabular-nums">
                           {formatCurrency(entry.runningBalance)}
                         </TableCell>
                       </TableRow>
                     ))}
                     <TableRow className="bg-primary/5 font-bold border-t-2 border-primary/20">
                       <TableCell colSpan={3} className="text-right text-base">Total:</TableCell>
-                      <TableCell className="text-right">{formatCurrency(filteredTotalDebit)}</TableCell>
-                      <TableCell className="text-right">{formatCurrency(filteredTotalCredit)}</TableCell>
-                      <TableCell className="text-right text-primary text-base">{formatCurrency(filterYear ? filteredClosingBalance : ledger.data.closingBalance)}</TableCell>
+                      <TableCell className="text-right font-mono text-emerald-800 tabular-nums">{formatCurrency(filteredTotalDebit)}</TableCell>
+                      <TableCell className="text-right font-mono text-blue-800 tabular-nums">{formatCurrency(filteredTotalCredit)}</TableCell>
+                      <TableCell className="text-right text-primary text-base font-mono font-bold tabular-nums">{formatCurrency(filterYear ? filteredClosingBalance : ledger.data.closingBalance)}</TableCell>
                     </TableRow>
                   </TableBody>
                 </Table>

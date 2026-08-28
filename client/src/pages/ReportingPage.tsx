@@ -17,6 +17,7 @@ import {
   Calendar,
   Filter,
   ChevronDown,
+  Printer,
   type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -157,7 +158,7 @@ function KPICard({ label, value, icon: Icon, trendClass, detail, onClick }: {
       <div className="min-w-0">
         <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
         <div className="flex items-center gap-2">
-          <p className="mt-0.5 truncate text-xl font-bold tracking-tight">{value}</p>
+          <p className="mt-0.5 truncate text-xl font-bold tracking-tight font-mono tabular-nums">{value}</p>
         </div>
         {detail && <p className="mt-1 text-xs text-muted-foreground">{detail}</p>}
       </div>
@@ -166,7 +167,7 @@ function KPICard({ label, value, icon: Icon, trendClass, detail, onClick }: {
 }
 
 /**
- * Data Table with export
+ * Data Table with export and print
  */
 function DataTable({ 
   columns, 
@@ -174,7 +175,8 @@ function DataTable({
   title, 
   exportFilename,
   emptyMessage = "No data available",
-  renderRow
+  renderRow,
+  onResetFilters,
 }: {
   columns: { key: string; label: string; render?: (row: any) => React.ReactNode; align?: "left" | "center" | "right" }[];
   data: any[];
@@ -182,6 +184,7 @@ function DataTable({
   exportFilename: string;
   emptyMessage?: string;
   renderRow?: (row: any) => React.ReactNode;
+  onResetFilters?: () => void;
 }) {
   return (
     <Card>
@@ -189,14 +192,25 @@ function DataTable({
         <div>
           <CardTitle>{title}</CardTitle>
         </div>
-        <Button variant="outline" size="sm" onClick={() => exportToCSV(data, exportFilename)}>
-          <Download className="h-4 w-4 mr-2" />
-          Export CSV
-        </Button>
+        <div className="flex items-center gap-2 no-print">
+          <Button variant="outline" size="sm" onClick={() => window.print()}>
+            <Printer className="h-4 w-4 mr-2" /> Print
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => exportToCSV(data, exportFilename)}>
+            <Download className="h-4 w-4 mr-2" /> Export CSV
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
         {data.length === 0 ? (
-          <div className="py-8 text-center text-sm text-muted-foreground">{emptyMessage}</div>
+          <div className="py-12 text-center space-y-3">
+            <p className="text-sm text-muted-foreground">{emptyMessage}</p>
+            {onResetFilters && (
+              <Button variant="outline" size="sm" onClick={onResetFilters}>
+                Reset Filters
+              </Button>
+            )}
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <Table>
@@ -229,7 +243,7 @@ function DataTable({
 }
 
 /**
- * Date Range Picker Component
+ * Date Range Picker Component with Fiscal Year & Quick Presets
  */
 function DateRangePicker({ 
   startDate, 
@@ -246,34 +260,79 @@ function DateRangePicker({
   const [endStr, setEndStr] = useState(endDate?.toISOString().slice(0, 10) || "");
   
   useEffect(() => {
-    if (startDate) setStartStr(startDate.toISOString().slice(0, 10));
-    if (endDate) setEndStr(endDate.toISOString().slice(0, 10));
+    setStartStr(startDate ? startDate.toISOString().slice(0, 10) : "");
+    setEndStr(endDate ? endDate.toISOString().slice(0, 10) : "");
   }, [startDate, endDate]);
 
+  const applyPreset = (preset: string) => {
+    const now = new Date();
+    let s: Date | undefined;
+    let e: Date | undefined;
+
+    if (preset === "this-month") {
+      s = new Date(now.getFullYear(), now.getMonth(), 1);
+      e = now;
+    } else if (preset === "last-month") {
+      s = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      e = new Date(now.getFullYear(), now.getMonth(), 0);
+    } else if (preset === "fy-2080-81") {
+      s = new Date("2023-07-17");
+      e = new Date("2024-07-15");
+    } else if (preset === "fy-2081-82") {
+      s = new Date("2024-07-16");
+      e = new Date("2025-07-15");
+    } else if (preset === "clear") {
+      s = undefined;
+      e = undefined;
+    }
+
+    onChange(s, e);
+  };
+
   return (
-    <div className="flex items-center gap-2">
-      <label className="text-sm font-medium text-muted-foreground">{label}</label>
-      <Input 
-        type="date" 
-        value={startStr} 
-        onChange={(e) => {
-          setStartStr(e.target.value);
-          onChange(e.target.value ? new Date(e.target.value) : undefined, endStr ? new Date(endStr) : undefined);
-        }} 
-        className="w-40"
-        placeholder="Start"
-      />
-      <span className="text-muted-foreground">to</span>
-      <Input 
-        type="date" 
-        value={endStr} 
-        onChange={(e) => {
-          setEndStr(e.target.value);
-          onChange(startStr ? new Date(startStr) : undefined, e.target.value ? new Date(e.target.value) : undefined);
-        }} 
-        className="w-40"
-        placeholder="End"
-      />
+    <div className="flex flex-wrap items-center gap-3 bg-secondary/30 p-2.5 rounded-xl border border-border">
+      <div className="flex items-center gap-2">
+        <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</label>
+        <Input 
+          type="date" 
+          value={startStr} 
+          onChange={(e) => {
+            setStartStr(e.target.value);
+            onChange(e.target.value ? new Date(e.target.value) : undefined, endStr ? new Date(endStr) : undefined);
+          }} 
+          className="w-36 h-9 text-xs"
+        />
+        <span className="text-xs text-muted-foreground font-medium">to</span>
+        <Input 
+          type="date" 
+          value={endStr} 
+          onChange={(e) => {
+            setEndStr(e.target.value);
+            onChange(startStr ? new Date(startStr) : undefined, e.target.value ? new Date(e.target.value) : undefined);
+          }} 
+          className="w-36 h-9 text-xs"
+        />
+      </div>
+
+      <div className="flex items-center gap-1.5 flex-wrap">
+        <Button variant="ghost" size="sm" className="h-8 text-xs font-medium" onClick={() => applyPreset("this-month")}>
+          This Month
+        </Button>
+        <Button variant="ghost" size="sm" className="h-8 text-xs font-medium" onClick={() => applyPreset("last-month")}>
+          Last Month
+        </Button>
+        <Button variant="ghost" size="sm" className="h-8 text-xs font-medium" onClick={() => applyPreset("fy-2080-81")}>
+          FY 2080/81
+        </Button>
+        <Button variant="ghost" size="sm" className="h-8 text-xs font-medium" onClick={() => applyPreset("fy-2081-82")}>
+          FY 2081/82
+        </Button>
+        {(startStr || endStr) && (
+          <Button variant="outline" size="sm" className="h-8 text-xs text-muted-foreground" onClick={() => applyPreset("clear")}>
+            Reset Filters
+          </Button>
+        )}
+      </div>
     </div>
   );
 }

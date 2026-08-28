@@ -258,16 +258,16 @@ export default function VatRegisterPage() {
                       <TableCell className="font-mono text-xs text-muted-foreground">
                         {entry.panNo || "-"}
                       </TableCell>
-                      <TableCell className="text-right font-semibold text-xs tabular-nums">
+                      <TableCell className="text-right font-mono font-semibold text-xs tabular-nums">
                         {formatCurrency(entry.taxableAmount)}
                       </TableCell>
-                      <TableCell className="text-right text-muted-foreground text-xs tabular-nums">
+                      <TableCell className="text-right font-mono text-muted-foreground text-xs tabular-nums">
                         -
                       </TableCell>
-                      <TableCell className="text-right text-emerald-600 font-semibold text-xs tabular-nums">
+                      <TableCell className="text-right font-mono text-emerald-600 font-semibold text-xs tabular-nums">
                         {formatCurrency(entry.outputVat)}
                       </TableCell>
-                      <TableCell className="text-right font-bold text-primary text-xs tabular-nums">
+                      <TableCell className="text-right font-mono font-bold text-primary text-xs tabular-nums">
                         {formatCurrency(entry.totalWithVat)}
                       </TableCell>
                     </TableRow>
@@ -283,14 +283,14 @@ export default function VatRegisterPage() {
                     <TableCell colSpan={4} className="text-xs font-bold uppercase tracking-wider">
                       PERIOD TOTALS ({filteredEntries.length} Invoices)
                     </TableCell>
-                    <TableCell className="text-right text-xs tabular-nums">
+                    <TableCell className="text-right font-mono text-xs tabular-nums font-bold">
                       {formatCurrency(filteredTotals.taxableAmount)}
                     </TableCell>
-                    <TableCell className="text-right text-xs tabular-nums">-</TableCell>
-                    <TableCell className="text-right text-emerald-600 text-xs tabular-nums">
+                    <TableCell className="text-right font-mono text-xs tabular-nums">-</TableCell>
+                    <TableCell className="text-right font-mono text-emerald-600 text-xs tabular-nums font-bold">
                       {formatCurrency(filteredTotals.outputVat)}
                     </TableCell>
-                    <TableCell className="text-right text-primary text-xs tabular-nums font-bold">
+                    <TableCell className="text-right font-mono text-primary text-xs tabular-nums font-bold">
                       {formatCurrency(filteredTotals.totalWithVat)}
                     </TableCell>
                   </TableRow>
